@@ -1,6 +1,6 @@
-# cudf-rs: GPU DataFrame for Rust
+# cudf-rs: Unofficial Rust FFI Bindings for NVIDIA libcudf
 
-**First-ever Rust bindings for libcudf -- zero `unsafe` in public API, zero-cost FFI via cxx, full coverage across 43 modules.**
+**GPU-accelerated DataFrame operations for Rust -- zero `unsafe` in public API, zero-cost FFI via cxx, 47 bridge modules covering the full libcudf surface.**
 
 [![License: MIT/Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-orange?logo=rust)](https://www.rust-lang.org)
@@ -19,10 +19,10 @@ All `unsafe` is confined to the internal FFI layer. Your application code never 
 [cxx](https://cxx.rs) bridge with no serialization overhead -- C++ calls are as cheap as a function pointer indirection.
 
 **Full libcudf Coverage**
-43 modules spanning compute, I/O, strings, and interop. Every libcudf capability is available from Rust.
+47 bridge modules spanning compute, I/O, strings, nested types, and interop.
 
 **Arrow Interop**
-Zero-copy conversion to/from `arrow-rs` via IPC. Move data between GPU and Arrow ecosystems without copying.
+Conversion to/from `arrow-rs` via Arrow IPC. Seamless data exchange between GPU and the Rust Arrow ecosystem.
 
 **Builder-Pattern I/O**
 `ParquetReader`, `CsvReader`, `JsonReader`, `OrcReader`, `AvroReader` -- fluent APIs with compression, column selection, and header control.
@@ -189,6 +189,10 @@ Each libcudf C++ module maps to three files:
 | `partitioning` | Hash and round-robin partitioning |
 | `hashing` | Row-wise hashing (Murmur3, MD5, SHA-256, ...) |
 | `datetime` | Extract year, month, day, hour, ... from timestamp columns |
+| `replace` | Replace nulls, NaNs, and clamp values |
+| `lists` | Explode, sort, contains, and extract on list (nested) columns |
+| `structs` | Extract child columns from struct columns |
+| `dictionary` | Dictionary encoding and decoding |
 
 ### I/O
 
@@ -234,8 +238,10 @@ Each libcudf C++ module maps to three files:
 | Limitation | Details |
 |-----------|---------|
 | Linux only | libcudf only builds on Linux. Cross-compilation from macOS/Windows is not supported. |
-| Avro write | Not supported by libcudf; read-only. |
 | GPU required | All operations require an NVIDIA GPU at runtime. CPU fallback is not provided. |
+| Avro write | Not supported by libcudf; read-only. |
+| Column names | Tables do not carry column name metadata. Track names externally or use positional access. |
+| Semi/anti joins | `left_semi_join` and `left_anti_join` were removed in libcudf 26.x. Use `hash_join` or conditional joins instead. |
 | Decimal types | Limited to fixed-point representations matching libcudf's `Decimal32`/`Decimal64`/`Decimal128`. |
 
 ## Contributing
