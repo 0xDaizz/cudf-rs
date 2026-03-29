@@ -5,7 +5,10 @@ use crate::table::Table;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
-pub enum Compression { None = 0, Snappy = 1, Gzip = 2, Brotli = 3, Bz2 = 4, Lz4 = 5, Zstd = 6 }
+pub enum Compression {
+    None = 0, Auto = 1, Snappy = 2, Gzip = 3, Bzip2 = 4, Brotli = 5,
+    Zip = 6, Xz = 7, Zlib = 8, Lz4 = 9, Lzo = 10, Zstd = 11,
+}
 
 pub struct ParquetReader { path: String, columns: Vec<String>, skip_rows: i64, num_rows: i64 }
 
@@ -24,6 +27,7 @@ pub struct ParquetWriter<'a> { table: &'a Table, path: String, compression: Comp
 
 impl<'a> ParquetWriter<'a> {
     pub fn new(table: &'a Table, path: impl Into<String>) -> Self { Self { table, path: path.into(), compression: Compression::Snappy } }
+
     pub fn compression(mut self, c: Compression) -> Self { self.compression = c; self }
     pub fn write(self) -> Result<()> { cudf_cxx::io::parquet::ffi::write_parquet(&self.table.inner, &self.path, self.compression as i32).map_err(CudfError::from_cxx) }
 }

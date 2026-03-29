@@ -21,12 +21,12 @@ use crate::table::Table;
 /// Controls which duplicate row to keep.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DuplicateKeepOption {
-    /// Keep the first occurrence of each duplicate.
-    First = 0,
-    /// Keep the last occurrence of each duplicate.
-    Last = 1,
     /// Keep any single occurrence of each duplicate.
-    Any = 2,
+    Any = 0,
+    /// Keep the first occurrence of each duplicate.
+    First = 1,
+    /// Keep the last occurrence of each duplicate.
+    Last = 2,
     /// Remove all duplicates entirely.
     None = 3,
 }

@@ -21,7 +21,7 @@ use crate::types::DataType;
 
 /// Binary operations supported by libcudf.
 ///
-/// These map to `cudf::binary_operator` enum values.
+/// These map to `cudf::binary_operator` enum values in libcudf 26.x.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum BinaryOp {
@@ -39,54 +39,62 @@ pub enum BinaryOp {
     FloorDiv = 5,
     /// Modulo
     Mod = 6,
+    /// Positive modulo (result is always >= 0)
+    PMod = 7,
     /// Python-style modulo (result has sign of divisor)
-    PyMod = 7,
+    PyMod = 8,
     /// Power
-    Pow = 8,
+    Pow = 9,
     /// Integer power
-    IntPow = 9,
+    IntPow = 10,
     /// Logarithm with specified base
-    LogBase = 10,
+    LogBase = 11,
     /// Two-argument arctangent
-    Atan2 = 11,
+    Atan2 = 12,
     /// Shift left
-    ShiftLeft = 12,
+    ShiftLeft = 13,
     /// Shift right
-    ShiftRight = 13,
+    ShiftRight = 14,
     /// Unsigned shift right
-    ShiftRightUnsigned = 14,
+    ShiftRightUnsigned = 15,
     /// Bitwise AND
-    BitwiseAnd = 15,
+    BitwiseAnd = 16,
     /// Bitwise OR
-    BitwiseOr = 16,
+    BitwiseOr = 17,
     /// Bitwise XOR
-    BitwiseXor = 17,
+    BitwiseXor = 18,
     /// Logical AND
-    LogicalAnd = 18,
+    LogicalAnd = 19,
     /// Logical OR
-    LogicalOr = 19,
+    LogicalOr = 20,
     /// Equality comparison
-    Equal = 20,
+    Equal = 21,
     /// Inequality comparison
-    NotEqual = 21,
+    NotEqual = 22,
     /// Less than
-    Less = 22,
+    Less = 23,
     /// Greater than
-    Greater = 23,
+    Greater = 24,
     /// Less than or equal
-    LessEqual = 24,
+    LessEqual = 25,
     /// Greater than or equal
-    GreaterEqual = 25,
-    /// Null-aware equality (NULL == NULL → true)
-    NullEquals = 26,
-    /// Null-aware max
-    NullMax = 27,
-    /// Null-aware min
-    NullMin = 28,
+    GreaterEqual = 26,
+    /// Null-aware equality (NULL == NULL -> true)
+    NullEquals = 27,
     /// Null-aware inequality
-    NullNotEquals = 29,
+    NullNotEquals = 28,
+    /// Null-aware max
+    NullMax = 29,
+    /// Null-aware min
+    NullMin = 30,
     /// Generic binary operation (user-defined)
-    GenericBinary = 30,
+    GenericBinary = 31,
+    /// Null-aware logical AND
+    NullLogicalAnd = 32,
+    /// Null-aware logical OR
+    NullLogicalOr = 33,
+    /// Invalid binary operator (sentinel)
+    InvalidBinary = 34,
 }
 
 impl Column {

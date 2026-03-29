@@ -489,9 +489,9 @@ mod enum_tests {
 
     // -- NullOrder --
     #[test]
-    fn null_order_before() { assert_eq!(NullOrder::Before as i32, 0); }
+    fn null_order_after() { assert_eq!(NullOrder::After as i32, 0); }
     #[test]
-    fn null_order_after() { assert_eq!(NullOrder::After as i32, 1); }
+    fn null_order_before() { assert_eq!(NullOrder::Before as i32, 1); }
 
     // -- RankMethod --
     #[test]
@@ -514,35 +514,40 @@ mod enum_tests {
     #[test]
     fn unary_op_first() { assert_eq!(UnaryOp::Sin as i32, 0); }
     #[test]
-    fn unary_op_last() { assert_eq!(UnaryOp::Not as i32, 18); }
+    fn unary_op_last() { assert_eq!(UnaryOp::Negate as i32, 23); }
     #[test]
     fn unary_op_all_values() {
         assert_eq!(UnaryOp::Sin as i32, 0);
         assert_eq!(UnaryOp::Cos as i32, 1);
         assert_eq!(UnaryOp::Tan as i32, 2);
-        assert_eq!(UnaryOp::Asin as i32, 3);
-        assert_eq!(UnaryOp::Acos as i32, 4);
-        assert_eq!(UnaryOp::Atan as i32, 5);
+        assert_eq!(UnaryOp::Arcsin as i32, 3);
+        assert_eq!(UnaryOp::Arccos as i32, 4);
+        assert_eq!(UnaryOp::Arctan as i32, 5);
         assert_eq!(UnaryOp::Sinh as i32, 6);
         assert_eq!(UnaryOp::Cosh as i32, 7);
         assert_eq!(UnaryOp::Tanh as i32, 8);
-        assert_eq!(UnaryOp::Exp as i32, 9);
-        assert_eq!(UnaryOp::Log as i32, 10);
-        assert_eq!(UnaryOp::Sqrt as i32, 11);
-        assert_eq!(UnaryOp::Cbrt as i32, 12);
-        assert_eq!(UnaryOp::Ceil as i32, 13);
-        assert_eq!(UnaryOp::Floor as i32, 14);
-        assert_eq!(UnaryOp::Abs as i32, 15);
-        assert_eq!(UnaryOp::Rint as i32, 16);
-        assert_eq!(UnaryOp::BitInvert as i32, 17);
-        assert_eq!(UnaryOp::Not as i32, 18);
+        assert_eq!(UnaryOp::Arcsinh as i32, 9);
+        assert_eq!(UnaryOp::Arccosh as i32, 10);
+        assert_eq!(UnaryOp::Arctanh as i32, 11);
+        assert_eq!(UnaryOp::Exp as i32, 12);
+        assert_eq!(UnaryOp::Log as i32, 13);
+        assert_eq!(UnaryOp::Sqrt as i32, 14);
+        assert_eq!(UnaryOp::Cbrt as i32, 15);
+        assert_eq!(UnaryOp::Ceil as i32, 16);
+        assert_eq!(UnaryOp::Floor as i32, 17);
+        assert_eq!(UnaryOp::Abs as i32, 18);
+        assert_eq!(UnaryOp::Rint as i32, 19);
+        assert_eq!(UnaryOp::BitCount as i32, 20);
+        assert_eq!(UnaryOp::BitInvert as i32, 21);
+        assert_eq!(UnaryOp::Not as i32, 22);
+        assert_eq!(UnaryOp::Negate as i32, 23);
     }
 
     // -- BinaryOp --
     #[test]
     fn binary_op_first() { assert_eq!(BinaryOp::Add as i32, 0); }
     #[test]
-    fn binary_op_last() { assert_eq!(BinaryOp::GenericBinary as i32, 30); }
+    fn binary_op_last() { assert_eq!(BinaryOp::InvalidBinary as i32, 34); }
     #[test]
     fn binary_op_key_values() {
         assert_eq!(BinaryOp::Add as i32, 0);
@@ -550,23 +555,23 @@ mod enum_tests {
         assert_eq!(BinaryOp::Mul as i32, 2);
         assert_eq!(BinaryOp::Div as i32, 3);
         assert_eq!(BinaryOp::Mod as i32, 6);
-        assert_eq!(BinaryOp::Pow as i32, 8);
-        assert_eq!(BinaryOp::Equal as i32, 20);
-        assert_eq!(BinaryOp::NotEqual as i32, 21);
-        assert_eq!(BinaryOp::Less as i32, 22);
-        assert_eq!(BinaryOp::Greater as i32, 23);
-        assert_eq!(BinaryOp::NullEquals as i32, 26);
-        assert_eq!(BinaryOp::NullNotEquals as i32, 29);
-        assert_eq!(BinaryOp::GenericBinary as i32, 30);
+        assert_eq!(BinaryOp::Pow as i32, 9);
+        assert_eq!(BinaryOp::Equal as i32, 21);
+        assert_eq!(BinaryOp::NotEqual as i32, 22);
+        assert_eq!(BinaryOp::Less as i32, 23);
+        assert_eq!(BinaryOp::Greater as i32, 24);
+        assert_eq!(BinaryOp::NullEquals as i32, 27);
+        assert_eq!(BinaryOp::NullNotEquals as i32, 28);
+        assert_eq!(BinaryOp::GenericBinary as i32, 31);
     }
 
     // -- DuplicateKeepOption --
     #[test]
-    fn duplicate_keep_first() { assert_eq!(DuplicateKeepOption::First as i32, 0); }
+    fn duplicate_keep_any() { assert_eq!(DuplicateKeepOption::Any as i32, 0); }
     #[test]
-    fn duplicate_keep_last() { assert_eq!(DuplicateKeepOption::Last as i32, 1); }
+    fn duplicate_keep_first() { assert_eq!(DuplicateKeepOption::First as i32, 1); }
     #[test]
-    fn duplicate_keep_any() { assert_eq!(DuplicateKeepOption::Any as i32, 2); }
+    fn duplicate_keep_last() { assert_eq!(DuplicateKeepOption::Last as i32, 2); }
     #[test]
     fn duplicate_keep_none() { assert_eq!(DuplicateKeepOption::None as i32, 3); }
 
@@ -623,12 +628,17 @@ mod enum_tests {
     #[test]
     fn compression_values() {
         assert_eq!(Compression::None as i32, 0);
-        assert_eq!(Compression::Snappy as i32, 1);
-        assert_eq!(Compression::Gzip as i32, 2);
-        assert_eq!(Compression::Brotli as i32, 3);
-        assert_eq!(Compression::Bz2 as i32, 4);
-        assert_eq!(Compression::Lz4 as i32, 5);
-        assert_eq!(Compression::Zstd as i32, 6);
+        assert_eq!(Compression::Auto as i32, 1);
+        assert_eq!(Compression::Snappy as i32, 2);
+        assert_eq!(Compression::Gzip as i32, 3);
+        assert_eq!(Compression::Bzip2 as i32, 4);
+        assert_eq!(Compression::Brotli as i32, 5);
+        assert_eq!(Compression::Zip as i32, 6);
+        assert_eq!(Compression::Xz as i32, 7);
+        assert_eq!(Compression::Zlib as i32, 8);
+        assert_eq!(Compression::Lz4 as i32, 9);
+        assert_eq!(Compression::Lzo as i32, 10);
+        assert_eq!(Compression::Zstd as i32, 11);
     }
 }
 

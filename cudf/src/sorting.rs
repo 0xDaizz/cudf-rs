@@ -33,10 +33,10 @@ pub enum SortOrder {
 /// Where null values appear in sorted output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NullOrder {
-    /// Nulls appear before all non-null values.
-    Before = 0,
     /// Nulls appear after all non-null values.
-    After = 1,
+    After = 0,
+    /// Nulls appear before all non-null values.
+    Before = 1,
 }
 
 /// Method used to compute ranks.

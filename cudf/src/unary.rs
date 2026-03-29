@@ -22,7 +22,7 @@ use crate::types::DataType;
 
 /// Unary operations supported by libcudf.
 ///
-/// These map to `cudf::unary_operator` enum values.
+/// These map to `cudf::unary_operator` enum values in libcudf 26.x.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum UnaryOp {
@@ -33,37 +33,47 @@ pub enum UnaryOp {
     /// Trigonometric tangent
     Tan = 2,
     /// Inverse sine
-    Asin = 3,
+    Arcsin = 3,
     /// Inverse cosine
-    Acos = 4,
+    Arccos = 4,
     /// Inverse tangent
-    Atan = 5,
+    Arctan = 5,
     /// Hyperbolic sine
     Sinh = 6,
     /// Hyperbolic cosine
     Cosh = 7,
     /// Hyperbolic tangent
     Tanh = 8,
+    /// Inverse hyperbolic sine
+    Arcsinh = 9,
+    /// Inverse hyperbolic cosine
+    Arccosh = 10,
+    /// Inverse hyperbolic tangent
+    Arctanh = 11,
     /// Exponential (e^x)
-    Exp = 9,
+    Exp = 12,
     /// Natural logarithm
-    Log = 10,
+    Log = 13,
     /// Square root
-    Sqrt = 11,
+    Sqrt = 14,
     /// Cube root
-    Cbrt = 12,
+    Cbrt = 15,
     /// Ceiling
-    Ceil = 13,
+    Ceil = 16,
     /// Floor
-    Floor = 14,
+    Floor = 17,
     /// Absolute value
-    Abs = 15,
+    Abs = 18,
     /// Round to nearest integer
-    Rint = 16,
+    Rint = 19,
+    /// Count of set bits
+    BitCount = 20,
     /// Bitwise invert
-    BitInvert = 17,
+    BitInvert = 21,
     /// Logical not
-    Not = 18,
+    Not = 22,
+    /// Negate
+    Negate = 23,
 }
 
 impl Column {

@@ -112,11 +112,20 @@ impl Column {
 
     /// Copy the null bitmask to a host byte vector.
     /// Each bit indicates whether the corresponding element is valid (1) or null (0).
+    ///
+    /// The buffer is sized to match libcudf's `bitmask_allocation_size_bytes`,
+    /// which pads to 64-byte alignment.
     pub fn null_mask_to_host(&self) -> Result<Vec<u8>> {
-        let num_bytes = (self.len() + 7) / 8;
+        // libcudf's bitmask_allocation_size_bytes pads to 64-byte boundaries.
+        // We must match that to avoid "Output buffer too small" from the C++ side.
+        let num_bits_bytes = (self.len() + 7) / 8;
+        let num_bytes = (num_bits_bytes + 63) & !63; // pad to 64-byte alignment
+        let num_bytes = num_bytes.max(64); // minimum 64 bytes (matches cudf policy)
         let mut buf = vec![0u8; num_bytes];
         cudf_cxx::column::ffi::column_null_mask(&self.inner, &mut buf)
             .map_err(CudfError::from_cxx)?;
+        // Truncate to only the meaningful bytes
+        buf.truncate((self.len() + 7) / 8);
         Ok(buf)
     }
 }
