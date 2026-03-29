@@ -1,0 +1,49 @@
+#include "rolling_shim.h"
+#include <cudf/rolling.hpp>
+#include <cudf/aggregation.hpp>
+#include <cudf/utilities/default_stream.hpp>
+#include <stdexcept>
+
+namespace cudf_shims {
+
+namespace {
+
+/// Create a rolling aggregation from an integer kind.
+std::unique_ptr<cudf::rolling_aggregation> make_rolling_agg(int32_t agg_kind) {
+    switch (agg_kind) {
+        case 0: return cudf::make_sum_aggregation<cudf::rolling_aggregation>();
+        case 1: return cudf::make_min_aggregation<cudf::rolling_aggregation>();
+        case 2: return cudf::make_max_aggregation<cudf::rolling_aggregation>();
+        case 3: return cudf::make_count_aggregation<cudf::rolling_aggregation>();
+        case 4: return cudf::make_mean_aggregation<cudf::rolling_aggregation>();
+        case 5: return cudf::make_collect_list_aggregation<cudf::rolling_aggregation>();
+        case 6: return cudf::make_row_number_aggregation<cudf::rolling_aggregation>();
+        case 7: return cudf::make_lead_aggregation<cudf::rolling_aggregation>(1);
+        case 8: return cudf::make_lag_aggregation<cudf::rolling_aggregation>(1);
+        default:
+            throw std::runtime_error("unknown rolling aggregation kind: " + std::to_string(agg_kind));
+    }
+}
+
+} // anonymous namespace
+
+std::unique_ptr<OwnedColumn> rolling_window(
+    const OwnedColumn& col,
+    int32_t preceding,
+    int32_t following,
+    int32_t min_periods,
+    int32_t agg_kind)
+{
+    auto agg = make_rolling_agg(agg_kind);
+
+    auto result = cudf::rolling_window(
+        col.view(),
+        preceding,
+        following,
+        min_periods,
+        *agg);
+
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+} // namespace cudf_shims

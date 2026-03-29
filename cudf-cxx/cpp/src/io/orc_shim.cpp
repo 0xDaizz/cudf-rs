@@ -1,0 +1,31 @@
+#include "io/orc_shim.h"
+#include <cudf/io/orc.hpp>
+#include <string>
+#include <vector>
+
+namespace cudf_shims {
+
+std::unique_ptr<OwnedTable> read_orc(rust::Str filepath, rust::Slice<const rust::String> columns, int64_t skip_rows, int64_t num_rows) {
+    std::string path(filepath.data(), filepath.size());
+    auto source = cudf::io::source_info(path);
+    auto builder = cudf::io::orc_reader_options::builder(source);
+    if (columns.size() > 0) {
+        std::vector<std::string> cols;
+        for (const auto& c : columns) cols.emplace_back(c.data(), c.size());
+        builder.columns(cols);
+    }
+    if (skip_rows >= 0) builder.skip_rows(skip_rows);
+    if (num_rows >= 0) builder.num_rows(num_rows);
+    auto result = cudf::io::read_orc(builder.build());
+    return std::make_unique<OwnedTable>(std::move(result.tbl));
+}
+
+void write_orc(const OwnedTable& table, rust::Str filepath, int32_t compression) {
+    std::string path(filepath.data(), filepath.size());
+    auto sink = cudf::io::sink_info(path);
+    auto builder = cudf::io::orc_writer_options::builder(sink, table.view());
+    builder.compression(static_cast<cudf::io::compression_type>(compression));
+    cudf::io::write_orc(builder.build());
+}
+
+} // namespace cudf_shims

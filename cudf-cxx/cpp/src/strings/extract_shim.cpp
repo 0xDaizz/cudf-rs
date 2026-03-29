@@ -1,0 +1,20 @@
+#include "strings/extract_shim.h"
+#include <cudf/strings/extract.hpp>
+#include <cudf/strings/regex/regex_program.hpp>
+#include <cudf/utilities/default_stream.hpp>
+#include <string>
+
+namespace cudf_shims {
+
+std::unique_ptr<OwnedTable> str_extract(
+    const OwnedColumn& col, rust::Str pattern)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::string pat(pattern.data(), pattern.size());
+    auto prog = cudf::strings::regex_program::create(pat);
+    auto result = cudf::strings::extract(col.view(), *prog, stream, mr);
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
+} // namespace cudf_shims
