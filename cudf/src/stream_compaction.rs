@@ -156,4 +156,74 @@ impl Column {
         .map_err(CudfError::from_cxx)?;
         Ok(count as usize)
     }
+
+    /// Count the number of consecutive groups of equivalent elements.
+    ///
+    /// This counts "runs" of equal values -- different from `distinct_count`
+    /// which counts globally unique values.
+    pub fn unique_count(&self) -> Result<usize> {
+        let count = cudf_cxx::stream_compaction::ffi::unique_count_column(
+            &self.inner,
+            0, // null_handling: INCLUDE
+            0, // nan_handling: NAN_IS_VALID
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(count as usize)
+    }
+}
+
+impl Table {
+    /// Return indices of distinct rows in this table.
+    ///
+    /// All columns are used as keys for determining distinctness.
+    /// The result is an integer column of row indices.
+    pub fn distinct_indices(&self, keep: DuplicateKeepOption) -> Result<Column> {
+        let raw = cudf_cxx::stream_compaction::ffi::distinct_indices(
+            &self.inner,
+            keep.as_i32(),
+            0, // null_equality: EQUAL
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Return distinct rows preserving input order.
+    ///
+    /// Unlike `distinct`, `stable_distinct` preserves the relative order
+    /// of rows from the input table.
+    pub fn stable_distinct(
+        &self,
+        key_columns: &[usize],
+        keep: DuplicateKeepOption,
+    ) -> Result<Table> {
+        let keys: Vec<i32> = key_columns.iter().map(|&k| k as i32).collect();
+        let raw = cudf_cxx::stream_compaction::ffi::stable_distinct(
+            &self.inner,
+            &keys,
+            keep.as_i32(),
+            0, // null_equality: EQUAL
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: raw })
+    }
+
+    /// Count consecutive groups of equivalent rows in this table.
+    pub fn unique_count(&self) -> Result<usize> {
+        let count = cudf_cxx::stream_compaction::ffi::unique_count_table(
+            &self.inner,
+            0, // null_equality: EQUAL
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(count as usize)
+    }
+
+    /// Count distinct rows in this table.
+    pub fn distinct_count_rows(&self) -> Result<usize> {
+        let count = cudf_cxx::stream_compaction::ffi::distinct_count_table(
+            &self.inner,
+            0, // null_equality: EQUAL
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(count as usize)
+    }
 }

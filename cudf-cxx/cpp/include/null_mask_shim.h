@@ -58,4 +58,46 @@ std::unique_ptr<OwnedColumn> set_null_mask_from_host(
     rust::Slice<const uint8_t> mask,
     int32_t null_count);
 
+/// Set bits in a device bitmask. Operates on the bitmask of the given column.
+/// Returns a new column with the modified bitmask.
+std::unique_ptr<OwnedColumn> set_null_mask_range(
+    const OwnedColumn& col,
+    int32_t begin_bit,
+    int32_t end_bit,
+    bool valid);
+
+/// Copy a column's bitmask to host bytes.
+/// Returns empty vec if column has no null mask.
+rust::Vec<uint8_t> copy_bitmask_to_host(const OwnedColumn& col);
+
+/// Builder for collecting column views for bitmask AND/OR operations.
+struct BitmaskBuilder {
+    std::vector<cudf::column_view> views;
+
+    void add_column(const OwnedColumn& col) {
+        views.push_back(col.view());
+    }
+
+    int32_t num_columns() const {
+        return static_cast<int32_t>(views.size());
+    }
+};
+
+/// Result of a bitmask AND/OR operation.
+struct BitmaskResult {
+    rust::Vec<uint8_t> mask;
+    int32_t null_count;
+
+    rust::Vec<uint8_t> get_mask() const { return mask; }
+    int32_t get_null_count() const { return null_count; }
+};
+
+std::unique_ptr<BitmaskBuilder> bitmask_builder_new();
+
+/// Bitwise AND of null masks from multiple columns.
+std::unique_ptr<BitmaskResult> bitmask_and(const BitmaskBuilder& builder);
+
+/// Bitwise OR of null masks from multiple columns.
+std::unique_ptr<BitmaskResult> bitmask_or(const BitmaskBuilder& builder);
+
 } // namespace cudf_shims

@@ -118,6 +118,45 @@ impl Table {
         cudf_cxx::sorting::ffi::is_sorted(&self.inner, &co, &no).map_err(CudfError::from_cxx)
     }
 
+    /// Stable sort this table, preserving the relative order of equal elements.
+    ///
+    /// `column_order` and `null_order` must have one entry per column.
+    pub fn stable_sort(
+        &self,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Table> {
+        self.validate_order_slices(column_order.len(), null_order.len())?;
+
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::stable_sort(&self.inner, &co, &no)
+            .map_err(CudfError::from_cxx)?;
+
+        Ok(Table { inner: raw })
+    }
+
+    /// Returns a column of row indices that would stably sort this table.
+    ///
+    /// Like [`sorted_order`](Self::sorted_order), but preserves the relative
+    /// order of equal elements.
+    pub fn stable_sorted_order(
+        &self,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Column> {
+        self.validate_order_slices(column_order.len(), null_order.len())?;
+
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::stable_sorted_order(&self.inner, &co, &no)
+            .map_err(CudfError::from_cxx)?;
+
+        Ok(Column { inner: raw })
+    }
+
     /// Validate that order slices match the number of columns.
     fn validate_order_slices(&self, co_len: usize, no_len: usize) -> Result<()> {
         let ncols = self.num_columns();
@@ -140,6 +179,22 @@ impl Table {
 // -- Column methods --
 
 impl Column {
+    /// Return the top `k` values from this column.
+    ///
+    /// # Arguments
+    ///
+    /// * `k` - Number of values to return.
+    /// * `order` - Sort order for selecting top values (descending = largest first).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `k` exceeds the column length or a GPU error occurs.
+    pub fn top_k(&self, k: usize, order: SortOrder) -> Result<Column> {
+        let raw = cudf_cxx::sorting::ffi::top_k(&self.inner, k as i32, order as i32)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
     /// Compute the rank of each element in this column.
     ///
     /// Returns a column of `f64` rank values.

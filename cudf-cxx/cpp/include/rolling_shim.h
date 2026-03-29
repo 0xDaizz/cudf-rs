@@ -5,12 +5,23 @@
 #include <memory>
 #include "rust/cxx.h"
 #include "column_shim.h"
+#include "table_shim.h"
 
 namespace cudf_shims {
 
 /// Fixed-size rolling window aggregation.
 std::unique_ptr<OwnedColumn> rolling_window(
     const OwnedColumn& col,
+    int32_t preceding,
+    int32_t following,
+    int32_t min_periods,
+    int32_t agg_kind);
+
+/// Grouped rolling window aggregation.
+/// The input must be pre-sorted by group_keys.
+std::unique_ptr<OwnedColumn> grouped_rolling_window(
+    const OwnedTable& group_keys,
+    const OwnedColumn& input,
     int32_t preceding,
     int32_t following,
     int32_t min_periods,

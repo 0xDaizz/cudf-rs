@@ -13,4 +13,15 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    /// Join list elements within each row using `separator`.
+    ///
+    /// The input must be a lists column of strings. Each row's list elements
+    /// are concatenated with the separator between them.
+    pub fn str_join_list_elements(&self, separator: &str) -> Result<Column> {
+        let result =
+            cudf_cxx::strings::combine::ffi::str_join_list_elements(&self.inner, separator)
+                .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

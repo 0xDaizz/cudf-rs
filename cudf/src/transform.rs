@@ -14,6 +14,7 @@
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
+use crate::table::Table;
 
 impl Column {
     /// Replace NaN values with nulls in a floating-point column.
@@ -32,4 +33,53 @@ impl Column {
     pub fn bools_to_mask(&self) -> Result<Vec<u8>> {
         cudf_cxx::transform::ffi::bools_to_mask(&self.inner).map_err(CudfError::from_cxx)
     }
+
+    /// One-hot-encode this column against the given categories.
+    ///
+    /// Returns a table where each column corresponds to a category,
+    /// containing boolean values indicating whether the input element
+    /// matches that category.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `self` and `categories` have different types.
+    pub fn one_hot_encode(&self, categories: &Column) -> Result<Table> {
+        let raw = cudf_cxx::transform::ffi::one_hot_encode(&self.inner, &categories.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: raw })
+    }
+}
+
+impl Table {
+    /// Factorize this table (encode).
+    ///
+    /// Returns a tuple of (keys_table, indices_column) where `keys_table`
+    /// contains the distinct rows in sorted order, and `indices_column`
+    /// maps each input row to its corresponding key row index.
+    pub fn encode(&self) -> Result<(Table, Column)> {
+        let mut out_indices = cxx::UniquePtr::null();
+        let keys_table = cudf_cxx::transform::ffi::encode_table(&self.inner, &mut out_indices)
+            .map_err(CudfError::from_cxx)?;
+        Ok((Table { inner: keys_table }, Column { inner: out_indices }))
+    }
+
+    /// Compute per-row bit count across all columns.
+    ///
+    /// Returns an `i32` column where each element is the approximate
+    /// total number of bits used by all columns in that row.
+    pub fn row_bit_count(&self) -> Result<Column> {
+        let raw =
+            cudf_cxx::transform::ffi::row_bit_count(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+}
+
+/// Convert a bitmask (host bytes) to a boolean column.
+///
+/// Returns a `bool` column for each bit in `[begin_bit, end_bit)`.
+/// Bit `i` set (1) produces `true`, unset (0) produces `false`.
+pub fn mask_to_bools(mask_data: &[u8], begin_bit: usize, end_bit: usize) -> Result<Column> {
+    let raw = cudf_cxx::transform::ffi::mask_to_bools(mask_data, begin_bit as i32, end_bit as i32)
+        .map_err(CudfError::from_cxx)?;
+    Ok(Column { inner: raw })
 }

@@ -74,4 +74,39 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
+
+    /// Replace null values using a fill policy.
+    ///
+    /// `Preceding` fills each null with the first non-null value before it.
+    /// `Following` fills each null with the first non-null value after it.
+    pub fn replace_nulls_policy(&self, policy: NullReplacePolicy) -> Result<Column> {
+        let raw = cudf_cxx::replace::ffi::replace_nulls_policy(&self.inner, policy as i32)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Find and replace all occurrences of specified values.
+    ///
+    /// For each element in `self`, if it matches a value in `old_values`,
+    /// it is replaced with the corresponding value in `new_values`.
+    /// `old_values` and `new_values` must have the same length and type
+    /// as `self`.
+    pub fn find_and_replace_all(&self, old_values: &Column, new_values: &Column) -> Result<Column> {
+        let raw = cudf_cxx::replace::ffi::find_and_replace_all(
+            &self.inner,
+            &old_values.inner,
+            &new_values.inner,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+}
+
+/// Policy for replacing null values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NullReplacePolicy {
+    /// Replace with the first non-null value preceding the null.
+    Preceding = 0,
+    /// Replace with the first non-null value following the null.
+    Following = 1,
 }

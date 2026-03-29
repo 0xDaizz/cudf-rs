@@ -64,5 +64,23 @@ pub mod ffi {
 
         /// Check whether a table is already sorted.
         fn is_sorted(table: &OwnedTable, column_order: &[i32], null_order: &[i32]) -> Result<bool>;
+
+        /// Returns a column of row indices that would stably sort the table.
+        fn stable_sorted_order(
+            table: &OwnedTable,
+            column_order: &[i32],
+            null_order: &[i32],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Stable sort a table by its columns.
+        fn stable_sort(
+            table: &OwnedTable,
+            column_order: &[i32],
+            null_order: &[i32],
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Return the top k values of a column.
+        /// order: 0=ascending, 1=descending.
+        fn top_k(col: &OwnedColumn, k: i32, order: i32) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

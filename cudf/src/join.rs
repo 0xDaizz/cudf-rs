@@ -162,3 +162,99 @@ fn extract_join_result(
         right_indices: Column { inner: right },
     })
 }
+
+// ── Hash Join ─────────────────────────────────────────────────
+
+/// A pre-hashed join object for efficient repeated probing.
+///
+/// `HashJoin` pre-computes a hash table from the "build" (right) table's
+/// key columns. You can then probe it multiple times with different
+/// "probe" (left) tables without re-hashing the build side.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use cudf::{Column, Table};
+/// use cudf::join::HashJoin;
+///
+/// let build_keys = Table::new(vec![
+///     Column::from_slice(&[2i32, 3, 5]).unwrap(),
+/// ]).unwrap();
+///
+/// let hj = HashJoin::new(&build_keys).unwrap();
+///
+/// let probe_keys = Table::new(vec![
+///     Column::from_slice(&[1i32, 2, 3, 4]).unwrap(),
+/// ]).unwrap();
+///
+/// let result = hj.inner_join(&probe_keys).unwrap();
+/// ```
+pub struct HashJoin {
+    inner: cxx::UniquePtr<cudf_cxx::join::ffi::OwnedHashJoin>,
+}
+
+// SAFETY: GPU memory is process-global; HashJoin can be safely moved to another thread.
+unsafe impl Send for HashJoin {}
+
+impl HashJoin {
+    /// Create a hash join from the build (right) table's key columns.
+    ///
+    /// The build table is hashed once at construction time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a GPU error occurs.
+    pub fn new(build: &Table) -> Result<Self> {
+        let inner =
+            cudf_cxx::join::ffi::hash_join_create(&build.inner).map_err(CudfError::from_cxx)?;
+        Ok(Self { inner })
+    }
+
+    /// Perform an inner join by probing with the given table.
+    ///
+    /// Returns gather maps (index pairs) for constructing the joined table.
+    pub fn inner_join(&self, probe: &Table) -> Result<JoinResult> {
+        let maps = cudf_cxx::join::ffi::hash_join_inner(&self.inner, &probe.inner)
+            .map_err(CudfError::from_cxx)?;
+        extract_join_result(maps)
+    }
+
+    /// Perform a left join by probing with the given table.
+    ///
+    /// All rows from the probe table are preserved.
+    pub fn left_join(&self, probe: &Table) -> Result<JoinResult> {
+        let maps = cudf_cxx::join::ffi::hash_join_left(&self.inner, &probe.inner)
+            .map_err(CudfError::from_cxx)?;
+        extract_join_result(maps)
+    }
+
+    /// Perform a full outer join by probing with the given table.
+    ///
+    /// All rows from both tables are preserved.
+    pub fn full_join(&self, probe: &Table) -> Result<JoinResult> {
+        let maps = cudf_cxx::join::ffi::hash_join_full(&self.inner, &probe.inner)
+            .map_err(CudfError::from_cxx)?;
+        extract_join_result(maps)
+    }
+
+    /// Estimate the output size for an inner join.
+    pub fn inner_join_size(&self, probe: &Table) -> Result<usize> {
+        let sz = cudf_cxx::join::ffi::hash_join_inner_size(&self.inner, &probe.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(sz as usize)
+    }
+
+    /// Estimate the output size for a left join.
+    pub fn left_join_size(&self, probe: &Table) -> Result<usize> {
+        let sz = cudf_cxx::join::ffi::hash_join_left_size(&self.inner, &probe.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(sz as usize)
+    }
+
+    /// Estimate the output size for a full join.
+    pub fn full_join_size(&self, probe: &Table) -> Result<usize> {
+        let sz = cudf_cxx::join::ffi::hash_join_full_size(&self.inner, &probe.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(sz as usize)
+    }
+}

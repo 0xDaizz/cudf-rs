@@ -24,5 +24,28 @@ pub mod ffi {
             table: &OwnedTable,
             num_partitions: i32,
         ) -> Result<UniquePtr<OwnedTable>>;
+
+        // ── Partition by map ──────────────────────────────────────
+
+        /// Opaque result type for partition (table + offsets).
+        type PartitionResult;
+
+        fn num_offsets(self: &PartitionResult) -> i32;
+        fn get_offset(self: &PartitionResult, index: i32) -> i32;
+
+        /// Partition a table using a partition map column.
+        fn partition(
+            table: &OwnedTable,
+            partition_map: &OwnedColumn,
+            num_partitions: i32,
+        ) -> Result<UniquePtr<PartitionResult>>;
+
+        /// Extract the table from a PartitionResult.
+        fn partition_result_table(
+            result: UniquePtr<PartitionResult>,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Get the offsets from a PartitionResult.
+        fn partition_result_offsets(result: &PartitionResult) -> Vec<i32>;
     }
 }

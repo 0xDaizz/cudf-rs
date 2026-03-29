@@ -119,4 +119,55 @@ int32_t distinct_count_column(
     return cudf::distinct_count(col.view(), nh, nanp);
 }
 
+std::unique_ptr<OwnedColumn> distinct_indices(
+    const OwnedTable& table,
+    int32_t keep,
+    int32_t null_equality)
+{
+    auto result = cudf::distinct_indices(
+        table.view(),
+        to_keep_option(keep),
+        to_null_equality(null_equality));
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedTable> stable_distinct(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> keys,
+    int32_t keep,
+    int32_t null_equality)
+{
+    auto key_vec = to_size_type_vec(keys);
+    auto result = cudf::stable_distinct(
+        table.view(),
+        key_vec,
+        to_keep_option(keep),
+        to_null_equality(null_equality));
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
+int32_t unique_count_column(
+    const OwnedColumn& col,
+    int32_t null_handling,
+    int32_t nan_handling)
+{
+    auto nh = null_handling == 0 ? cudf::null_policy::INCLUDE : cudf::null_policy::EXCLUDE;
+    auto nanp = nan_handling == 0 ? cudf::nan_policy::NAN_IS_VALID : cudf::nan_policy::NAN_IS_NULL;
+    return cudf::unique_count(col.view(), nh, nanp);
+}
+
+int32_t unique_count_table(
+    const OwnedTable& table,
+    int32_t null_equality)
+{
+    return cudf::unique_count(table.view(), to_null_equality(null_equality));
+}
+
+int32_t distinct_count_table(
+    const OwnedTable& table,
+    int32_t null_equality)
+{
+    return cudf::distinct_count(table.view(), to_null_equality(null_equality));
+}
+
 } // namespace cudf_shims

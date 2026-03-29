@@ -13,8 +13,18 @@
 //! let partitioned = table.hash_partition(&[0], 3).unwrap();
 //! ```
 
+use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+
+/// Result of a partition operation.
+pub struct PartitionResult {
+    /// The reordered table with rows grouped by partition.
+    pub table: Table,
+    /// Offsets to the start of each partition. Partition `i` spans
+    /// rows `offsets[i]..offsets[i+1]`.
+    pub offsets: Vec<i32>,
+}
 
 impl Table {
     /// Partition this table by hashing the specified columns.
@@ -45,5 +55,37 @@ impl Table {
             cudf_cxx::partitioning::ffi::round_robin_partition(&self.inner, num_partitions as i32)
                 .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
+    }
+
+    /// Partition this table using a partition map column.
+    ///
+    /// Each element in `partition_map` specifies which partition (0..num_partitions)
+    /// the corresponding row belongs to. Returns a [`PartitionResult`] with
+    /// the reordered table and partition offsets.
+    ///
+    /// # Arguments
+    ///
+    /// * `partition_map` - Integer column mapping each row to a partition.
+    /// * `num_partitions` - Number of partitions to create.
+    pub fn partition(
+        &self,
+        partition_map: &Column,
+        num_partitions: usize,
+    ) -> Result<PartitionResult> {
+        let result = cudf_cxx::partitioning::ffi::partition(
+            &self.inner,
+            &partition_map.inner,
+            num_partitions as i32,
+        )
+        .map_err(CudfError::from_cxx)?;
+
+        let offsets = cudf_cxx::partitioning::ffi::partition_result_offsets(&result);
+        let table_raw = cudf_cxx::partitioning::ffi::partition_result_table(result)
+            .map_err(CudfError::from_cxx)?;
+
+        Ok(PartitionResult {
+            table: Table { inner: table_raw },
+            offsets,
+        })
     }
 }

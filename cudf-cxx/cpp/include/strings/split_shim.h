@@ -13,4 +13,10 @@ std::unique_ptr<OwnedTable> str_split(
 std::unique_ptr<OwnedTable> str_rsplit(
     const OwnedColumn& col, rust::Str delimiter, int32_t maxsplit);
 
+/// Split each string into a list column of strings.
+std::unique_ptr<OwnedColumn> str_split_record(
+    const OwnedColumn& col, rust::Str delimiter, int32_t maxsplit);
+std::unique_ptr<OwnedColumn> str_rsplit_record(
+    const OwnedColumn& col, rust::Str delimiter, int32_t maxsplit);
+
 } // namespace cudf_shims

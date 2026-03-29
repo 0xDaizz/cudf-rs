@@ -9,6 +9,7 @@
 #include "rust/cxx.h"
 #include "column_shim.h"
 #include "table_shim.h"
+#include "scalar_shim.h"
 
 namespace cudf_shims {
 
@@ -76,5 +77,50 @@ void copy_range(
     int32_t source_begin,
     int32_t source_end,
     int32_t target_begin);
+
+// ── Reverse ───────────────────────────────────────────────────
+
+/// Reverse the rows of a table.
+std::unique_ptr<OwnedTable> reverse_table(const OwnedTable& table);
+
+/// Reverse the elements of a column.
+std::unique_ptr<OwnedColumn> reverse_column(const OwnedColumn& col);
+
+// ── Shift ─────────────────────────────────────────────────────
+
+/// Shift column elements by offset, filling with fill_value.
+std::unique_ptr<OwnedColumn> shift_column(
+    const OwnedColumn& col,
+    int32_t offset,
+    const OwnedScalar& fill_value);
+
+// ── Get Element ───────────────────────────────────────────────
+
+/// Get a single element from a column as a scalar.
+std::unique_ptr<OwnedScalar> get_element(
+    const OwnedColumn& col,
+    int32_t index);
+
+// ── Sample ────────────────────────────────────────────────────
+
+/// Randomly sample n rows from a table.
+std::unique_ptr<OwnedTable> sample(
+    const OwnedTable& table,
+    int32_t n,
+    bool with_replacement,
+    int64_t seed);
+
+// ── Boolean Mask Scatter ──────────────────────────────────────
+
+/// Scatter input rows into target at positions where boolean_mask is true.
+std::unique_ptr<OwnedTable> boolean_mask_scatter(
+    const OwnedTable& input,
+    const OwnedColumn& boolean_mask,
+    const OwnedTable& target);
+
+// ── Has Nonempty Nulls ────────────────────────────────────────
+
+/// Check if a column has non-empty null elements.
+bool has_nonempty_nulls(const OwnedColumn& col);
 
 } // namespace cudf_shims

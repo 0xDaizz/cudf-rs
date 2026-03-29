@@ -60,7 +60,36 @@ pub enum ScanOp {
     Max = 3,
 }
 
+/// Result of a [`Column::minmax`] operation.
+pub struct MinMaxResult {
+    /// The minimum value.
+    pub min: Scalar,
+    /// The maximum value.
+    pub max: Scalar,
+}
+
 impl Column {
+    /// Compute the minimum and maximum values simultaneously.
+    ///
+    /// This is more efficient than calling `reduce(Min)` and `reduce(Max)`
+    /// separately, as it requires only a single pass over the data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the column type does not support comparison
+    /// or if a GPU error occurs.
+    pub fn minmax(&self) -> Result<MinMaxResult> {
+        let mut raw = cudf_cxx::reduction::ffi::minmax(&self.inner).map_err(CudfError::from_cxx)?;
+        let min_raw = cudf_cxx::reduction::ffi::minmax_take_min(raw.pin_mut())
+            .map_err(CudfError::from_cxx)?;
+        let max_raw = cudf_cxx::reduction::ffi::minmax_take_max(raw.pin_mut())
+            .map_err(CudfError::from_cxx)?;
+        Ok(MinMaxResult {
+            min: Scalar { inner: min_raw },
+            max: Scalar { inner: max_raw },
+        })
+    }
+
     /// Reduce the entire column to a single scalar value.
     ///
     /// # Arguments

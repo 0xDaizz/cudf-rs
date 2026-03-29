@@ -51,4 +51,55 @@ impl Table {
         let raw = cudf_cxx::hashing::ffi::hash_sha256(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
+
+    /// Hash each row using SHA-1.
+    ///
+    /// Returns a string column of hex-encoded hash values.
+    pub fn hash_sha1(&self) -> Result<Column> {
+        let raw = cudf_cxx::hashing::ffi::hash_sha1(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Hash each row using SHA-224.
+    ///
+    /// Returns a string column of hex-encoded hash values.
+    pub fn hash_sha224(&self) -> Result<Column> {
+        let raw = cudf_cxx::hashing::ffi::hash_sha224(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Hash each row using SHA-384.
+    ///
+    /// Returns a string column of hex-encoded hash values.
+    pub fn hash_sha384(&self) -> Result<Column> {
+        let raw = cudf_cxx::hashing::ffi::hash_sha384(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Hash each row using SHA-512.
+    ///
+    /// Returns a string column of hex-encoded hash values.
+    pub fn hash_sha512(&self) -> Result<Column> {
+        let raw = cudf_cxx::hashing::ffi::hash_sha512(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Hash each row using xxHash32.
+    ///
+    /// Returns an `i32` column of hash values.
+    pub fn hash_xxhash32(&self, seed: u32) -> Result<Column> {
+        let raw = cudf_cxx::hashing::ffi::hash_xxhash32(&self.inner, seed)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Hash each row using MurmurHash3 x64 128-bit.
+    ///
+    /// Returns a 2-column table where the two columns together form
+    /// a 128-bit hash per row.
+    pub fn hash_murmurhash3_x64_128(&self, seed: u64) -> Result<Table> {
+        let raw = cudf_cxx::hashing::ffi::hash_murmurhash3_x64_128(&self.inner, seed)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: raw })
+    }
 }

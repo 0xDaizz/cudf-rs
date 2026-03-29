@@ -103,4 +103,46 @@ std::unique_ptr<OwnedTable> left_anti_join(
     return package_single_map(std::move(map));
 }
 
+// ── Hash Join ─────────────────────────────────────────────────
+
+std::unique_ptr<OwnedHashJoin> hash_join_create(const OwnedTable& build) {
+    auto hj = std::make_unique<cudf::hash_join>(
+        build.view(),
+        cudf::null_equality::EQUAL);
+    return std::make_unique<OwnedHashJoin>(std::move(hj));
+}
+
+std::unique_ptr<OwnedTable> hash_join_inner(
+    const OwnedHashJoin& hj, const OwnedTable& probe)
+{
+    auto [left_map, right_map] = hj.inner->inner_join(probe.view());
+    return package_gather_maps(std::move(left_map), std::move(right_map));
+}
+
+std::unique_ptr<OwnedTable> hash_join_left(
+    const OwnedHashJoin& hj, const OwnedTable& probe)
+{
+    auto [left_map, right_map] = hj.inner->left_join(probe.view());
+    return package_gather_maps(std::move(left_map), std::move(right_map));
+}
+
+std::unique_ptr<OwnedTable> hash_join_full(
+    const OwnedHashJoin& hj, const OwnedTable& probe)
+{
+    auto [left_map, right_map] = hj.inner->full_join(probe.view());
+    return package_gather_maps(std::move(left_map), std::move(right_map));
+}
+
+int64_t hash_join_inner_size(const OwnedHashJoin& hj, const OwnedTable& probe) {
+    return static_cast<int64_t>(hj.inner->inner_join_size(probe.view()));
+}
+
+int64_t hash_join_left_size(const OwnedHashJoin& hj, const OwnedTable& probe) {
+    return static_cast<int64_t>(hj.inner->left_join_size(probe.view()));
+}
+
+int64_t hash_join_full_size(const OwnedHashJoin& hj, const OwnedTable& probe) {
+    return static_cast<int64_t>(hj.inner->full_join_size(probe.view()));
+}
+
 } // namespace cudf_shims

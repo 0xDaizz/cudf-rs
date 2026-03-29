@@ -52,4 +52,22 @@ std::unique_ptr<OwnedColumn> normalize_nans_and_zeros(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> replace_nulls_policy(
+    const OwnedColumn& col,
+    int32_t policy)
+{
+    auto p = policy == 0 ? cudf::replace_policy::PRECEDING : cudf::replace_policy::FOLLOWING;
+    auto result = cudf::replace_nulls(col.view(), p);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> find_and_replace_all(
+    const OwnedColumn& col,
+    const OwnedColumn& old_values,
+    const OwnedColumn& new_values)
+{
+    auto result = cudf::find_and_replace_all(col.view(), old_values.view(), new_values.view());
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

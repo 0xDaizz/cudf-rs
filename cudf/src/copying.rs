@@ -19,6 +19,7 @@
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
+use crate::scalar::Scalar;
 use crate::table::Table;
 
 /// Policy for out-of-bounds indices in gather operations.
@@ -97,6 +98,32 @@ impl Table {
         Ok(Table { inner: raw })
     }
 
+    /// Reverse the rows of this table.
+    ///
+    /// Returns a new table with rows in reverse order.
+    pub fn reverse(&self) -> Result<Table> {
+        let raw =
+            cudf_cxx::copying::ffi::reverse_table(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: raw })
+    }
+
+    /// Randomly sample `n` rows from this table.
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of rows to sample.
+    /// * `with_replacement` - If true, the same row can appear multiple times.
+    /// * `seed` - Random seed for reproducibility.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `n > num_rows()` and `with_replacement` is false.
+    pub fn sample(&self, n: usize, with_replacement: bool, seed: i64) -> Result<Table> {
+        let raw = cudf_cxx::copying::ffi::sample(&self.inner, n as i32, with_replacement, seed)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: raw })
+    }
+
     /// Split this table at the given row indices, returning owned copies.
     ///
     /// For indices `[a, b]`, returns 3 tables: `[0, a)`, `[a, b)`, `[b, num_rows)`.
@@ -122,6 +149,41 @@ impl Table {
 // -- Column methods --
 
 impl Column {
+    /// Reverse the elements of this column.
+    ///
+    /// Returns a new column with elements in reverse order.
+    pub fn reverse(&self) -> Result<Column> {
+        let raw =
+            cudf_cxx::copying::ffi::reverse_column(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Shift column elements by `offset`, filling gaps with `fill_value`.
+    ///
+    /// A positive offset shifts elements forward (towards higher indices),
+    /// a negative offset shifts backward. Elements that shift beyond the
+    /// column boundaries are replaced with `fill_value`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `fill_value` type does not match the column type.
+    pub fn shift(&self, offset: i32, fill_value: &Scalar) -> Result<Column> {
+        let raw = cudf_cxx::copying::ffi::shift_column(&self.inner, offset, &fill_value.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Get a single element from this column as a [`Scalar`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `index` is out of bounds or a GPU error occurs.
+    pub fn get_element(&self, index: usize) -> Result<Scalar> {
+        let raw = cudf_cxx::copying::ffi::get_element(&self.inner, index as i32)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Scalar { inner: raw })
+    }
+
     /// Select elements from two columns based on a boolean mask.
     ///
     /// For each element: if `mask[i]` is true, take from `self`;

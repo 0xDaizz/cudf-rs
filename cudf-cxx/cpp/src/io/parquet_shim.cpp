@@ -49,4 +49,56 @@ std::unique_ptr<OwnedTableWithMetadata> read_parquet_with_metadata(rust::Str fil
     return std::make_unique<OwnedTableWithMetadata>(std::move(result.tbl), std::move(names));
 }
 
+// ── Chunked Parquet Reader ────────────────────────────────────
+
+std::unique_ptr<OwnedChunkedParquetReader> chunked_parquet_reader_create(
+    rust::Str filepath, int64_t chunk_read_limit)
+{
+    std::string path(filepath.data(), filepath.size());
+    auto source = cudf::io::source_info(path);
+    auto options = cudf::io::parquet_reader_options::builder(source).build();
+
+    auto reader = std::make_unique<cudf::io::chunked_parquet_reader>(
+        static_cast<std::size_t>(chunk_read_limit),
+        options);
+
+    return std::make_unique<OwnedChunkedParquetReader>(std::move(reader));
+}
+
+bool chunked_parquet_reader_has_next(const OwnedChunkedParquetReader& reader) {
+    return reader.inner->has_next();
+}
+
+std::unique_ptr<OwnedTable> chunked_parquet_reader_read_chunk(
+    const OwnedChunkedParquetReader& reader)
+{
+    auto result = reader.inner->read_chunk();
+    return std::make_unique<OwnedTable>(std::move(result.tbl));
+}
+
+// ── Chunked Parquet Writer ────────────────────────────────────
+
+std::unique_ptr<OwnedChunkedParquetWriter> chunked_parquet_writer_create(
+    rust::Str filepath, int32_t compression)
+{
+    std::string path(filepath.data(), filepath.size());
+    auto sink = cudf::io::sink_info(path);
+    auto options = cudf::io::chunked_parquet_writer_options::builder(sink)
+        .compression(static_cast<cudf::io::compression_type>(compression))
+        .build();
+
+    auto writer = std::make_unique<cudf::io::chunked_parquet_writer>(options);
+    return std::make_unique<OwnedChunkedParquetWriter>(std::move(writer));
+}
+
+void chunked_parquet_writer_write(
+    OwnedChunkedParquetWriter& writer, const OwnedTable& table)
+{
+    writer.inner->write(table.view());
+}
+
+void chunked_parquet_writer_close(OwnedChunkedParquetWriter& writer) {
+    writer.inner->close();
+}
+
 } // namespace cudf_shims

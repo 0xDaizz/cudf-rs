@@ -49,5 +49,39 @@ pub mod ffi {
             mask: &[u8],
             null_count: i32,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Set a range of bits in a column's null mask.
+        fn set_null_mask_range(
+            col: &OwnedColumn,
+            begin_bit: i32,
+            end_bit: i32,
+            valid: bool,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Copy a column's bitmask to host bytes.
+        fn copy_bitmask_to_host(col: &OwnedColumn) -> Vec<u8>;
+
+        // ── Bitmask Builder ──────────────────────────────────────
+
+        /// Builder for collecting column views for bitmask operations.
+        type BitmaskBuilder;
+
+        fn bitmask_builder_new() -> UniquePtr<BitmaskBuilder>;
+
+        fn add_column(self: Pin<&mut BitmaskBuilder>, col: &OwnedColumn);
+
+        fn num_columns(self: &BitmaskBuilder) -> i32;
+
+        /// Result of a bitmask AND/OR operation.
+        type BitmaskResult;
+
+        fn get_mask(self: &BitmaskResult) -> Vec<u8>;
+        fn get_null_count(self: &BitmaskResult) -> i32;
+
+        /// Bitwise AND of null masks from multiple columns.
+        fn bitmask_and(builder: &BitmaskBuilder) -> Result<UniquePtr<BitmaskResult>>;
+
+        /// Bitwise OR of null masks from multiple columns.
+        fn bitmask_or(builder: &BitmaskBuilder) -> Result<UniquePtr<BitmaskResult>>;
     }
 }

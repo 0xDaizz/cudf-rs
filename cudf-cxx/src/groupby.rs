@@ -47,5 +47,66 @@ pub mod ffi {
             builder: Pin<&mut GroupByBuilder>,
             values: &OwnedTable,
         ) -> Result<UniquePtr<OwnedTable>>;
+
+        // ── GroupBy Scan ──────────────────────────────────────────
+
+        /// Opaque groupby scan builder.
+        type GroupByScanBuilder;
+
+        /// Create a groupby scan builder.
+        fn groupby_scan_new(keys: &OwnedTable) -> UniquePtr<GroupByScanBuilder>;
+
+        /// Add a scan aggregation request.
+        /// agg_kind: 0=sum, 2=min, 3=max, 11=count, 12=rank
+        fn groupby_scan_add_request(
+            builder: Pin<&mut GroupByScanBuilder>,
+            col_idx: i32,
+            agg_kind: i32,
+        );
+
+        /// Execute the scan, returning keys + scan results.
+        fn groupby_scan_execute(
+            builder: Pin<&mut GroupByScanBuilder>,
+            values: &OwnedTable,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        // ── GroupBy Get Groups ────────────────────────────────────
+
+        /// Opaque result of get_groups.
+        type GroupByGroupsResult;
+
+        /// Get grouped keys and offsets (no values).
+        fn groupby_get_groups(keys: &OwnedTable) -> Result<UniquePtr<GroupByGroupsResult>>;
+
+        /// Get grouped keys, offsets, and values.
+        fn groupby_get_groups_with_values(
+            keys: &OwnedTable,
+            values: &OwnedTable,
+        ) -> Result<UniquePtr<GroupByGroupsResult>>;
+
+        /// Take keys from groups result.
+        fn groupby_groups_take_keys(
+            result: Pin<&mut GroupByGroupsResult>,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Take offsets from groups result.
+        fn groupby_groups_take_offsets(
+            result: Pin<&mut GroupByGroupsResult>,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Take values from groups result.
+        fn groupby_groups_take_values(
+            result: Pin<&mut GroupByGroupsResult>,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        // ── GroupBy Replace Nulls ─────────────────────────────────
+
+        /// Replace nulls within groups.
+        /// policies: 0=FORWARD, 1=BACKWARD (one per value column).
+        fn groupby_replace_nulls(
+            keys: &OwnedTable,
+            values: &OwnedTable,
+            policies: &[i32],
+        ) -> Result<UniquePtr<OwnedTable>>;
     }
 }

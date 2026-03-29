@@ -45,5 +45,32 @@ pub mod ffi {
             left_keys: &OwnedTable,
             right_keys: &OwnedTable,
         ) -> Result<UniquePtr<OwnedTable>>;
+
+        // ── Hash Join ─────────────────────────────────────────────
+
+        /// Opaque hash join object (pre-hashed build table).
+        type OwnedHashJoin;
+
+        /// Create a hash join from the build (right) table keys.
+        fn hash_join_create(build: &OwnedTable) -> Result<UniquePtr<OwnedHashJoin>>;
+
+        /// Inner join via hash join, returning gather maps.
+        fn hash_join_inner(hj: &OwnedHashJoin, probe: &OwnedTable)
+        -> Result<UniquePtr<OwnedTable>>;
+
+        /// Left join via hash join, returning gather maps.
+        fn hash_join_left(hj: &OwnedHashJoin, probe: &OwnedTable) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Full outer join via hash join, returning gather maps.
+        fn hash_join_full(hj: &OwnedHashJoin, probe: &OwnedTable) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Estimated output size for inner join.
+        fn hash_join_inner_size(hj: &OwnedHashJoin, probe: &OwnedTable) -> Result<i64>;
+
+        /// Estimated output size for left join.
+        fn hash_join_left_size(hj: &OwnedHashJoin, probe: &OwnedTable) -> Result<i64>;
+
+        /// Estimated output size for full join.
+        fn hash_join_full_size(hj: &OwnedHashJoin, probe: &OwnedTable) -> Result<i64>;
     }
 }

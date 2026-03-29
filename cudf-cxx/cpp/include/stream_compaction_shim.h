@@ -58,4 +58,34 @@ int32_t distinct_count_column(
     int32_t null_handling,
     int32_t nan_handling);
 
+/// Return indices of distinct rows in a table (all columns as keys).
+/// `keep`: 0=KEEP_FIRST, 1=KEEP_LAST, 2=KEEP_ANY, 3=KEEP_NONE.
+std::unique_ptr<OwnedColumn> distinct_indices(
+    const OwnedTable& table,
+    int32_t keep,
+    int32_t null_equality);
+
+/// Return distinct rows preserving input order.
+std::unique_ptr<OwnedTable> stable_distinct(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> keys,
+    int32_t keep,
+    int32_t null_equality);
+
+/// Count consecutive groups of equivalent rows in a column.
+int32_t unique_count_column(
+    const OwnedColumn& col,
+    int32_t null_handling,
+    int32_t nan_handling);
+
+/// Count consecutive groups of equivalent rows in a table.
+int32_t unique_count_table(
+    const OwnedTable& table,
+    int32_t null_equality);
+
+/// Count distinct rows in a table.
+int32_t distinct_count_table(
+    const OwnedTable& table,
+    int32_t null_equality);
+
 } // namespace cudf_shims

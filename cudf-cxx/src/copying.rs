@@ -9,6 +9,7 @@ pub mod ffi {
         include!("copying_shim.h");
         include!("column_shim.h");
         include!("table_shim.h");
+        include!("scalar_shim.h");
 
         type OwnedColumn = crate::column::ffi::OwnedColumn;
         type OwnedTable = crate::table::ffi::OwnedTable;
@@ -79,5 +80,53 @@ pub mod ffi {
             source_end: i32,
             target_begin: i32,
         ) -> Result<()>;
+
+        // ── Reverse ───────────────────────────────────────────────
+
+        /// Reverse the rows of a table.
+        fn reverse_table(table: &OwnedTable) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Reverse the elements of a column.
+        fn reverse_column(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── Shift ─────────────────────────────────────────────────
+
+        type OwnedScalar = crate::scalar::ffi::OwnedScalar;
+
+        /// Shift column elements by offset, filling with fill_value.
+        fn shift_column(
+            col: &OwnedColumn,
+            offset: i32,
+            fill_value: &OwnedScalar,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── Get Element ───────────────────────────────────────────
+
+        /// Get a single element from a column as a scalar.
+        fn get_element(col: &OwnedColumn, index: i32) -> Result<UniquePtr<OwnedScalar>>;
+
+        // ── Sample ────────────────────────────────────────────────
+
+        /// Randomly sample n rows from a table.
+        fn sample(
+            table: &OwnedTable,
+            n: i32,
+            with_replacement: bool,
+            seed: i64,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        // ── Boolean Mask Scatter ──────────────────────────────────
+
+        /// Scatter input rows into target at positions where boolean_mask is true.
+        fn boolean_mask_scatter(
+            input: &OwnedTable,
+            boolean_mask: &OwnedColumn,
+            target: &OwnedTable,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        // ── Has Nonempty Nulls ────────────────────────────────────
+
+        /// Check if a column has non-empty null elements.
+        fn has_nonempty_nulls(col: &OwnedColumn) -> Result<bool>;
     }
 }

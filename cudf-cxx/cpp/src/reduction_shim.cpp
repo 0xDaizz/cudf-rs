@@ -116,4 +116,28 @@ std::unique_ptr<OwnedColumn> segmented_reduce(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<MinMaxResult> minmax(const OwnedColumn& col) {
+    auto [min_scalar, max_scalar] = cudf::minmax(col.view());
+    auto result = std::make_unique<MinMaxResult>();
+    result->min_val = std::make_unique<OwnedScalar>(std::move(min_scalar));
+    result->max_val = std::make_unique<OwnedScalar>(std::move(max_scalar));
+    return result;
+}
+
+const OwnedScalar& minmax_get_min(const MinMaxResult& result) {
+    return *result.min_val;
+}
+
+const OwnedScalar& minmax_get_max(const MinMaxResult& result) {
+    return *result.max_val;
+}
+
+std::unique_ptr<OwnedScalar> minmax_take_min(MinMaxResult& result) {
+    return std::move(result.min_val);
+}
+
+std::unique_ptr<OwnedScalar> minmax_take_max(MinMaxResult& result) {
+    return std::move(result.max_val);
+}
+
 } // namespace cudf_shims

@@ -54,5 +54,15 @@ pub mod ffi {
 
         /// Normalize -NaN to +NaN and -0.0 to +0.0.
         fn normalize_nans_and_zeros(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Replace nulls using a policy (PRECEDING=0, FOLLOWING=1).
+        fn replace_nulls_policy(col: &OwnedColumn, policy: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Find and replace all occurrences of old_values with new_values.
+        fn find_and_replace_all(
+            col: &OwnedColumn,
+            old_values: &OwnedColumn,
+            new_values: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

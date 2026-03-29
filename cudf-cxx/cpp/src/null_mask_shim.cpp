@@ -1,5 +1,6 @@
 #include "null_mask_shim.h"
 #include <cudf/null_mask.hpp>
+#include <cudf/detail/null_mask.hpp>
 #include <cudf/copying.hpp>
 #include <cudf/column/column.hpp>
 #include <cudf/column/column_factories.hpp>
@@ -108,6 +109,106 @@ std::unique_ptr<OwnedColumn> set_null_mask_from_host(
     new_col->set_null_mask(std::move(dev_mask), null_count);
 
     return std::make_unique<OwnedColumn>(std::move(new_col));
+}
+
+std::unique_ptr<OwnedColumn> set_null_mask_range(
+    const OwnedColumn& col,
+    int32_t begin_bit,
+    int32_t end_bit,
+    bool valid)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+
+    // Copy the column.
+    auto new_col = std::make_unique<cudf::column>(col.view(), stream, mr);
+
+    // If not nullable, allocate a mask first.
+    if (!new_col->nullable()) {
+        auto mask_buf = cudf::create_null_mask(new_col->size(), cudf::mask_state::ALL_VALID, stream, mr);
+        new_col->set_null_mask(std::move(mask_buf), 0);
+    }
+
+    // Set the range.
+    cudf::set_null_mask(
+        static_cast<cudf::bitmask_type*>(new_col->mutable_view().null_mask()),
+        begin_bit, end_bit, valid, stream);
+    stream.synchronize();
+
+    // Recount nulls: count unset bits in the mask range [0, size).
+    auto view = new_col->view();
+    auto null_cnt = cudf::detail::count_unset_bits(
+        view.null_mask(), 0, view.size(), stream);
+    new_col->set_null_count(static_cast<cudf::size_type>(null_cnt));
+
+    return std::make_unique<OwnedColumn>(std::move(new_col));
+}
+
+rust::Vec<uint8_t> copy_bitmask_to_host(const OwnedColumn& col) {
+    rust::Vec<uint8_t> out;
+    auto view = col.view();
+    if (!view.nullable()) {
+        return out;
+    }
+
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto dev_buf = cudf::copy_bitmask(view, stream, mr);
+
+    auto num_bytes = dev_buf.size();
+    std::vector<uint8_t> host_data(num_bytes);
+    cudaMemcpyAsync(host_data.data(), dev_buf.data(), num_bytes, cudaMemcpyDeviceToHost, stream.value());
+    stream.synchronize();
+
+    out.reserve(num_bytes);
+    for (auto b : host_data) {
+        out.push_back(b);
+    }
+    return out;
+}
+
+std::unique_ptr<BitmaskBuilder> bitmask_builder_new() {
+    return std::make_unique<BitmaskBuilder>();
+}
+
+std::unique_ptr<BitmaskResult> bitmask_and(const BitmaskBuilder& builder) {
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+
+    cudf::table_view tv(builder.views);
+    auto [dev_buf, null_count] = cudf::bitmask_and(tv, stream, mr);
+
+    std::vector<uint8_t> host_data(dev_buf.size());
+    cudaMemcpyAsync(host_data.data(), dev_buf.data(), dev_buf.size(), cudaMemcpyDeviceToHost, stream.value());
+    stream.synchronize();
+
+    auto result = std::make_unique<BitmaskResult>();
+    result->mask.reserve(host_data.size());
+    for (auto b : host_data) {
+        result->mask.push_back(b);
+    }
+    result->null_count = null_count;
+    return result;
+}
+
+std::unique_ptr<BitmaskResult> bitmask_or(const BitmaskBuilder& builder) {
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+
+    cudf::table_view tv(builder.views);
+    auto [dev_buf, null_count] = cudf::bitmask_or(tv, stream, mr);
+
+    std::vector<uint8_t> host_data(dev_buf.size());
+    cudaMemcpyAsync(host_data.data(), dev_buf.data(), dev_buf.size(), cudaMemcpyDeviceToHost, stream.value());
+    stream.synchronize();
+
+    auto result = std::make_unique<BitmaskResult>();
+    result->mask.reserve(host_data.size());
+    for (auto b : host_data) {
+        result->mask.push_back(b);
+    }
+    result->null_count = null_count;
+    return result;
 }
 
 } // namespace cudf_shims

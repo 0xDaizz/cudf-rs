@@ -108,3 +108,123 @@ pub fn read_parquet(path: impl Into<String>) -> Result<Table> {
 pub fn write_parquet(table: &Table, path: impl Into<String>) -> Result<()> {
     ParquetWriter::new(table, path).write()
 }
+
+// ── Chunked Parquet Reader ────────────────────────────────────
+
+/// A chunked Parquet reader for reading large files in pieces.
+///
+/// This reader is useful when a Parquet file is too large to read into
+/// memory at once. It reads the file chunk by chunk, where each chunk
+/// is bounded by `chunk_read_limit` bytes.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use cudf::io::parquet::ChunkedParquetReader;
+///
+/// let mut reader = ChunkedParquetReader::new("large_file.parquet", 256 * 1024 * 1024).unwrap();
+/// while reader.has_next().unwrap() {
+///     let chunk = reader.read_chunk().unwrap();
+///     // process chunk...
+/// }
+/// ```
+pub struct ChunkedParquetReader {
+    inner: cxx::UniquePtr<cudf_cxx::io::parquet::ffi::OwnedChunkedParquetReader>,
+}
+
+// SAFETY: GPU memory is process-global.
+unsafe impl Send for ChunkedParquetReader {}
+
+impl ChunkedParquetReader {
+    /// Create a chunked Parquet reader.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the Parquet file.
+    /// * `chunk_read_limit` - Maximum number of bytes per chunk (0 = no limit).
+    pub fn new(path: impl Into<String>, chunk_read_limit: usize) -> Result<Self> {
+        let path = path.into();
+        let inner = cudf_cxx::io::parquet::ffi::chunked_parquet_reader_create(
+            &path,
+            chunk_read_limit as i64,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner })
+    }
+
+    /// Check if there is more data to read.
+    pub fn has_next(&self) -> Result<bool> {
+        cudf_cxx::io::parquet::ffi::chunked_parquet_reader_has_next(&self.inner)
+            .map_err(CudfError::from_cxx)
+    }
+
+    /// Read the next chunk as a [`Table`].
+    ///
+    /// Returns an empty table if all data has been read.
+    pub fn read_chunk(&self) -> Result<Table> {
+        let raw = cudf_cxx::io::parquet::ffi::chunked_parquet_reader_read_chunk(&self.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: raw })
+    }
+}
+
+// ── Chunked Parquet Writer ────────────────────────────────────
+
+/// A chunked Parquet writer for writing large tables in pieces.
+///
+/// This writer allows writing a table incrementally, chunk by chunk,
+/// to a single Parquet file. Call [`write`] for each chunk and
+/// [`close`] when done.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use cudf::{Column, Table};
+/// use cudf::io::parquet::ChunkedParquetWriter;
+///
+/// let mut writer = ChunkedParquetWriter::new("output.parquet").unwrap();
+///
+/// for _ in 0..10 {
+///     let col = Column::from_slice(&[1i32, 2, 3]).unwrap();
+///     let chunk = Table::new(vec![col]).unwrap();
+///     writer.write(&chunk).unwrap();
+/// }
+///
+/// writer.close().unwrap();
+/// ```
+pub struct ChunkedParquetWriter {
+    inner: cxx::UniquePtr<cudf_cxx::io::parquet::ffi::OwnedChunkedParquetWriter>,
+}
+
+// SAFETY: GPU memory is process-global.
+unsafe impl Send for ChunkedParquetWriter {}
+
+impl ChunkedParquetWriter {
+    /// Create a chunked Parquet writer with default Snappy compression.
+    pub fn new(path: impl Into<String>) -> Result<Self> {
+        Self::with_compression(path, Compression::Snappy)
+    }
+
+    /// Create a chunked Parquet writer with the specified compression.
+    pub fn with_compression(path: impl Into<String>, compression: Compression) -> Result<Self> {
+        let path = path.into();
+        let inner =
+            cudf_cxx::io::parquet::ffi::chunked_parquet_writer_create(&path, compression as i32)
+                .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner })
+    }
+
+    /// Write a table chunk to the Parquet file.
+    pub fn write(&mut self, table: &Table) -> Result<()> {
+        cudf_cxx::io::parquet::ffi::chunked_parquet_writer_write(self.inner.pin_mut(), &table.inner)
+            .map_err(CudfError::from_cxx)
+    }
+
+    /// Finalize and close the Parquet file.
+    ///
+    /// This must be called to ensure all data is flushed.
+    pub fn close(&mut self) -> Result<()> {
+        cudf_cxx::io::parquet::ffi::chunked_parquet_writer_close(self.inner.pin_mut())
+            .map_err(CudfError::from_cxx)
+    }
+}

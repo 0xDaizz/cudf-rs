@@ -24,5 +24,19 @@ pub mod ffi {
             delimiter: &str,
             maxsplit: i32,
         ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Split each string, returning a list column of strings per row.
+        fn str_split_record(
+            col: &OwnedColumn,
+            delimiter: &str,
+            maxsplit: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Split each string from the right, returning a list column.
+        fn str_rsplit_record(
+            col: &OwnedColumn,
+            delimiter: &str,
+            maxsplit: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

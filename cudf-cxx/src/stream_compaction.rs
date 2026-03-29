@@ -65,5 +65,33 @@ pub mod ffi {
             null_handling: i32,
             nan_handling: i32,
         ) -> Result<i32>;
+
+        /// Return indices of distinct rows in a table.
+        fn distinct_indices(
+            table: &OwnedTable,
+            keep: i32,
+            null_equality: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Return distinct rows preserving input order.
+        fn stable_distinct(
+            table: &OwnedTable,
+            keys: &[i32],
+            keep: i32,
+            null_equality: i32,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Count consecutive groups of equivalent rows in a column.
+        fn unique_count_column(
+            col: &OwnedColumn,
+            null_handling: i32,
+            nan_handling: i32,
+        ) -> Result<i32>;
+
+        /// Count consecutive groups of equivalent rows in a table.
+        fn unique_count_table(table: &OwnedTable, null_equality: i32) -> Result<i32>;
+
+        /// Count distinct rows in a table.
+        fn distinct_count_table(table: &OwnedTable, null_equality: i32) -> Result<i32>;
     }
 }

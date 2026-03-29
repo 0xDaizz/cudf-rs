@@ -11,5 +11,11 @@ pub mod ffi {
         /// Concatenate all strings in the column into a single string,
         /// separated by `separator`. Returns a single-element string column.
         fn str_join(col: &OwnedColumn, separator: &str) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Join list elements within each row using a scalar separator.
+        fn str_join_list_elements(
+            col: &OwnedColumn,
+            separator: &str,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

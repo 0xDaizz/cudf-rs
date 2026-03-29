@@ -1,5 +1,6 @@
 #include "strings/find_shim.h"
 #include <cudf/strings/find.hpp>
+#include <cudf/strings/find_multiple.hpp>
 #include <cudf/scalar/scalar.hpp>
 #include <cudf/scalar/scalar_factories.hpp>
 #include <cudf/utilities/default_stream.hpp>
@@ -49,6 +50,16 @@ std::unique_ptr<OwnedColumn> str_ends_with(
     cudf::string_scalar scalar_target(tgt, true, stream);
     auto result = cudf::strings::ends_with(col.view(), scalar_target, stream, mr);
     return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedTable> str_contains_multiple(
+    const OwnedColumn& col, const OwnedColumn& targets)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto result = cudf::strings::contains_multiple(
+        col.view(), targets.view(), stream, mr);
+    return std::make_unique<OwnedTable>(std::move(result));
 }
 
 } // namespace cudf_shims

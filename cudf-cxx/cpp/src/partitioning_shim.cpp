@@ -28,4 +28,38 @@ std::unique_ptr<OwnedTable> round_robin_partition(
     return std::make_unique<OwnedTable>(std::move(result));
 }
 
+std::unique_ptr<PartitionResult> partition(
+    const OwnedTable& table,
+    const OwnedColumn& partition_map,
+    int32_t num_partitions)
+{
+    auto [result, offsets] = cudf::partition(
+        table.view(),
+        partition_map.view(),
+        num_partitions);
+
+    auto pr = std::make_unique<PartitionResult>();
+    pr->table = std::make_unique<OwnedTable>(std::move(result));
+    std::vector<int32_t> offsets_i32(offsets.begin(), offsets.end());
+    pr->offsets = std::move(offsets_i32);
+    return pr;
+}
+
+std::unique_ptr<OwnedTable> partition_result_table(
+    std::unique_ptr<PartitionResult> result)
+{
+    return std::move(result->table);
+}
+
+rust::Vec<int32_t> partition_result_offsets(
+    const PartitionResult& result)
+{
+    rust::Vec<int32_t> out;
+    out.reserve(result.offsets.size());
+    for (auto v : result.offsets) {
+        out.push_back(v);
+    }
+    return out;
+}
+
 } // namespace cudf_shims

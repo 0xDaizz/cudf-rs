@@ -14,6 +14,7 @@
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
+use crate::table::Table;
 
 /// Aggregation type for rolling window operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +63,45 @@ impl Column {
         agg: RollingAgg,
     ) -> Result<Column> {
         let raw = cudf_cxx::rolling::ffi::rolling_window(
+            &self.inner,
+            preceding as i32,
+            following as i32,
+            min_periods as i32,
+            agg as i32,
+        )
+        .map_err(CudfError::from_cxx)?;
+
+        Ok(Column { inner: raw })
+    }
+
+    /// Apply a grouped rolling window aggregation.
+    ///
+    /// The input column and group keys must be pre-sorted by the group keys.
+    /// Within each group (defined by `group_keys`), the rolling window is
+    /// applied independently.
+    ///
+    /// # Arguments
+    ///
+    /// * `group_keys` - Table of key columns that define groups (must be sorted).
+    /// * `preceding` - Number of rows before the current row in the window.
+    /// * `following` - Number of rows after the current row in the window.
+    /// * `min_periods` - Minimum non-null observations required.
+    /// * `agg` - The aggregation to apply over each window.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation is unsupported, parameters are invalid,
+    /// or a GPU error occurs.
+    pub fn grouped_rolling(
+        &self,
+        group_keys: &Table,
+        preceding: usize,
+        following: usize,
+        min_periods: usize,
+        agg: RollingAgg,
+    ) -> Result<Column> {
+        let raw = cudf_cxx::rolling::ffi::grouped_rolling_window(
+            &group_keys.inner,
             &self.inner,
             preceding as i32,
             following as i32,

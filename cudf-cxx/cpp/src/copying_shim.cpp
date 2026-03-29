@@ -129,4 +129,72 @@ void copy_range(
         target_begin);
 }
 
+// ── Reverse ───────────────────────────────────────────────────
+
+std::unique_ptr<OwnedTable> reverse_table(const OwnedTable& table) {
+    auto result = cudf::reverse(table.view());
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> reverse_column(const OwnedColumn& col) {
+    auto result = cudf::reverse(col.view());
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+// ── Shift ─────────────────────────────────────────────────────
+
+std::unique_ptr<OwnedColumn> shift_column(
+    const OwnedColumn& col,
+    int32_t offset,
+    const OwnedScalar& fill_value)
+{
+    auto result = cudf::shift(col.view(), offset, *fill_value.inner);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+// ── Get Element ───────────────────────────────────────────────
+
+std::unique_ptr<OwnedScalar> get_element(
+    const OwnedColumn& col,
+    int32_t index)
+{
+    auto result = cudf::get_element(col.view(), index);
+    return std::make_unique<OwnedScalar>(std::move(result));
+}
+
+// ── Sample ────────────────────────────────────────────────────
+
+std::unique_ptr<OwnedTable> sample(
+    const OwnedTable& table,
+    int32_t n,
+    bool with_replacement,
+    int64_t seed)
+{
+    auto replacement = with_replacement
+        ? cudf::sample_with_replacement::TRUE
+        : cudf::sample_with_replacement::FALSE;
+    auto result = cudf::sample(table.view(), n, replacement, seed);
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
+// ── Boolean Mask Scatter ──────────────────────────────────────
+
+std::unique_ptr<OwnedTable> boolean_mask_scatter(
+    const OwnedTable& input,
+    const OwnedColumn& boolean_mask,
+    const OwnedTable& target)
+{
+    auto result = cudf::boolean_mask_scatter(
+        input.view(),
+        target.view(),
+        boolean_mask.view());
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
+// ── Has Nonempty Nulls ────────────────────────────────────────
+
+bool has_nonempty_nulls(const OwnedColumn& col) {
+    return cudf::has_nonempty_nulls(col.view());
+}
+
 } // namespace cudf_shims

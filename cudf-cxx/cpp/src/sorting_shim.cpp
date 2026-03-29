@@ -135,4 +135,51 @@ bool is_sorted(
         nul_order);
 }
 
+std::unique_ptr<OwnedColumn> stable_sorted_order(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order)
+{
+    auto col_order = to_column_order(column_order);
+    auto nul_order = to_null_order(null_order);
+
+    auto result = cudf::stable_sorted_order(
+        table.view(),
+        col_order,
+        nul_order);
+
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedTable> stable_sort(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order)
+{
+    auto col_order = to_column_order(column_order);
+    auto nul_order = to_null_order(null_order);
+
+    auto result = cudf::stable_sort(
+        table.view(),
+        col_order,
+        nul_order);
+
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> top_k(
+    const OwnedColumn& col,
+    int32_t k,
+    int32_t order)
+{
+    auto ord = order == 0 ? cudf::order::ASCENDING : cudf::order::DESCENDING;
+
+    auto result = cudf::top_k(
+        col.view(),
+        k,
+        ord);
+
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

@@ -53,4 +53,22 @@ bool is_sorted(
     rust::Slice<const int32_t> column_order,
     rust::Slice<const int32_t> null_order);
 
+/// Returns a column of row indices that would stably sort the table.
+std::unique_ptr<OwnedColumn> stable_sorted_order(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order);
+
+/// Stable sort a table by its columns.
+std::unique_ptr<OwnedTable> stable_sort(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order);
+
+/// Return the top k values of a column.
+std::unique_ptr<OwnedColumn> top_k(
+    const OwnedColumn& col,
+    int32_t k,
+    int32_t order);
+
 } // namespace cudf_shims

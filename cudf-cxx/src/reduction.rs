@@ -39,5 +39,19 @@ pub mod ffi {
             output_type_id: i32,
             include_nulls: bool,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── MinMax ────────────────────────────────────────────────
+
+        /// Opaque result holding min and max scalars.
+        type MinMaxResult;
+
+        /// Compute min and max of a column simultaneously.
+        fn minmax(col: &OwnedColumn) -> Result<UniquePtr<MinMaxResult>>;
+
+        /// Move min scalar out of MinMaxResult.
+        fn minmax_take_min(result: Pin<&mut MinMaxResult>) -> Result<UniquePtr<OwnedScalar>>;
+
+        /// Move max scalar out of MinMaxResult.
+        fn minmax_take_max(result: Pin<&mut MinMaxResult>) -> Result<UniquePtr<OwnedScalar>>;
     }
 }

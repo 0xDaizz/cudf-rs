@@ -8,7 +8,9 @@ pub mod ffi {
     unsafe extern "C++" {
         include!("datetime_shim.h");
         include!("column_shim.h");
+        include!("scalar_shim.h");
         type OwnedColumn = crate::column::ffi::OwnedColumn;
+        type OwnedScalar = crate::scalar::ffi::OwnedScalar;
 
         /// Extract year component from a timestamp column.
         fn extract_year(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
@@ -33,5 +35,38 @@ pub mod ffi {
 
         /// Extract day-of-year (1-366) from a timestamp column.
         fn extract_day_of_year(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Get last day of the month for each timestamp.
+        fn last_day_of_month(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Add months (scalar) to each timestamp.
+        fn add_calendrical_months_scalar(
+            col: &OwnedColumn,
+            months: &OwnedScalar,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Add months (column) to each timestamp.
+        fn add_calendrical_months_column(
+            col: &OwnedColumn,
+            months: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Check if the year is a leap year.
+        fn is_leap_year(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Get the number of days in the month.
+        fn days_in_month(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Extract the quarter (1-4).
+        fn extract_quarter(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Ceil datetimes to the given frequency.
+        fn ceil_datetimes(col: &OwnedColumn, freq: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Floor datetimes to the given frequency.
+        fn floor_datetimes(col: &OwnedColumn, freq: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Round datetimes to the nearest frequency.
+        fn round_datetimes(col: &OwnedColumn, freq: i32) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

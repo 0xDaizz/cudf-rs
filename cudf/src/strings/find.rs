@@ -2,6 +2,7 @@
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
+use crate::table::Table;
 
 impl Column {
     /// Find first occurrence of `target` in each string, starting at `start`.
@@ -38,5 +39,15 @@ impl Column {
         let result = cudf_cxx::strings::find::ffi::str_ends_with(&self.inner, target)
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
+    }
+
+    /// Check if each string contains any of the target strings.
+    ///
+    /// Returns a table of BOOL8 columns, one per target.
+    pub fn str_contains_multiple(&self, targets: &Column) -> Result<Table> {
+        let result =
+            cudf_cxx::strings::find::ffi::str_contains_multiple(&self.inner, &targets.inner)
+                .map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: result })
     }
 }

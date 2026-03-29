@@ -22,5 +22,24 @@ pub mod ffi {
 
         /// Hash each row using SHA-256 (returns a string column).
         fn hash_sha256(table: &OwnedTable) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Hash each row using SHA-1 (returns a string column).
+        fn hash_sha1(table: &OwnedTable) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Hash each row using SHA-224 (returns a string column).
+        fn hash_sha224(table: &OwnedTable) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Hash each row using SHA-384 (returns a string column).
+        fn hash_sha384(table: &OwnedTable) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Hash each row using SHA-512 (returns a string column).
+        fn hash_sha512(table: &OwnedTable) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Hash each row using xxHash32.
+        fn hash_xxhash32(table: &OwnedTable, seed: u32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Hash each row using MurmurHash3 x64 128-bit. Returns a 2-column table.
+        fn hash_murmurhash3_x64_128(table: &OwnedTable, seed: u64)
+        -> Result<UniquePtr<OwnedTable>>;
     }
 }

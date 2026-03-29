@@ -100,6 +100,15 @@ fn main() {
         "src/strings/combine.rs",
         "src/strings/slice.rs",
         "src/strings/extract.rs",
+        "src/strings/padding.rs",
+        "src/strings/repeat.rs",
+        "src/strings/findall.rs",
+        "src/strings/attributes.rs",
+        "src/strings/translate.rs",
+        "src/strings/reverse.rs",
+        "src/strings/wrap.rs",
+        "src/strings/char_types.rs",
+        "src/strings/like.rs",
         "src/interop.rs",
         "src/hashing.rs",
         "src/datetime.rs",
@@ -149,6 +158,15 @@ fn main() {
         .file(cpp_src.join("strings/combine_shim.cpp"))
         .file(cpp_src.join("strings/slice_shim.cpp"))
         .file(cpp_src.join("strings/extract_shim.cpp"))
+        .file(cpp_src.join("strings/padding_shim.cpp"))
+        .file(cpp_src.join("strings/repeat_shim.cpp"))
+        .file(cpp_src.join("strings/findall_shim.cpp"))
+        .file(cpp_src.join("strings/attributes_shim.cpp"))
+        .file(cpp_src.join("strings/translate_shim.cpp"))
+        .file(cpp_src.join("strings/reverse_shim.cpp"))
+        .file(cpp_src.join("strings/wrap_shim.cpp"))
+        .file(cpp_src.join("strings/char_types_shim.cpp"))
+        .file(cpp_src.join("strings/like_shim.cpp"))
         .file(cpp_src.join("interop_shim.cpp"))
         .file(cpp_src.join("hashing_shim.cpp"))
         .file(cpp_src.join("datetime_shim.cpp"))

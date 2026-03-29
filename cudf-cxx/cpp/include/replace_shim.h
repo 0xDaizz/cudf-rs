@@ -39,4 +39,15 @@ std::unique_ptr<OwnedColumn> clamp(
 std::unique_ptr<OwnedColumn> normalize_nans_and_zeros(
     const OwnedColumn& col);
 
+/// Replace nulls using a policy (PRECEDING=0, FOLLOWING=1).
+std::unique_ptr<OwnedColumn> replace_nulls_policy(
+    const OwnedColumn& col,
+    int32_t policy);
+
+/// Find and replace all occurrences of old_values with new_values.
+std::unique_ptr<OwnedColumn> find_and_replace_all(
+    const OwnedColumn& col,
+    const OwnedColumn& old_values,
+    const OwnedColumn& new_values);
+
 } // namespace cudf_shims

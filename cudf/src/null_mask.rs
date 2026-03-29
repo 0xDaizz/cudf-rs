@@ -71,4 +71,67 @@ impl Column {
                 .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
+
+    /// Set a range of bits in this column's null mask.
+    ///
+    /// Returns a new column with bits `[begin, end)` set to `valid`.
+    /// If `valid` is `true`, elements in the range are marked as valid;
+    /// if `false`, they are marked as null.
+    pub fn set_null_mask_range(&self, begin: usize, end: usize, valid: bool) -> Result<Column> {
+        let raw = cudf_cxx::null_mask::ffi::set_null_mask_range(
+            &self.inner,
+            begin as i32,
+            end as i32,
+            valid,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+}
+
+/// Copy a column's bitmask to host bytes.
+///
+/// Returns an empty vector if the column has no null mask (all valid).
+pub fn copy_bitmask(col: &Column) -> Vec<u8> {
+    cudf_cxx::null_mask::ffi::copy_bitmask_to_host(&col.inner)
+}
+
+/// Result of a bitmask AND or OR operation.
+pub struct BitmaskResult {
+    /// The combined bitmask bytes.
+    pub mask: Vec<u8>,
+    /// The number of null (unset) bits.
+    pub null_count: usize,
+}
+
+/// Compute bitwise AND of null masks from multiple columns.
+///
+/// A bit is set in the output only if it is set in ALL input columns.
+/// Use this to find rows that are valid across all columns.
+pub fn bitmask_and(columns: &[&Column]) -> Result<BitmaskResult> {
+    let mut builder = cudf_cxx::null_mask::ffi::bitmask_builder_new();
+    for col in columns {
+        builder.pin_mut().add_column(&col.inner);
+    }
+    let result = cudf_cxx::null_mask::ffi::bitmask_and(&builder).map_err(CudfError::from_cxx)?;
+    Ok(BitmaskResult {
+        mask: result.get_mask(),
+        null_count: result.get_null_count() as usize,
+    })
+}
+
+/// Compute bitwise OR of null masks from multiple columns.
+///
+/// A bit is set in the output if it is set in ANY input column.
+/// Use this to find rows that are valid in at least one column.
+pub fn bitmask_or(columns: &[&Column]) -> Result<BitmaskResult> {
+    let mut builder = cudf_cxx::null_mask::ffi::bitmask_builder_new();
+    for col in columns {
+        builder.pin_mut().add_column(&col.inner);
+    }
+    let result = cudf_cxx::null_mask::ffi::bitmask_or(&builder).map_err(CudfError::from_cxx)?;
+    Ok(BitmaskResult {
+        mask: result.get_mask(),
+        null_count: result.get_null_count() as usize,
+    })
 }
