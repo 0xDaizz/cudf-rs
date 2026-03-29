@@ -57,9 +57,6 @@ struct TableBuilder {
     }
 
     std::unique_ptr<OwnedTable> build() {
-        if (columns.empty()) {
-            throw std::runtime_error("Cannot build table with zero columns");
-        }
         auto table = std::make_unique<cudf::table>(std::move(columns));
         columns.clear();
         return std::make_unique<OwnedTable>(std::move(table));

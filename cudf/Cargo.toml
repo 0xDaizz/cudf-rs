@@ -21,6 +21,7 @@ num-traits = "0.2"
 [features]
 default = ["arrow-interop"]
 arrow-interop = ["dep:arrow", "dep:arrow-schema", "dep:arrow-array", "dep:arrow-buffer"]
+gpu-tests = []
 
 [dev-dependencies]
 arrow = { workspace = true }
