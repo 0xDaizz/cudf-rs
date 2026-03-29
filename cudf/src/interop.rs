@@ -65,13 +65,13 @@ impl Column {
     /// Export this column to an `arrow::ArrayRef` via the Arrow C Data Interface.
     ///
     /// This is the preferred zero-copy path.  The GPU data is copied to host
-    /// memory by libcudf, then imported directly into arrow-rs without
-    /// additional serialization.
+    /// memory by libcudf **once** (via `ArrowExportPair`), then imported
+    /// directly into arrow-rs without additional serialization.
     pub fn to_arrow_array(&self) -> Result<arrow_array::ArrayRef> {
-        let schema_ptr = cudf_cxx::interop::ffi::column_to_arrow_schema_ptr(&self.inner)
+        let mut pair = cudf_cxx::interop::ffi::column_to_arrow_pair(&self.inner)
             .map_err(CudfError::from_cxx)?;
-        let array_ptr = cudf_cxx::interop::ffi::column_to_arrow_array_ptr(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let schema_ptr = cudf_cxx::interop::ffi::arrow_pair_schema(pair.pin_mut());
+        let array_ptr = cudf_cxx::interop::ffi::arrow_pair_array(pair.pin_mut());
 
         // SAFETY: schema_ptr and array_ptr are valid heap-allocated
         // ArrowSchema / ArrowArray structs produced by the C++ shim.
@@ -108,11 +108,12 @@ impl Table {
     /// Export this table to an `arrow::RecordBatch` via the Arrow C Data Interface.
     ///
     /// Preferred zero-copy path (no IPC serialization overhead).
+    /// Uses `ArrowExportPair` to perform a single GPU→host transfer.
     pub fn to_arrow_batch(&self) -> Result<arrow::record_batch::RecordBatch> {
-        let schema_ptr = cudf_cxx::interop::ffi::table_to_arrow_schema_ptr(&self.inner)
+        let mut pair = cudf_cxx::interop::ffi::table_to_arrow_pair(&self.inner)
             .map_err(CudfError::from_cxx)?;
-        let array_ptr = cudf_cxx::interop::ffi::table_to_arrow_array_ptr(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let schema_ptr = cudf_cxx::interop::ffi::arrow_pair_schema(pair.pin_mut());
+        let array_ptr = cudf_cxx::interop::ffi::arrow_pair_array(pair.pin_mut());
 
         unsafe {
             let ffi_schema = arrow::ffi::FFI_ArrowSchema::from_raw(

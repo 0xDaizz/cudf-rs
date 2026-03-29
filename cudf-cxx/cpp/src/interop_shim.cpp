@@ -376,6 +376,32 @@ void free_arrow_array(uint64_t ptr) {
     delete array;
 }
 
+// ── Arrow C Data Interface (paired export) ───────────────────
+
+std::unique_ptr<ArrowExportPair> column_to_arrow_pair(const OwnedColumn& col) {
+    auto pair = std::make_unique<ArrowExportPair>();
+    export_column_cdata(col.view(), &pair->schema, &pair->array);
+    return pair;
+}
+
+std::unique_ptr<ArrowExportPair> table_to_arrow_pair(const OwnedTable& table) {
+    auto pair = std::make_unique<ArrowExportPair>();
+    export_table_cdata(table.view(), &pair->schema, &pair->array);
+    return pair;
+}
+
+uint64_t arrow_pair_schema(ArrowExportPair& pair) {
+    auto* ptr = pair.schema;
+    pair.schema = nullptr;  // release ownership so destructor won't double-free
+    return reinterpret_cast<uint64_t>(ptr);
+}
+
+uint64_t arrow_pair_array(ArrowExportPair& pair) {
+    auto* ptr = pair.array;
+    pair.array = nullptr;  // release ownership so destructor won't double-free
+    return reinterpret_cast<uint64_t>(ptr);
+}
+
 // ── DLPack ────────────────────────────────────────────────────
 
 uint64_t table_to_dlpack(const OwnedTable& table) {

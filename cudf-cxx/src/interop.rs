@@ -32,9 +32,11 @@ pub mod ffi {
         // ── Arrow C Data Interface ────────────────────────────────
 
         /// Export column schema as heap-allocated ArrowSchema (returns pointer as u64).
+        /// DEPRECATED: Use column_to_arrow_pair() to avoid double GPU→host copy.
         fn column_to_arrow_schema_ptr(col: &OwnedColumn) -> Result<u64>;
 
         /// Export column data as heap-allocated ArrowArray (returns pointer as u64).
+        /// DEPRECATED: Use column_to_arrow_pair() to avoid double GPU→host copy.
         fn column_to_arrow_array_ptr(col: &OwnedColumn) -> Result<u64>;
 
         /// Import a column from ArrowSchema + ArrowArray pointers.
@@ -44,9 +46,11 @@ pub mod ffi {
         ) -> Result<UniquePtr<OwnedColumn>>;
 
         /// Export table schema as heap-allocated ArrowSchema (returns pointer as u64).
+        /// DEPRECATED: Use table_to_arrow_pair() to avoid double GPU→host copy.
         fn table_to_arrow_schema_ptr(table: &OwnedTable) -> Result<u64>;
 
         /// Export table data as heap-allocated ArrowArray (returns pointer as u64).
+        /// DEPRECATED: Use table_to_arrow_pair() to avoid double GPU→host copy.
         fn table_to_arrow_array_ptr(table: &OwnedTable) -> Result<u64>;
 
         /// Import a table from ArrowSchema + ArrowArray pointers.
@@ -58,6 +62,23 @@ pub mod ffi {
 
         /// Free an ArrowArray without consuming it.
         fn free_arrow_array(ptr: u64);
+
+        // ── Arrow C Data Interface (paired export) ───────────────
+
+        /// Opaque pair holding schema + array from a single GPU→host transfer.
+        type ArrowExportPair;
+
+        /// Export column schema + array in one GPU→host copy.
+        fn column_to_arrow_pair(col: &OwnedColumn) -> Result<UniquePtr<ArrowExportPair>>;
+
+        /// Export table schema + array in one GPU→host copy.
+        fn table_to_arrow_pair(table: &OwnedTable) -> Result<UniquePtr<ArrowExportPair>>;
+
+        /// Take ownership of the schema pointer (sets internal to null).
+        fn arrow_pair_schema(pair: Pin<&mut ArrowExportPair>) -> u64;
+
+        /// Take ownership of the array pointer (sets internal to null).
+        fn arrow_pair_array(pair: Pin<&mut ArrowExportPair>) -> u64;
 
         // ── DLPack ────────────────────────────────────────────────
 

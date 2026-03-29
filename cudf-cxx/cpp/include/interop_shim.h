@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cudf/interop.hpp>
+#include <arrow/c/abi.h>
 #include <cudf/io/types.hpp>
 #include <cudf/column/column.hpp>
 #include <cudf/table/table.hpp>
@@ -35,6 +36,7 @@ std::unique_ptr<OwnedTable> table_from_arrow_ipc(rust::Slice<const uint8_t> data
 
 /// Export a column via Arrow C Data Interface.
 /// Returns (schema_ptr, array_ptr) as u64 pair.  Caller owns both.
+/// DEPRECATED: Use column_to_arrow_pair() to avoid double GPU→host copy.
 uint64_t column_to_arrow_schema_ptr(const OwnedColumn& col);
 uint64_t column_to_arrow_array_ptr(const OwnedColumn& col);
 
@@ -43,6 +45,7 @@ uint64_t column_to_arrow_array_ptr(const OwnedColumn& col);
 std::unique_ptr<OwnedColumn> column_from_arrow_cdata(uint64_t schema_ptr, uint64_t array_ptr);
 
 /// Export a table via Arrow C Data Interface.
+/// DEPRECATED: Use table_to_arrow_pair() to avoid double GPU→host copy.
 uint64_t table_to_arrow_schema_ptr(const OwnedTable& table);
 uint64_t table_to_arrow_array_ptr(const OwnedTable& table);
 
@@ -52,6 +55,39 @@ std::unique_ptr<OwnedTable> table_from_arrow_cdata(uint64_t schema_ptr, uint64_t
 /// Free an ArrowSchema / ArrowArray without consuming it (cleanup helper).
 void free_arrow_schema(uint64_t ptr);
 void free_arrow_array(uint64_t ptr);
+
+// ── Arrow C Data Interface (paired export, single GPU→host copy) ─
+
+/// Opaque pair holding both ArrowSchema and ArrowArray from a single export.
+/// Avoids the double GPU→host copy that happens when calling
+/// column_to_arrow_schema_ptr + column_to_arrow_array_ptr separately.
+struct ArrowExportPair {
+    ArrowSchema* schema;
+    ArrowArray* array;
+
+    ArrowExportPair() : schema(nullptr), array(nullptr) {}
+
+    ~ArrowExportPair() {
+        if (schema) { if (schema->release) schema->release(schema); delete schema; }
+        if (array)  { if (array->release)  array->release(array);   delete array;  }
+    }
+
+    // Non-copyable.
+    ArrowExportPair(const ArrowExportPair&) = delete;
+    ArrowExportPair& operator=(const ArrowExportPair&) = delete;
+};
+
+/// Export a column's schema + array in a single GPU→host transfer.
+std::unique_ptr<ArrowExportPair> column_to_arrow_pair(const OwnedColumn& col);
+
+/// Export a table's schema + array in a single GPU→host transfer.
+std::unique_ptr<ArrowExportPair> table_to_arrow_pair(const OwnedTable& table);
+
+/// Take ownership of the schema pointer from the pair (returns u64, sets internal to null).
+uint64_t arrow_pair_schema(ArrowExportPair& pair);
+
+/// Take ownership of the array pointer from the pair (returns u64, sets internal to null).
+uint64_t arrow_pair_array(ArrowExportPair& pair);
 
 // ── DLPack ────────────────────────────────────────────────────
 //
