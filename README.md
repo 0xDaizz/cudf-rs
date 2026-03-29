@@ -1,37 +1,78 @@
-# cudf-rs
+# cudf-rs: GPU DataFrame for Rust
 
-Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf) -- GPU-accelerated DataFrame operations.
+**First-ever Rust bindings for libcudf -- zero `unsafe` in public API, zero-cost FFI via cxx, full coverage across 43 modules.**
 
-> **First-ever Rust bindings for libcudf.** Zero `unsafe` in public API, zero-cost FFI via [cxx](https://cxx.rs), full API coverage across 43 modules.
+[![License: MIT/Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
+[![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-orange?logo=rust)](https://www.rust-lang.org)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey?logo=linux)](https://github.com)
+[![CUDA 12.2+](https://img.shields.io/badge/CUDA-12.2+-76B900?logo=nvidia)](https://developer.nvidia.com/cuda-toolkit)
+[![libcudf](https://img.shields.io/badge/libcudf-RAPIDS-7400B8)](https://github.com/rapidsai/cudf)
 
-## Architecture
+---
 
+## Features
+
+**100% Safe Public API**
+All `unsafe` is confined to the internal FFI layer. Your application code never touches raw pointers.
+
+**Zero-Cost FFI**
+[cxx](https://cxx.rs) bridge with no serialization overhead -- C++ calls are as cheap as a function pointer indirection.
+
+**Full libcudf Coverage**
+43 modules spanning compute, I/O, strings, and interop. Every libcudf capability is available from Rust.
+
+**Arrow Interop**
+Zero-copy conversion to/from `arrow-rs` via IPC. Move data between GPU and Arrow ecosystems without copying.
+
+**Builder-Pattern I/O**
+`ParquetReader`, `CsvReader`, `JsonReader`, `OrcReader`, `AvroReader` -- fluent APIs with compression, column selection, and header control.
+
+**GPU String Processing**
+Case conversion, find, replace, split, regex, extract, and more -- all running on the GPU.
+
+**RAII Memory Management**
+`Column` and `Table` drops free GPU memory automatically. No manual resource tracking.
+
+## Installation
+
+### 1. Install libcudf
+
+**Recommended: conda**
+
+```sh
+conda create -n cudf-dev -c rapidsai -c conda-forge libcudf cuda-version=12.2
+conda activate cudf-dev
 ```
-                   +----------------------------------------------+
-                   |  cudf       -- 100% safe, idiomatic Rust API |
-                   |             -- Column, Table, GroupBy, I/O   |
-                   +----------------------------------------------+
-                                         |
-                   +----------------------------------------------+
-                   |  cudf-cxx   -- cxx bridge + C++ shim layer   |
-                   |             -- one bridge per libcudf module  |
-                   +----------------------------------------------+
-                                         |
-                   +----------------------------------------------+
-                   |  cudf-sys   -- links libcudf.so (build only) |
-                   |             -- CUDF_ROOT / conda / pkg-config|
-                   +----------------------------------------------+
-                                         |
-                              NVIDIA libcudf (C++)
+
+**Alternative: from source**
+
+Follow the [RAPIDS build guide](https://docs.rapids.ai/install). After building, set:
+
+```sh
+export CUDF_ROOT=/path/to/libcudf/prefix
+# expects: $CUDF_ROOT/lib/libcudf.so and $CUDF_ROOT/include/cudf/
 ```
 
-Each libcudf C++ module maps to three files:
+### 2. Set CUDA path (if non-standard)
 
-| Layer | Files | Role |
-|-------|-------|------|
-| C++ shim | `cudf-cxx/cpp/{include,src}/{module}_shim.{h,cpp}` | Wraps libcudf types for cxx compatibility |
-| cxx bridge | `cudf-cxx/src/{module}.rs` | `#[cxx::bridge]` FFI declarations |
-| Safe API | `cudf/src/{module}.rs` | Idiomatic Rust wrappers with full safety |
+```sh
+export CUDA_PATH=/usr/local/cuda
+```
+
+### 3. Add cudf-rs to your project
+
+```toml
+[dependencies]
+cudf = { path = "cudf" }
+# or once published:
+# cudf = "0.1"
+```
+
+### 4. Build
+
+```sh
+cargo build --release
+```
 
 ## Quick Start
 
@@ -75,15 +116,34 @@ fn main() -> Result<()> {
 }
 ```
 
-## Features
+## Architecture
 
-- **100% safe public API** -- all `unsafe` is confined to the internal FFI layer
-- **Zero-cost FFI** -- cxx bridge with no serialization overhead
-- **Full libcudf coverage** -- 43 modules spanning compute, I/O, strings, and interop
-- **Arrow interop** -- zero-copy conversion to/from `arrow-rs` via IPC
-- **Builder-pattern I/O** -- `ParquetReader`, `CsvReader`, `JsonReader`, `OrcReader`, `AvroReader`
-- **GPU string processing** -- case, find, replace, split, regex, and more
-- **RAII memory management** -- `Column`/`Table` drops free GPU memory automatically
+```
+                   +----------------------------------------------+
+                   |  cudf       -- 100% safe, idiomatic Rust API |
+                   |             -- Column, Table, GroupBy, I/O   |
+                   +----------------------------------------------+
+                                         |
+                   +----------------------------------------------+
+                   |  cudf-cxx   -- cxx bridge + C++ shim layer   |
+                   |             -- one bridge per libcudf module  |
+                   +----------------------------------------------+
+                                         |
+                   +----------------------------------------------+
+                   |  cudf-sys   -- links libcudf.so (build only) |
+                   |             -- CUDF_ROOT / conda / pkg-config|
+                   +----------------------------------------------+
+                                         |
+                              NVIDIA libcudf (C++)
+```
+
+Each libcudf C++ module maps to three files:
+
+| Layer | Files | Role |
+|-------|-------|------|
+| C++ shim | `cudf-cxx/cpp/{include,src}/{module}_shim.{h,cpp}` | Wraps libcudf types for cxx compatibility |
+| cxx bridge | `cudf-cxx/src/{module}.rs` | `#[cxx::bridge]` FFI declarations |
+| Safe API | `cudf/src/{module}.rs` | Idiomatic Rust wrappers with full safety |
 
 ## Modules
 
@@ -165,59 +225,16 @@ fn main() -> Result<()> {
 
 - **GPU**: NVIDIA Volta or newer (compute capability 7.0+)
 - **CUDA**: 12.2+
-- **libcudf**: installed via conda or from source (see below)
+- **libcudf**: installed via conda or from source (see above)
 - **OS**: Linux only (libcudf does not support macOS or Windows)
 - **Rust**: 1.85+ (edition 2024)
-
-## Installation
-
-### 1. Install libcudf
-
-**Recommended: conda**
-
-```sh
-conda create -n cudf-dev -c rapidsai -c conda-forge libcudf cuda-version=12.2
-conda activate cudf-dev
-```
-
-**Alternative: from source**
-
-Follow the [RAPIDS build guide](https://docs.rapids.ai/install). After building, set:
-
-```sh
-export CUDF_ROOT=/path/to/libcudf/prefix
-# expects: $CUDF_ROOT/lib/libcudf.so and $CUDF_ROOT/include/cudf/
-```
-
-### 2. Set CUDA path (if non-standard)
-
-```sh
-export CUDA_PATH=/usr/local/cuda
-```
-
-### 3. Add cudf-rs to your project
-
-```toml
-[dependencies]
-cudf = { path = "cudf" }
-# or once published:
-# cudf = "0.1"
-```
-
-### 4. Build
-
-```sh
-cargo build --release
-```
 
 ## Known Limitations
 
 | Limitation | Details |
 |-----------|---------|
-| `i16`/`u16` `to_vec()` | Not yet supported due to libcudf not natively supporting 16-bit host copies. Use `i32`/`u32` as a workaround. |
 | Linux only | libcudf only builds on Linux. Cross-compilation from macOS/Windows is not supported. |
 | Avro write | Not supported by libcudf; read-only. |
-| String column creation | Must go through Arrow IPC or I/O readers; no direct `from_slice` for `&str`. |
 | GPU required | All operations require an NVIDIA GPU at runtime. CPU fallback is not provided. |
 | Decimal types | Limited to fixed-point representations matching libcudf's `Decimal32`/`Decimal64`/`Decimal128`. |
 
