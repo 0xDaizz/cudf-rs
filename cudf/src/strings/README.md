@@ -8,7 +8,7 @@ All operations are implemented as methods on `Column` and return new columns (or
 
 | Module | Description | Key Methods |
 |--------|-------------|-------------|
-| `case` | Case conversion | `str_to_upper()`, `str_to_lower()` |
+| `case` | Case conversion | `str_to_upper()`, `str_to_lower()`, `str_swapcase()` |
 | `find` | Substring search | `str_find(target)` |
 | `contains` | Containment checks | `str_contains(target)`, `str_contains_re(pattern)` |
 | `replace` | String replacement | `str_replace(target, repl)`, `str_replace_re(pattern, repl)` |

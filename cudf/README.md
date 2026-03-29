@@ -108,7 +108,7 @@ pub use JoinResult;
 | `col.fill(value, begin, end)` | `filling` | Fill range with value |
 | `Table::concatenate(&[tables])` | `concatenate` | Vertical stacking |
 | `Table::merge(...)` | `merge` | Merge pre-sorted tables |
-| `table.inner_join(...)` | `join` | Inner / left / full / semi / anti / cross join |
+| `table.inner_join(...)` | `join` | Inner / left / full / cross join |
 | `table.drop_nulls(...)` | `stream_compaction` | Drop null rows |
 | `table.apply_boolean_mask(...)` | `stream_compaction` | Filter by boolean mask |
 | `table.unique(...)` | `stream_compaction` | Remove duplicates |

@@ -115,12 +115,17 @@ let table = AvroReader::new("data.avro")
 
 ## Compression Options (Parquet/ORC)
 
-| Variant | Description |
-|---------|-------------|
-| `Compression::None` | No compression |
-| `Compression::Snappy` | Snappy (default) |
-| `Compression::Gzip` | Gzip |
-| `Compression::Brotli` | Brotli |
-| `Compression::Bz2` | BZ2 |
-| `Compression::Lz4` | LZ4 |
-| `Compression::Zstd` | Zstandard |
+| Variant | Value | Description |
+|---------|-------|-------------|
+| `Compression::None` | 0 | No compression |
+| `Compression::Auto` | 1 | Auto-detect |
+| `Compression::Snappy` | 2 | Snappy (default) |
+| `Compression::Gzip` | 3 | Gzip |
+| `Compression::Bzip2` | 4 | Bzip2 |
+| `Compression::Brotli` | 5 | Brotli |
+| `Compression::Zip` | 6 | Zip |
+| `Compression::Xz` | 7 | Xz |
+| `Compression::Zlib` | 8 | Zlib |
+| `Compression::Lz4` | 9 | LZ4 |
+| `Compression::Lzo` | 10 | LZO |
+| `Compression::Zstd` | 11 | Zstandard |

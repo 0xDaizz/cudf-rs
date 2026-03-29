@@ -121,7 +121,7 @@ fn main() -> Result<()> {
 | `filling` | Fill, repeat, and arithmetic sequence generation |
 | `concatenate` | Vertical stacking of columns and tables |
 | `merge` | Merge two pre-sorted tables into one sorted table |
-| `join` | Inner, left, full outer, left semi/anti, and cross joins |
+| `join` | Inner, left, full outer, and cross joins |
 | `stream_compaction` | Drop nulls, boolean masking, unique, distinct, duplicate removal |
 | `null_mask` | Inspect and manipulate column validity bitmasks |
 | `reshape` | Interleave and tile table columns |
@@ -144,7 +144,7 @@ fn main() -> Result<()> {
 
 | Module | Description |
 |--------|-------------|
-| `strings::case` | Upper/lower case conversion |
+| `strings::case` | Upper/lower/swap case conversion (`str_to_upper`, `str_to_lower`, `str_swapcase`) |
 | `strings::find` | Find substring position |
 | `strings::contains` | Literal and regex containment checks |
 | `strings::replace` | Literal and regex replacement |
