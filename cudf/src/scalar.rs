@@ -229,30 +229,26 @@ impl Scalar {
     }
 }
 
-// ── Convenience From impls ────────────────────────────────────
+// ── Convenience TryFrom impls ─────────────────────────────────
 
-impl From<i32> for Scalar {
-    fn from(v: i32) -> Self {
-        Self::new(v).expect("failed to create i32 scalar")
-    }
+impl TryFrom<i32> for Scalar {
+    type Error = CudfError;
+    fn try_from(v: i32) -> Result<Self> { Self::new(v) }
 }
 
-impl From<i64> for Scalar {
-    fn from(v: i64) -> Self {
-        Self::new(v).expect("failed to create i64 scalar")
-    }
+impl TryFrom<i64> for Scalar {
+    type Error = CudfError;
+    fn try_from(v: i64) -> Result<Self> { Self::new(v) }
 }
 
-impl From<f32> for Scalar {
-    fn from(v: f32) -> Self {
-        Self::new(v).expect("failed to create f32 scalar")
-    }
+impl TryFrom<f32> for Scalar {
+    type Error = CudfError;
+    fn try_from(v: f32) -> Result<Self> { Self::new(v) }
 }
 
-impl From<f64> for Scalar {
-    fn from(v: f64) -> Self {
-        Self::new(v).expect("failed to create f64 scalar")
-    }
+impl TryFrom<f64> for Scalar {
+    type Error = CudfError;
+    fn try_from(v: f64) -> Result<Self> { Self::new(v) }
 }
 
 impl std::fmt::Display for Scalar {

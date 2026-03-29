@@ -89,8 +89,23 @@ pub mod ffi {
         /// Copy column data to host as f64.
         fn column_to_f64(col: &OwnedColumn, out: &mut [f64]) -> Result<()>;
 
+        /// Copy column data to host as i8.
+        fn column_to_i8(col: &OwnedColumn, out: &mut [i8]) -> Result<()>;
+
+        /// Copy column data to host as i16.
+        fn column_to_i16(col: &OwnedColumn, out: &mut [i16]) -> Result<()>;
+
         /// Copy column data to host as u8.
         fn column_to_u8(col: &OwnedColumn, out: &mut [u8]) -> Result<()>;
+
+        /// Copy column data to host as u16.
+        fn column_to_u16(col: &OwnedColumn, out: &mut [u16]) -> Result<()>;
+
+        /// Copy column data to host as u32.
+        fn column_to_u32(col: &OwnedColumn, out: &mut [u32]) -> Result<()>;
+
+        /// Copy column data to host as u64.
+        fn column_to_u64(col: &OwnedColumn, out: &mut [u64]) -> Result<()>;
 
         /// Copy the null bitmask to host. Each bit indicates validity.
         fn column_null_mask(col: &OwnedColumn, out: &mut [u8]) -> Result<()>;

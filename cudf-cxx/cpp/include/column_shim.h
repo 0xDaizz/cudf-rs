@@ -63,11 +63,16 @@ std::unique_ptr<OwnedColumn> column_empty(int32_t type_id, int32_t size);
 // ── Data Transfer ──────────────────────────────────────────────
 
 /// Copy GPU column data to a host buffer.
+void column_to_i8(const OwnedColumn& col, rust::Slice<int8_t> out);
+void column_to_i16(const OwnedColumn& col, rust::Slice<int16_t> out);
 void column_to_i32(const OwnedColumn& col, rust::Slice<int32_t> out);
 void column_to_i64(const OwnedColumn& col, rust::Slice<int64_t> out);
+void column_to_u8(const OwnedColumn& col, rust::Slice<uint8_t> out);
+void column_to_u16(const OwnedColumn& col, rust::Slice<uint16_t> out);
+void column_to_u32(const OwnedColumn& col, rust::Slice<uint32_t> out);
+void column_to_u64(const OwnedColumn& col, rust::Slice<uint64_t> out);
 void column_to_f32(const OwnedColumn& col, rust::Slice<float> out);
 void column_to_f64(const OwnedColumn& col, rust::Slice<double> out);
-void column_to_u8(const OwnedColumn& col, rust::Slice<uint8_t> out);
 void column_null_mask(const OwnedColumn& col, rust::Slice<uint8_t> out);
 
 } // namespace cudf_shims

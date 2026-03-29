@@ -24,9 +24,15 @@ struct OwnedTable {
         if (released) return static_cast<int32_t>(released_columns.size());
         return inner->num_columns();
     }
-    int32_t num_rows() const { return inner->view().num_rows(); }
+    int32_t num_rows() const {
+        if (released) return 0;
+        return inner->view().num_rows();
+    }
 
-    cudf::table_view view() const { return inner->view(); }
+    cudf::table_view view() const {
+        if (released) throw std::runtime_error("table already released");
+        return inner->view();
+    }
 
     /// Release all columns from the table into the released_columns vector.
     /// Safe to call multiple times (idempotent).

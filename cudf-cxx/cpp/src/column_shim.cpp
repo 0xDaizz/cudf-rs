@@ -123,14 +123,25 @@ void column_to_host(const OwnedColumn& col, rust::Slice<T> out) {
     }
 
     auto stream = cudf::get_default_stream();
-    cudaMemcpyAsync(
+    auto err = cudaMemcpyAsync(
         out.data(),
         view.data<T>(),
         view.size() * sizeof(T),
         cudaMemcpyDeviceToHost,
         stream.value()
     );
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+    }
     stream.synchronize();
+}
+
+void column_to_i8(const OwnedColumn& col, rust::Slice<int8_t> out) {
+    column_to_host(col, out);
+}
+
+void column_to_i16(const OwnedColumn& col, rust::Slice<int16_t> out) {
+    column_to_host(col, out);
 }
 
 void column_to_i32(const OwnedColumn& col, rust::Slice<int32_t> out) {
@@ -141,15 +152,27 @@ void column_to_i64(const OwnedColumn& col, rust::Slice<int64_t> out) {
     column_to_host(col, out);
 }
 
+void column_to_u8(const OwnedColumn& col, rust::Slice<uint8_t> out) {
+    column_to_host(col, out);
+}
+
+void column_to_u16(const OwnedColumn& col, rust::Slice<uint16_t> out) {
+    column_to_host(col, out);
+}
+
+void column_to_u32(const OwnedColumn& col, rust::Slice<uint32_t> out) {
+    column_to_host(col, out);
+}
+
+void column_to_u64(const OwnedColumn& col, rust::Slice<uint64_t> out) {
+    column_to_host(col, out);
+}
+
 void column_to_f32(const OwnedColumn& col, rust::Slice<float> out) {
     column_to_host(col, out);
 }
 
 void column_to_f64(const OwnedColumn& col, rust::Slice<double> out) {
-    column_to_host(col, out);
-}
-
-void column_to_u8(const OwnedColumn& col, rust::Slice<uint8_t> out) {
     column_to_host(col, out);
 }
 
@@ -168,13 +191,16 @@ void column_null_mask(const OwnedColumn& col, rust::Slice<uint8_t> out) {
     }
 
     auto stream = cudf::get_default_stream();
-    cudaMemcpyAsync(
+    auto err = cudaMemcpyAsync(
         out.data(),
         mask,
         num_bytes,
         cudaMemcpyDeviceToHost,
         stream.value()
     );
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+    }
     stream.synchronize();
 }
 

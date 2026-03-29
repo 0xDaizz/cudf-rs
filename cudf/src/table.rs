@@ -67,10 +67,11 @@ impl Table {
     ///
     /// Returns an error if column lengths don't match or if a GPU error occurs.
     pub fn new(columns: Vec<Column>) -> Result<Self> {
+        // Allow empty tables (libcudf supports them)
         if columns.is_empty() {
-            return Err(CudfError::InvalidArgument(
-                "Cannot create table with zero columns".to_string(),
-            ));
+            let mut builder = cudf_cxx::table::ffi::table_builder_new();
+            let raw = builder.pin_mut().build().map_err(CudfError::from_cxx)?;
+            return Ok(Self { inner: raw });
         }
 
         // Check all columns have the same length

@@ -237,65 +237,60 @@ impl Column {
             return Ok(Vec::new());
         }
 
-        // Allocate output buffer. We use a Vec with capacity and set_len
-        // because the C++ side fills it via cudaMemcpy.
+        // Allocate output buffer. We write into spare capacity via raw pointer,
+        // only calling set_len AFTER the C++ side successfully fills the data.
         let mut result: Vec<T> = Vec::with_capacity(len);
-        // SAFETY: The C++ side will fill exactly `len` elements via cudaMemcpy.
-        // The type size is guaranteed correct by the type check above.
-        unsafe { result.set_len(len); }
+        let ptr = result.as_mut_ptr();
 
         // Dispatch to the appropriate cudf-cxx transfer function.
-        // Note: cudf-cxx currently exposes to_i32, to_i64, to_f32, to_f64, to_u8.
-        // For types without a dedicated transfer function, we use the same-sized
-        // transfer and reinterpret (safe because these are plain numeric types
-        // with identical memory representations).
         match T::TYPE_ID {
-            TypeId::Int8 | TypeId::Uint8 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut u8, len) };
-                cudf_cxx::column::ffi::column_to_u8(&self.inner, out)
+            TypeId::Int8 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i8, len) };
+                cudf_cxx::column::ffi::column_to_i8(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
-            TypeId::Int16 | TypeId::Uint16 => {
-                // 16-bit types: transfer as raw bytes via u8, reinterpret
-                // Each element is 2 bytes
-                let byte_len = len * 2;
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut u8, byte_len) };
-                // We need a dedicated transfer for this; for now, use i32 path
-                // with a temporary buffer if the cxx layer doesn't support it.
-                // TODO: Add column_to_i16/column_to_u16 to cudf-cxx
-                return Err(CudfError::InvalidArgument(
-                    format!("to_vec does not yet support {:?} -- add column_to_i16/u16 to cudf-cxx", T::TYPE_ID)
-                ));
+            TypeId::Int16 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i16, len) };
+                cudf_cxx::column::ffi::column_to_i16(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int32 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut i32, len) };
-                cudf_cxx::column::ffi::column_to_i32(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Uint32 => {
-                // u32 has same memory layout as i32
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut i32, len) };
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i32, len) };
                 cudf_cxx::column::ffi::column_to_i32(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int64 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut i64, len) };
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i64, len) };
                 cudf_cxx::column::ffi::column_to_i64(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Uint8 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u8, len) };
+                cudf_cxx::column::ffi::column_to_u8(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Uint16 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u16, len) };
+                cudf_cxx::column::ffi::column_to_u16(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Uint32 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u32, len) };
+                cudf_cxx::column::ffi::column_to_u32(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint64 => {
-                // u64 has same memory layout as i64
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut i64, len) };
-                cudf_cxx::column::ffi::column_to_i64(&self.inner, out)
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u64, len) };
+                cudf_cxx::column::ffi::column_to_u64(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Float32 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut f32, len) };
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut f32, len) };
                 cudf_cxx::column::ffi::column_to_f32(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Float64 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut f64, len) };
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut f64, len) };
                 cudf_cxx::column::ffi::column_to_f64(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
@@ -304,6 +299,9 @@ impl Column {
             )),
         }
 
+        // SAFETY: The C++ side has successfully filled exactly `len` elements
+        // via cudaMemcpy. The type size is guaranteed correct by the type check above.
+        unsafe { result.set_len(len); }
         Ok(result)
     }
 }

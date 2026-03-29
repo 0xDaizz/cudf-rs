@@ -11,10 +11,10 @@ use std::fmt;
 /// by libcudf, including numeric, temporal, string, and nested types.
 ///
 /// **IMPORTANT: Synchronization requirement** -- The discriminant values in
-/// this enum MUST match `cudf_cxx::types::ffi::TypeId` (the cxx shared enum)
-/// exactly. The cxx shared enum cannot have additional methods, so this
-/// standalone enum provides `is_numeric()`, `size_in_bytes()`, etc.
-/// If you add or reorder variants, update both enums.
+/// this enum MUST match `cudf::type_id` (C++) exactly. The cxx bridge passes
+/// type IDs as `i32`, so this enum's `#[repr(i32)]` values are the source of
+/// truth on the Rust side. If you add or reorder variants, update both the
+/// C++ `cudf::type_id` mapping and this enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum TypeId {
