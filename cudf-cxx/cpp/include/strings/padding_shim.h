@@ -13,4 +13,8 @@ std::unique_ptr<OwnedColumn> str_pad(
 std::unique_ptr<OwnedColumn> str_zfill(
     const OwnedColumn& col, int32_t width);
 
+/// Zero-fill with per-row widths from a column.
+std::unique_ptr<OwnedColumn> str_zfill_by_widths(
+    const OwnedColumn& col, const OwnedColumn& widths);
+
 } // namespace cudf_shims

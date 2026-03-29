@@ -19,5 +19,11 @@ pub mod ffi {
 
         /// Pad each string with leading zeros to at least `width` characters.
         fn str_zfill(col: &OwnedColumn, width: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Zero-fill with per-row widths from a column.
+        fn str_zfill_by_widths(
+            col: &OwnedColumn,
+            widths: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

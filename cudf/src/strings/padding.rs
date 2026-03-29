@@ -29,4 +29,15 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    /// Zero-fill with per-row widths from an integer column.
+    ///
+    /// Each string is padded with leading zeros to the width specified
+    /// by the corresponding element in the `widths` column.
+    pub fn str_zfill_by_widths(&self, widths: &Column) -> Result<Column> {
+        let result =
+            cudf_cxx::strings::padding::ffi::str_zfill_by_widths(&self.inner, &widths.inner)
+                .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

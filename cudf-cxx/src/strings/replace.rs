@@ -43,5 +43,12 @@ pub mod ffi {
             pattern: &str,
             replacement: &str,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Replace multiple regex patterns with corresponding replacements from a column.
+        fn str_replace_re_multiple(
+            col: &OwnedColumn,
+            patterns: &[String],
+            replacements: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

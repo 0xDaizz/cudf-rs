@@ -31,4 +31,25 @@ impl Column {
         .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    /// Filter characters of the given types, replacing removed characters.
+    ///
+    /// Characters matching `types_to_remove` are replaced with `replacement`.
+    /// Characters matching `types_to_keep` are preserved regardless. Use 0 for
+    /// `types_to_keep` to not keep any special types.
+    pub fn str_filter_characters_of_type(
+        &self,
+        types_to_remove: u32,
+        replacement: &str,
+        types_to_keep: u32,
+    ) -> Result<Column> {
+        let result = cudf_cxx::strings::char_types::ffi::str_filter_characters_of_type(
+            &self.inner,
+            types_to_remove,
+            replacement,
+            types_to_keep,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

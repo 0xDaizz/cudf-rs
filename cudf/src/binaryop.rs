@@ -172,3 +172,21 @@ pub fn binary_op(
     .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: result })
 }
+
+/// Check if a binary operation is supported for the given types and operator.
+///
+/// Returns `true` if `lhs_type op rhs_type -> out_type` is supported.
+pub fn is_supported_operation(
+    out_type: DataType,
+    lhs_type: DataType,
+    rhs_type: DataType,
+    op: BinaryOp,
+) -> Result<bool> {
+    cudf_cxx::binaryop::ffi::is_supported_operation(
+        out_type.id() as i32,
+        lhs_type.id() as i32,
+        rhs_type.id() as i32,
+        op as i32,
+    )
+    .map_err(CudfError::from_cxx)
+}

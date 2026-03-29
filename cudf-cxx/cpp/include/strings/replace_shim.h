@@ -25,4 +25,10 @@ std::unique_ptr<OwnedColumn> str_replace_multiple(
 std::unique_ptr<OwnedColumn> str_replace_with_backrefs(
     const OwnedColumn& col, rust::Str pattern, rust::Str replacement);
 
+/// Replace multiple regex patterns with corresponding replacements from a column.
+std::unique_ptr<OwnedColumn> str_replace_re_multiple(
+    const OwnedColumn& col,
+    rust::Slice<const rust::String> patterns,
+    const OwnedColumn& replacements);
+
 } // namespace cudf_shims

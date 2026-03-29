@@ -36,4 +36,7 @@ std::unique_ptr<OwnedColumn> rolling_window_variable(
     int32_t min_periods,
     int32_t agg_kind);
 
+/// Check if a rolling aggregation is valid for a given source data type.
+bool is_valid_rolling_aggregation(int32_t source_type_id, int32_t agg_kind);
+
 } // namespace cudf_shims

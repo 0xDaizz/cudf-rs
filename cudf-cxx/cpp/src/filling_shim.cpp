@@ -91,4 +91,16 @@ std::unique_ptr<OwnedColumn> sequence_f64(
     return make_sequence<double>(size, init, step, cudf::type_id::FLOAT64);
 }
 
+std::unique_ptr<OwnedColumn> calendrical_month_sequence(
+    int32_t size,
+    const OwnedScalar& init,
+    int32_t months)
+{
+    auto result = cudf::calendrical_month_sequence(
+        size,
+        *init.inner,
+        months);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

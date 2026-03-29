@@ -211,4 +211,15 @@ std::unique_ptr<BitmaskResult> bitmask_or(const BitmaskBuilder& builder) {
     return result;
 }
 
+int32_t state_null_count(int32_t state, int32_t size)
+{
+    auto ms = to_mask_state(state);
+    return cudf::state_null_count(ms, size);
+}
+
+int32_t num_bitmask_words(int32_t number_of_bits)
+{
+    return cudf::num_bitmask_words(number_of_bits);
+}
+
 } // namespace cudf_shims

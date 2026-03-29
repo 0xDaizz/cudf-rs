@@ -182,4 +182,82 @@ std::unique_ptr<OwnedColumn> top_k(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+// ── Segmented Sorting ─────────────────────────────────────────
+
+std::unique_ptr<OwnedColumn> segmented_sorted_order(
+    const OwnedTable& table,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order)
+{
+    auto col_order = to_column_order(column_order);
+    auto nul_order = to_null_order(null_order);
+
+    auto result = cudf::segmented_sorted_order(
+        table.view(),
+        segment_offsets.view(),
+        col_order,
+        nul_order);
+
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> stable_segmented_sorted_order(
+    const OwnedTable& table,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order)
+{
+    auto col_order = to_column_order(column_order);
+    auto nul_order = to_null_order(null_order);
+
+    auto result = cudf::stable_segmented_sorted_order(
+        table.view(),
+        segment_offsets.view(),
+        col_order,
+        nul_order);
+
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedTable> segmented_sort_by_key(
+    const OwnedTable& values,
+    const OwnedTable& keys,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order)
+{
+    auto col_order = to_column_order(column_order);
+    auto nul_order = to_null_order(null_order);
+
+    auto result = cudf::segmented_sort_by_key(
+        values.view(),
+        keys.view(),
+        segment_offsets.view(),
+        col_order,
+        nul_order);
+
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
+std::unique_ptr<OwnedTable> stable_segmented_sort_by_key(
+    const OwnedTable& values,
+    const OwnedTable& keys,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order)
+{
+    auto col_order = to_column_order(column_order);
+    auto nul_order = to_null_order(null_order);
+
+    auto result = cudf::stable_segmented_sort_by_key(
+        values.view(),
+        keys.view(),
+        segment_offsets.view(),
+        col_order,
+        nul_order);
+
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
 } // namespace cudf_shims

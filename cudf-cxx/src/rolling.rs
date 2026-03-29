@@ -44,5 +44,8 @@ pub mod ffi {
             min_periods: i32,
             agg_kind: i32,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Check if a rolling aggregation is valid for a given source data type.
+        fn is_valid_rolling_aggregation(source_type_id: i32, agg_kind: i32) -> Result<bool>;
     }
 }

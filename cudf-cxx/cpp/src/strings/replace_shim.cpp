@@ -75,4 +75,24 @@ std::unique_ptr<OwnedColumn> str_replace_with_backrefs(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_replace_re_multiple(
+    const OwnedColumn& col,
+    rust::Slice<const rust::String> patterns,
+    const OwnedColumn& replacements)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::vector<std::string> pat_vec;
+    pat_vec.reserve(patterns.size());
+    for (const auto& p : patterns) {
+        pat_vec.emplace_back(p.data(), p.size());
+    }
+    auto result = cudf::strings::replace_re(
+        col.view(), pat_vec,
+        cudf::strings_column_view(replacements.view()),
+        cudf::strings::regex_flags::DEFAULT,
+        stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

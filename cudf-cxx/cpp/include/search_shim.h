@@ -8,6 +8,7 @@
 #include "rust/cxx.h"
 #include "column_shim.h"
 #include "table_shim.h"
+#include "scalar_shim.h"
 
 namespace cudf_shims {
 
@@ -29,5 +30,10 @@ std::unique_ptr<OwnedColumn> upper_bound(
 std::unique_ptr<OwnedColumn> contains_column(
     const OwnedColumn& haystack,
     const OwnedColumn& needles);
+
+/// Check if a scalar value exists in a column.
+bool contains_scalar(
+    const OwnedColumn& haystack,
+    const OwnedScalar& needle);
 
 } // namespace cudf_shims

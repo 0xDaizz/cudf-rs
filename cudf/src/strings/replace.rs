@@ -59,4 +59,22 @@ impl Column {
         .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    /// Replace multiple regex patterns with corresponding replacements from a column.
+    ///
+    /// Each `patterns[i]` is applied in sequence, and matched text is replaced
+    /// with `replacements[i]`. The `replacements` column must be a string column.
+    pub fn str_replace_re_multiple(
+        &self,
+        patterns: &[String],
+        replacements: &Column,
+    ) -> Result<Column> {
+        let result = cudf_cxx::strings::replace::ffi::str_replace_re_multiple(
+            &self.inner,
+            patterns,
+            &replacements.inner,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

@@ -71,4 +71,36 @@ std::unique_ptr<OwnedColumn> top_k(
     int32_t k,
     int32_t order);
 
+// ── Segmented Sorting ─────────────────────────────────────────
+
+/// Returns row indices that would sort each segment of the table.
+std::unique_ptr<OwnedColumn> segmented_sorted_order(
+    const OwnedTable& table,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order);
+
+/// Stable version of segmented_sorted_order.
+std::unique_ptr<OwnedColumn> stable_segmented_sorted_order(
+    const OwnedTable& table,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order);
+
+/// Sort values by keys within each segment.
+std::unique_ptr<OwnedTable> segmented_sort_by_key(
+    const OwnedTable& values,
+    const OwnedTable& keys,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order);
+
+/// Stable version of segmented_sort_by_key.
+std::unique_ptr<OwnedTable> stable_segmented_sort_by_key(
+    const OwnedTable& values,
+    const OwnedTable& keys,
+    const OwnedColumn& segment_offsets,
+    rust::Slice<const int32_t> column_order,
+    rust::Slice<const int32_t> null_order);
+
 } // namespace cudf_shims

@@ -197,4 +197,60 @@ bool has_nonempty_nulls(const OwnedColumn& col) {
     return cudf::has_nonempty_nulls(col.view());
 }
 
+std::unique_ptr<OwnedColumn> copy_if_else_col_scalar(
+    const OwnedColumn& lhs,
+    const OwnedScalar& rhs,
+    const OwnedColumn& boolean_mask)
+{
+    auto result = cudf::copy_if_else(
+        lhs.view(),
+        *rhs.inner,
+        boolean_mask.view());
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> copy_if_else_scalar_col(
+    const OwnedScalar& lhs,
+    const OwnedColumn& rhs,
+    const OwnedColumn& boolean_mask)
+{
+    auto result = cudf::copy_if_else(
+        *lhs.inner,
+        rhs.view(),
+        boolean_mask.view());
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<ColumnSliceResult> slice_column(
+    const OwnedColumn& col, rust::Slice<const int32_t> indices)
+{
+    std::vector<cudf::size_type> idx_vec(indices.begin(), indices.end());
+    auto views = cudf::slice(col.view(), idx_vec);
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+
+    auto result = std::make_unique<ColumnSliceResult>();
+    for (auto& view : views) {
+        auto owned = std::make_unique<cudf::column>(view, stream, mr);
+        result->parts.push_back(std::make_unique<OwnedColumn>(std::move(owned)));
+    }
+    return result;
+}
+
+int32_t column_slice_result_count(const ColumnSliceResult& result) {
+    return static_cast<int32_t>(result.parts.size());
+}
+
+std::unique_ptr<OwnedColumn> column_slice_result_get(
+    ColumnSliceResult& result, int32_t index)
+{
+    if (index < 0 || static_cast<size_t>(index) >= result.parts.size()) {
+        throw std::runtime_error("column slice result index out of bounds");
+    }
+    if (!result.parts[index]) {
+        throw std::runtime_error("column slice result part already consumed");
+    }
+    return std::move(result.parts[index]);
+}
+
 } // namespace cudf_shims

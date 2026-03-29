@@ -86,4 +86,11 @@ std::unique_ptr<OwnedColumn> rolling_window_variable(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+bool is_valid_rolling_aggregation(int32_t source_type_id, int32_t agg_kind)
+{
+    auto src_type = cudf::data_type{static_cast<cudf::type_id>(source_type_id)};
+    auto kind = static_cast<cudf::aggregation::Kind>(agg_kind);
+    return cudf::is_valid_rolling_aggregation(src_type, kind);
+}
+
 } // namespace cudf_shims

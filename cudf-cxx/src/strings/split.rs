@@ -38,5 +38,12 @@ pub mod ffi {
             delimiter: &str,
             maxsplit: i32,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Return a single part from splitting each string by delimiter.
+        fn str_split_part(
+            col: &OwnedColumn,
+            delimiter: &str,
+            index: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

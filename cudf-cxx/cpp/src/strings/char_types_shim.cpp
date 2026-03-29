@@ -16,4 +16,18 @@ std::unique_ptr<OwnedColumn> str_all_characters_of_type(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_filter_characters_of_type(
+    const OwnedColumn& col, uint32_t types_to_remove, rust::Str replacement, uint32_t types_to_keep)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto remove = static_cast<cudf::strings::string_character_types>(types_to_remove);
+    auto keep = static_cast<cudf::strings::string_character_types>(types_to_keep);
+    std::string repl(replacement.data(), replacement.size());
+    cudf::string_scalar scalar_repl(repl, true, stream);
+    auto result = cudf::strings::filter_characters_of_type(
+        col.view(), remove, scalar_repl, keep, stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

@@ -266,4 +266,32 @@ std::unique_ptr<OwnedColumn> str_format_list_column(const OwnedColumn& col)
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+// ── Additional validators ────────────────────────────────────
+
+std::unique_ptr<OwnedColumn> str_is_timestamp(
+    const OwnedColumn& col, rust::Str format)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::string fmt(format.data(), format.size());
+    auto result = cudf::strings::is_timestamp(col.view(), fmt, stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> str_is_hex(const OwnedColumn& col)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto result = cudf::strings::is_hex(col.view(), stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> str_is_ipv4(const OwnedColumn& col)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto result = cudf::strings::is_ipv4(col.view(), stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

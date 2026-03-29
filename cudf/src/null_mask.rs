@@ -120,6 +120,22 @@ pub fn bitmask_and(columns: &[&Column]) -> Result<BitmaskResult> {
     })
 }
 
+/// Compute the null count for a given mask state and size.
+///
+/// For example, `state_null_count(MaskState::AllNull, 100)` returns 100.
+pub fn state_null_count(state: MaskState, size: usize) -> Result<usize> {
+    let count = cudf_cxx::null_mask::ffi::state_null_count(state as i32, size as i32)
+        .map_err(CudfError::from_cxx)?;
+    Ok(count as usize)
+}
+
+/// Compute the number of `bitmask_type` words needed for the given number of bits.
+///
+/// This is the actual number of words, not the padded allocation size.
+pub fn num_bitmask_words(num_bits: usize) -> usize {
+    cudf_cxx::null_mask::ffi::num_bitmask_words(num_bits as i32) as usize
+}
+
 /// Compute bitwise OR of null masks from multiple columns.
 ///
 /// A bit is set in the output if it is set in ANY input column.

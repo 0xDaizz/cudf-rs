@@ -16,5 +16,8 @@ pub mod ffi {
 
         /// Repeat (tile) a table's rows `count` times.
         fn tile(table: &OwnedTable, count: i32) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Cast column data to lists of bytes, optionally flipping endianness.
+        fn byte_cast(col: &OwnedColumn, flip_endianness: bool) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

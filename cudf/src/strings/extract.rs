@@ -23,4 +23,16 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    /// Extract a single capture group from each string matching `pattern`.
+    ///
+    /// `group_index` specifies which capture group to return (0-based).
+    /// Returns a string column with the extracted group value, or null
+    /// if the pattern doesn't match.
+    pub fn str_extract_single(&self, pattern: &str, group_index: i32) -> Result<Column> {
+        let result =
+            cudf_cxx::strings::extract::ffi::str_extract_single(&self.inner, pattern, group_index)
+                .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

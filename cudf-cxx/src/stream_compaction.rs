@@ -29,6 +29,13 @@ pub mod ffi {
         /// Drop rows from a table where key columns contain NaN.
         fn drop_nans(table: &OwnedTable, keys: &[i32]) -> Result<UniquePtr<OwnedTable>>;
 
+        /// Drop rows from a table where key columns contain NaN, with a threshold.
+        fn drop_nans_threshold(
+            table: &OwnedTable,
+            keys: &[i32],
+            threshold: i32,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
         // ── Boolean Mask ───────────────────────────────────────────
 
         /// Keep only rows where boolean_mask is true.

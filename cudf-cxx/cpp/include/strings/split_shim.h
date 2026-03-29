@@ -19,4 +19,8 @@ std::unique_ptr<OwnedColumn> str_split_record(
 std::unique_ptr<OwnedColumn> str_rsplit_record(
     const OwnedColumn& col, rust::Str delimiter, int32_t maxsplit);
 
+/// Return a single part from splitting each string by delimiter.
+std::unique_ptr<OwnedColumn> str_split_part(
+    const OwnedColumn& col, rust::Str delimiter, int32_t index);
+
 } // namespace cudf_shims

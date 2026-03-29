@@ -157,6 +157,101 @@ impl Table {
         Ok(Column { inner: raw })
     }
 
+    /// Returns row indices that would sort each segment of this table.
+    ///
+    /// `segment_offsets` is a column of `i32` start offsets for each segment.
+    /// `column_order` and `null_order` must have one entry per column.
+    pub fn segmented_sorted_order(
+        &self,
+        segment_offsets: &Column,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Column> {
+        self.validate_order_slices(column_order.len(), null_order.len())?;
+
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::segmented_sorted_order(
+            &self.inner,
+            &segment_offsets.inner,
+            &co,
+            &no,
+        )
+        .map_err(CudfError::from_cxx)?;
+
+        Ok(Column { inner: raw })
+    }
+
+    /// Stable version of [`segmented_sorted_order`](Self::segmented_sorted_order).
+    pub fn stable_segmented_sorted_order(
+        &self,
+        segment_offsets: &Column,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Column> {
+        self.validate_order_slices(column_order.len(), null_order.len())?;
+
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::stable_segmented_sorted_order(
+            &self.inner,
+            &segment_offsets.inner,
+            &co,
+            &no,
+        )
+        .map_err(CudfError::from_cxx)?;
+
+        Ok(Column { inner: raw })
+    }
+
+    /// Sort `values` by `keys` within each segment defined by `segment_offsets`.
+    pub fn segmented_sort_by_key(
+        &self,
+        keys: &Table,
+        segment_offsets: &Column,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Table> {
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::segmented_sort_by_key(
+            &self.inner,
+            &keys.inner,
+            &segment_offsets.inner,
+            &co,
+            &no,
+        )
+        .map_err(CudfError::from_cxx)?;
+
+        Ok(Table { inner: raw })
+    }
+
+    /// Stable version of [`segmented_sort_by_key`](Self::segmented_sort_by_key).
+    pub fn stable_segmented_sort_by_key(
+        &self,
+        keys: &Table,
+        segment_offsets: &Column,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Table> {
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::stable_segmented_sort_by_key(
+            &self.inner,
+            &keys.inner,
+            &segment_offsets.inner,
+            &co,
+            &no,
+        )
+        .map_err(CudfError::from_cxx)?;
+
+        Ok(Table { inner: raw })
+    }
+
     /// Validate that order slices match the number of columns.
     fn validate_order_slices(&self, co_len: usize, no_len: usize) -> Result<()> {
         let ncols = self.num_columns();

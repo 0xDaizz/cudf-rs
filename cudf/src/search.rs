@@ -71,4 +71,12 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
+
+    /// Check if a scalar value exists in this column.
+    ///
+    /// Returns `true` if the scalar is found in the column.
+    pub fn contains_scalar(&self, needle: &crate::scalar::Scalar) -> Result<bool> {
+        cudf_cxx::search::ffi::contains_scalar(&self.inner, &needle.inner)
+            .map_err(CudfError::from_cxx)
+    }
 }

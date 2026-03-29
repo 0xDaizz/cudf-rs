@@ -57,4 +57,10 @@ std::unique_ptr<OwnedColumn> cast(const OwnedColumn& input, int32_t type_id) {
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+bool is_supported_cast(int32_t from_type_id, int32_t to_type_id) {
+    auto from = cudf::data_type{static_cast<cudf::type_id>(from_type_id)};
+    auto to = cudf::data_type{static_cast<cudf::type_id>(to_type_id)};
+    return cudf::is_supported_cast(from, to);
+}
+
 } // namespace cudf_shims

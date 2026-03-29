@@ -109,6 +109,49 @@ pub fn write_parquet(table: &Table, path: impl Into<String>) -> Result<()> {
     ParquetWriter::new(table, path).write()
 }
 
+// ── Parquet Metadata ─────────────────────────────────────────
+
+/// Metadata about a Parquet file, read without loading the data.
+pub struct ParquetMetadata {
+    inner: cxx::UniquePtr<cudf_cxx::io::parquet::ffi::OwnedParquetMetadata>,
+}
+
+impl ParquetMetadata {
+    /// Number of rows in the file.
+    pub fn num_rows(&self) -> i64 {
+        cudf_cxx::io::parquet::ffi::get_num_rows(&self.inner)
+    }
+
+    /// Number of row groups in the file.
+    pub fn num_row_groups(&self) -> i32 {
+        cudf_cxx::io::parquet::ffi::get_num_row_groups(&self.inner)
+    }
+
+    /// Number of columns in the file.
+    pub fn num_columns(&self) -> i32 {
+        cudf_cxx::io::parquet::ffi::get_num_columns(&self.inner)
+    }
+
+    /// Get column names from the schema.
+    pub fn column_names(&self) -> Vec<String> {
+        let n = self.num_columns();
+        (0..n)
+            .map(|i| cudf_cxx::io::parquet::ffi::get_column_name(&self.inner, i))
+            .collect()
+    }
+}
+
+/// Read metadata from a Parquet file without loading the data.
+///
+/// Returns file-level information including number of rows,
+/// number of row groups, and column names from the schema.
+pub fn read_parquet_metadata(path: impl Into<String>) -> Result<ParquetMetadata> {
+    let path = path.into();
+    let inner =
+        cudf_cxx::io::parquet::ffi::read_parquet_metadata(&path).map_err(CudfError::from_cxx)?;
+    Ok(ParquetMetadata { inner })
+}
+
 // ── Chunked Parquet Reader ────────────────────────────────────
 
 /// A chunked Parquet reader for reading large files in pieces.

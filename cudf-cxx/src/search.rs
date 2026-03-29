@@ -32,5 +32,10 @@ pub mod ffi {
             haystack: &OwnedColumn,
             needles: &OwnedColumn,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        type OwnedScalar = crate::scalar::ffi::OwnedScalar;
+
+        /// Check if a scalar value exists in a column.
+        fn contains_scalar(haystack: &OwnedColumn, needle: &OwnedScalar) -> Result<bool>;
     }
 }

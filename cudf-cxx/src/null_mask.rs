@@ -83,5 +83,11 @@ pub mod ffi {
 
         /// Bitwise OR of null masks from multiple columns.
         fn bitmask_or(builder: &BitmaskBuilder) -> Result<UniquePtr<BitmaskResult>>;
+
+        /// Compute the null count for a given mask state and size.
+        fn state_null_count(state: i32, size: i32) -> Result<i32>;
+
+        /// Compute the number of bitmask_type words needed for the given number of bits.
+        fn num_bitmask_words(number_of_bits: i32) -> i32;
     }
 }

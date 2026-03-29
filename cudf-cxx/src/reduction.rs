@@ -53,5 +53,16 @@ pub mod ffi {
 
         /// Move max scalar out of MinMaxResult.
         fn minmax_take_max(result: Pin<&mut MinMaxResult>) -> Result<UniquePtr<OwnedScalar>>;
+
+        /// Reduce with an initial value.
+        fn reduce_with_init(
+            col: &OwnedColumn,
+            agg_kind: i32,
+            output_type_id: i32,
+            init: &OwnedScalar,
+        ) -> Result<UniquePtr<OwnedScalar>>;
+
+        /// Check if a reduction aggregation is valid for a given source data type.
+        fn is_valid_reduction_aggregation(source_type_id: i32, agg_kind: i32) -> Result<bool>;
     }
 }

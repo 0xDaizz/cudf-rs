@@ -15,4 +15,8 @@ std::unique_ptr<OwnedTable> str_extract(
 std::unique_ptr<OwnedColumn> str_extract_all_record(
     const OwnedColumn& col, rust::Str pattern);
 
+/// Extract a single capture group from each string.
+std::unique_ptr<OwnedColumn> str_extract_single(
+    const OwnedColumn& col, rust::Str pattern, int32_t group_index);
+
 } // namespace cudf_shims

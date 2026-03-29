@@ -28,4 +28,15 @@ std::unique_ptr<OwnedColumn> str_extract_all_record(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_extract_single(
+    const OwnedColumn& col, rust::Str pattern, int32_t group_index)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::string pat(pattern.data(), pattern.size());
+    auto prog = cudf::strings::regex_program::create(pat);
+    auto result = cudf::strings::extract_single(col.view(), *prog, group_index, stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

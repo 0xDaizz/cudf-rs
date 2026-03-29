@@ -119,5 +119,16 @@ pub mod ffi {
 
         /// Convert a list column of strings into a formatted strings column.
         fn str_format_list_column(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── Additional Validators ─────────────────────────────────
+
+        /// Check if each string is a valid timestamp for the given format.
+        fn str_is_timestamp(col: &OwnedColumn, format: &str) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Check if each string is a valid hex representation.
+        fn str_is_hex(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Check if each string is a valid IPv4 address.
+        fn str_is_ipv4(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

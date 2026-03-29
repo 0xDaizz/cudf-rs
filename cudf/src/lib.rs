@@ -104,3 +104,6 @@ pub use stream_compaction::DuplicateKeepOption;
 pub use table::{Table, TableWithMetadata};
 pub use types::{DataType, NullHandling, TypeId};
 pub use unary::UnaryOp;
+
+// Interop re-exports
+pub use interop::{DLPackTensor, PackedTable, SplitResult};

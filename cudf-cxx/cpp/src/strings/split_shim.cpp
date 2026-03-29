@@ -51,4 +51,15 @@ std::unique_ptr<OwnedColumn> str_rsplit_record(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_split_part(
+    const OwnedColumn& col, rust::Str delimiter, int32_t index)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::string delim(delimiter.data(), delimiter.size());
+    cudf::string_scalar scalar_delim(delim, true, stream);
+    auto result = cudf::strings::split_part(col.view(), scalar_delim, index, stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

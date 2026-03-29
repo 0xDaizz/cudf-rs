@@ -60,5 +60,25 @@ pub mod ffi {
 
         /// Finalize and close the writer.
         fn chunked_parquet_writer_close(writer: Pin<&mut OwnedChunkedParquetWriter>) -> Result<()>;
+
+        // ── Parquet Metadata ─────────────────────────────────────
+
+        /// Opaque wrapper for Parquet file metadata.
+        type OwnedParquetMetadata;
+
+        /// Read metadata from a Parquet file without reading the data.
+        fn read_parquet_metadata(filepath: &str) -> Result<UniquePtr<OwnedParquetMetadata>>;
+
+        /// Get number of rows.
+        fn get_num_rows(meta: &OwnedParquetMetadata) -> i64;
+
+        /// Get number of row groups.
+        fn get_num_row_groups(meta: &OwnedParquetMetadata) -> i32;
+
+        /// Get number of columns.
+        fn get_num_columns(meta: &OwnedParquetMetadata) -> i32;
+
+        /// Get column name by index.
+        fn get_column_name(meta: &OwnedParquetMetadata, index: i32) -> String;
     }
 }

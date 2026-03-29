@@ -59,4 +59,17 @@ std::unique_ptr<OwnedColumn> binary_operation_scalar_col(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+bool is_supported_operation(
+    int32_t out_type,
+    int32_t lhs_type,
+    int32_t rhs_type,
+    int32_t op)
+{
+    auto out = cudf::data_type{static_cast<cudf::type_id>(out_type)};
+    auto lhs = cudf::data_type{static_cast<cudf::type_id>(lhs_type)};
+    auto rhs = cudf::data_type{static_cast<cudf::type_id>(rhs_type)};
+    auto cudf_op = static_cast<cudf::binary_operator>(op);
+    return cudf::binops::is_supported_operation(out, lhs, rhs, cudf_op);
+}
+
 } // namespace cudf_shims

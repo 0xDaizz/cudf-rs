@@ -50,4 +50,15 @@ std::unique_ptr<OwnedColumn> find_and_replace_all(
     const OwnedColumn& old_values,
     const OwnedColumn& new_values);
 
+/// Normalize NaN and zeros in-place (modifies column).
+void normalize_nans_and_zeros_inplace(OwnedColumn& col);
+
+/// Clamp with replacement values: lo_replace for below lo, hi_replace for above hi.
+std::unique_ptr<OwnedColumn> clamp_with_replace(
+    const OwnedColumn& col,
+    const OwnedScalar& lo,
+    const OwnedScalar& lo_replace,
+    const OwnedScalar& hi,
+    const OwnedScalar& hi_replace);
+
 } // namespace cudf_shims

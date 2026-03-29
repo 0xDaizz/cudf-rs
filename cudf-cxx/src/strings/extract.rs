@@ -19,5 +19,12 @@ pub mod ffi {
             col: &OwnedColumn,
             pattern: &str,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Extract a single capture group from each string matching `pattern`.
+        fn str_extract_single(
+            col: &OwnedColumn,
+            pattern: &str,
+            group_index: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

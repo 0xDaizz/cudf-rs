@@ -142,3 +142,14 @@ impl Column {
         Ok(Column { inner: raw })
     }
 }
+
+/// Check if a rolling aggregation is valid for a given source data type and rolling aggregation.
+///
+/// Returns `true` if the aggregation can be applied.
+pub fn is_valid_rolling_aggregation(
+    source_type: crate::types::DataType,
+    agg: RollingAgg,
+) -> crate::error::Result<bool> {
+    cudf_cxx::rolling::ffi::is_valid_rolling_aggregation(source_type.id() as i32, agg as i32)
+        .map_err(crate::error::CudfError::from_cxx)
+}

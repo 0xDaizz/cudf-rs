@@ -140,4 +140,29 @@ std::unique_ptr<OwnedScalar> minmax_take_max(MinMaxResult& result) {
     return std::move(result.max_val);
 }
 
+std::unique_ptr<OwnedScalar> reduce_with_init(
+    const OwnedColumn& col,
+    int32_t agg_kind,
+    int32_t output_type_id,
+    const OwnedScalar& init)
+{
+    auto agg = make_reduce_agg(agg_kind);
+    auto out_type = cudf::data_type{static_cast<cudf::type_id>(output_type_id)};
+
+    auto result = cudf::reduce(
+        col.view(),
+        *agg,
+        out_type,
+        std::optional<std::reference_wrapper<cudf::scalar const>>{*init.inner});
+
+    return std::make_unique<OwnedScalar>(std::move(result));
+}
+
+bool is_valid_reduction_aggregation(int32_t source_type_id, int32_t agg_kind)
+{
+    auto src_type = cudf::data_type{static_cast<cudf::type_id>(source_type_id)};
+    auto kind = static_cast<cudf::aggregation::Kind>(agg_kind);
+    return cudf::reduction::is_valid_aggregation(src_type, kind);
+}
+
 } // namespace cudf_shims

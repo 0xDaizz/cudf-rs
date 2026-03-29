@@ -71,6 +71,19 @@ std::unique_ptr<OwnedTable> drop_nans(
     return std::make_unique<OwnedTable>(std::move(result));
 }
 
+std::unique_ptr<OwnedTable> drop_nans_threshold(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> keys,
+    int32_t threshold)
+{
+    auto key_vec = to_size_type_vec(keys);
+    auto result = cudf::drop_nans(
+        table.view(),
+        key_vec,
+        static_cast<cudf::size_type>(threshold));
+    return std::make_unique<OwnedTable>(std::move(result));
+}
+
 std::unique_ptr<OwnedTable> apply_boolean_mask(
     const OwnedTable& table,
     const OwnedColumn& boolean_mask)

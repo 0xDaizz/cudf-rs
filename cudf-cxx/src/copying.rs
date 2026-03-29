@@ -128,5 +128,35 @@ pub mod ffi {
 
         /// Check if a column has non-empty null elements.
         fn has_nonempty_nulls(col: &OwnedColumn) -> Result<bool>;
+
+        /// Elementwise: select lhs_col where mask true, rhs_scalar where false.
+        fn copy_if_else_col_scalar(
+            lhs: &OwnedColumn,
+            rhs: &OwnedScalar,
+            boolean_mask: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Elementwise: select lhs_scalar where mask true, rhs_col where false.
+        fn copy_if_else_scalar_col(
+            lhs: &OwnedScalar,
+            rhs: &OwnedColumn,
+            boolean_mask: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Opaque result of slicing a column.
+        type ColumnSliceResult;
+
+        /// Slice a column by pairs of [begin, end) indices.
+        fn slice_column(col: &OwnedColumn, indices: &[i32])
+        -> Result<UniquePtr<ColumnSliceResult>>;
+
+        /// Return the number of parts in a column slice result.
+        fn column_slice_result_count(result: &ColumnSliceResult) -> i32;
+
+        /// Move one part out of a column slice result by index.
+        fn column_slice_result_get(
+            result: Pin<&mut ColumnSliceResult>,
+            index: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

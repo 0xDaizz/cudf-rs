@@ -1,5 +1,6 @@
 #include "io/parquet_shim.h"
 #include <cudf/io/parquet.hpp>
+#include <cudf/io/parquet_metadata.hpp>
 #include <string>
 #include <vector>
 
@@ -99,6 +100,27 @@ void chunked_parquet_writer_write(
 
 void chunked_parquet_writer_close(OwnedChunkedParquetWriter& writer) {
     writer.inner->close();
+}
+
+// ── Parquet Metadata ─────────────────────────────────────────
+
+std::unique_ptr<OwnedParquetMetadata> read_parquet_metadata(rust::Str filepath)
+{
+    std::string path(filepath.data(), filepath.size());
+    auto source = cudf::io::source_info(path);
+    auto meta = cudf::io::read_parquet_metadata(source);
+
+    auto result = std::make_unique<OwnedParquetMetadata>();
+    result->num_rows_val = meta.num_rows();
+    result->num_row_groups_val = meta.num_rowgroups();
+
+    // Extract column names from the schema root's children
+    auto const& root = meta.schema().root();
+    for (auto i = 0u; i < root.num_children(); ++i) {
+        result->column_names.push_back(std::string(root.child(i).name()));
+    }
+
+    return result;
 }
 
 } // namespace cudf_shims

@@ -39,3 +39,16 @@ impl Table {
         Ok(Table { inner: raw })
     }
 }
+
+impl Column {
+    /// Cast column data to lists of bytes.
+    ///
+    /// Each element becomes a list of `uint8` bytes representing its
+    /// raw binary data. If `flip_endianness` is true, the byte order
+    /// is reversed for each element.
+    pub fn byte_cast(&self, flip_endianness: bool) -> Result<Column> {
+        let raw = cudf_cxx::reshape::ffi::byte_cast(&self.inner, flip_endianness)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+}

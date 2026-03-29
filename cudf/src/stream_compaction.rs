@@ -124,6 +124,21 @@ impl Table {
             .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
+
+    /// Drop rows where key columns contain NaN, with a threshold.
+    ///
+    /// Keeps rows that have at least `threshold` non-NaN values in the
+    /// specified key columns.
+    pub fn drop_nans_threshold(&self, key_columns: &[usize], threshold: usize) -> Result<Table> {
+        let keys: Vec<i32> = key_columns.iter().map(|&k| k as i32).collect();
+        let raw = cudf_cxx::stream_compaction::ffi::drop_nans_threshold(
+            &self.inner,
+            &keys,
+            threshold as i32,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Table { inner: raw })
+    }
 }
 
 impl Column {

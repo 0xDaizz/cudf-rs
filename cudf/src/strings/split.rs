@@ -42,4 +42,14 @@ impl Column {
                 .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    /// Return a single part from splitting each string by `delimiter`.
+    ///
+    /// `index` is the 0-based part index to return. If the string has fewer
+    /// parts, the output for that row is null.
+    pub fn str_split_part(&self, delimiter: &str, index: i32) -> Result<Column> {
+        let result = cudf_cxx::strings::split::ffi::str_split_part(&self.inner, delimiter, index)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

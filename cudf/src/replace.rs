@@ -102,6 +102,39 @@ impl Column {
     }
 }
 
+impl Column {
+    /// Normalize -NaN to +NaN and -0.0 to +0.0 in-place.
+    ///
+    /// Modifies the column directly without creating a copy.
+    /// Only valid for floating-point columns.
+    pub fn normalize_nans_and_zeros_inplace(&mut self) -> Result<()> {
+        cudf_cxx::replace::ffi::normalize_nans_and_zeros_inplace(self.inner.pin_mut())
+            .map_err(CudfError::from_cxx)
+    }
+
+    /// Clamp values with custom replacement values.
+    ///
+    /// Values below `lo` are replaced with `lo_replace`.
+    /// Values above `hi` are replaced with `hi_replace`.
+    pub fn clamp_with_replace(
+        &self,
+        lo: &Scalar,
+        lo_replace: &Scalar,
+        hi: &Scalar,
+        hi_replace: &Scalar,
+    ) -> Result<Column> {
+        let raw = cudf_cxx::replace::ffi::clamp_with_replace(
+            &self.inner,
+            &lo.inner,
+            &lo_replace.inner,
+            &hi.inner,
+            &hi_replace.inner,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+}
+
 /// Policy for replacing null values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NullReplacePolicy {

@@ -84,3 +84,17 @@ impl Table {
         Ok(Table { inner: raw })
     }
 }
+
+/// Generate a sequence of timestamps separated by a fixed number of months.
+///
+/// The `init` scalar must be a timestamp type. Returns a column of
+/// timestamps offset from `init` by multiples of `months`.
+pub fn calendrical_month_sequence(
+    size: usize,
+    init: &crate::scalar::Scalar,
+    months: i32,
+) -> Result<Column> {
+    let raw = cudf_cxx::filling::ffi::calendrical_month_sequence(size as i32, &init.inner, months)
+        .map_err(CudfError::from_cxx)?;
+    Ok(Column { inner: raw })
+}

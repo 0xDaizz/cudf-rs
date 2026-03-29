@@ -64,5 +64,17 @@ pub mod ffi {
             old_values: &OwnedColumn,
             new_values: &OwnedColumn,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Normalize NaN and zeros in-place.
+        fn normalize_nans_and_zeros_inplace(col: Pin<&mut OwnedColumn>) -> Result<()>;
+
+        /// Clamp with replacement values.
+        fn clamp_with_replace(
+            col: &OwnedColumn,
+            lo: &OwnedScalar,
+            lo_replace: &OwnedScalar,
+            hi: &OwnedScalar,
+            hi_replace: &OwnedScalar,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

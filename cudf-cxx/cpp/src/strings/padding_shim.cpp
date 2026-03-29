@@ -26,4 +26,13 @@ std::unique_ptr<OwnedColumn> str_zfill(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_zfill_by_widths(
+    const OwnedColumn& col, const OwnedColumn& widths)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto result = cudf::strings::zfill_by_widths(col.view(), widths.view(), stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

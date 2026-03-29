@@ -72,4 +72,9 @@ std::unique_ptr<OwnedColumn> str_cast_from_integer(const OwnedColumn& col);
 // Format list column as strings
 std::unique_ptr<OwnedColumn> str_format_list_column(const OwnedColumn& col);
 
+// Additional validators
+std::unique_ptr<OwnedColumn> str_is_timestamp(const OwnedColumn& col, rust::Str format);
+std::unique_ptr<OwnedColumn> str_is_hex(const OwnedColumn& col);
+std::unique_ptr<OwnedColumn> str_is_ipv4(const OwnedColumn& col);
+
 } // namespace cudf_shims

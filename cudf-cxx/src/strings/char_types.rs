@@ -15,5 +15,13 @@ pub mod ffi {
             types: u32,
             verify_types: u32,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Filter characters of the given types, replacing removed characters with `replacement`.
+        fn str_filter_characters_of_type(
+            col: &OwnedColumn,
+            types_to_remove: u32,
+            replacement: &str,
+            types_to_keep: u32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

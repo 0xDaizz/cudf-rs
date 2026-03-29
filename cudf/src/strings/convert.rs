@@ -220,4 +220,33 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    // ── Additional Validators ─────────────────────────────────
+
+    /// Check if each string is a valid timestamp for the given `format`.
+    ///
+    /// Returns a BOOL8 column.
+    pub fn str_is_timestamp(&self, format: &str) -> Result<Column> {
+        let result = cudf_cxx::strings::convert::ffi::str_is_timestamp(&self.inner, format)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
+
+    /// Check if each string is a valid hexadecimal representation.
+    ///
+    /// Returns a BOOL8 column.
+    pub fn str_is_hex(&self) -> Result<Column> {
+        let result = cudf_cxx::strings::convert::ffi::str_is_hex(&self.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
+
+    /// Check if each string is a valid IPv4 address.
+    ///
+    /// Returns a BOOL8 column.
+    pub fn str_is_ipv4(&self) -> Result<Column> {
+        let result = cudf_cxx::strings::convert::ffi::str_is_ipv4(&self.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

@@ -1,4 +1,5 @@
 #include "search_shim.h"
+#include "scalar_shim.h"
 #include <cudf/search.hpp>
 #include <cudf/utilities/default_stream.hpp>
 #include <vector>
@@ -69,6 +70,13 @@ std::unique_ptr<OwnedColumn> contains_column(
 {
     auto result = cudf::contains(haystack.view(), needles.view());
     return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+bool contains_scalar(
+    const OwnedColumn& haystack,
+    const OwnedScalar& needle)
+{
+    return cudf::contains(haystack.view(), *needle.inner);
 }
 
 } // namespace cudf_shims

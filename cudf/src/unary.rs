@@ -138,3 +138,10 @@ impl Column {
         Ok(Column { inner: result })
     }
 }
+
+/// Check if a cast between two data types is supported.
+///
+/// Returns `true` if casting from `from` to `to` is supported.
+pub fn is_supported_cast(from: DataType, to: DataType) -> bool {
+    cudf_cxx::unary::ffi::is_supported_cast(from.id() as i32, to.id() as i32)
+}

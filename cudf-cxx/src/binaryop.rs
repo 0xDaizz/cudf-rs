@@ -40,5 +40,13 @@ pub mod ffi {
             op: i32,
             output_type: i32,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Check if a binary operation is supported for the given types.
+        fn is_supported_operation(
+            out_type: i32,
+            lhs_type: i32,
+            rhs_type: i32,
+            op: i32,
+        ) -> Result<bool>;
     }
 }

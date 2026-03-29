@@ -53,4 +53,33 @@ void chunked_parquet_writer_write(
 /// Finalize and close the chunked writer.
 void chunked_parquet_writer_close(OwnedChunkedParquetWriter& writer);
 
+// ── Parquet Metadata ─────────────────────────────────────────
+
+/// Holds basic metadata from a Parquet file.
+struct OwnedParquetMetadata {
+    int64_t num_rows_val;
+    int32_t num_row_groups_val;
+    std::vector<std::string> column_names;
+};
+
+/// Read metadata from a Parquet file without reading the data.
+std::unique_ptr<OwnedParquetMetadata> read_parquet_metadata(rust::Str filepath);
+
+/// Accessor: get number of rows.
+inline int64_t get_num_rows(const OwnedParquetMetadata& meta) { return meta.num_rows_val; }
+
+/// Accessor: get number of row groups.
+inline int32_t get_num_row_groups(const OwnedParquetMetadata& meta) { return meta.num_row_groups_val; }
+
+/// Accessor: get number of columns.
+inline int32_t get_num_columns(const OwnedParquetMetadata& meta) {
+    return static_cast<int32_t>(meta.column_names.size());
+}
+
+/// Accessor: get column name by index.
+inline rust::String get_column_name(const OwnedParquetMetadata& meta, int32_t index) {
+    auto& name = meta.column_names.at(index);
+    return rust::String(name.data(), name.size());
+}
+
 } // namespace cudf_shims

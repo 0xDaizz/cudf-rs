@@ -14,4 +14,14 @@ std::unique_ptr<OwnedTable> tile(const OwnedTable& table, int32_t count) {
     return std::make_unique<OwnedTable>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> byte_cast(
+    const OwnedColumn& col, bool flip_endianness)
+{
+    auto endian = flip_endianness
+        ? cudf::flip_endianness::YES
+        : cudf::flip_endianness::NO;
+    auto result = cudf::byte_cast(col.view(), endian);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

@@ -52,4 +52,14 @@ std::unique_ptr<OwnedScalar> minmax_take_min(MinMaxResult& result);
 /// Move max out of MinMaxResult.
 std::unique_ptr<OwnedScalar> minmax_take_max(MinMaxResult& result);
 
+/// Reduce with an initial value.
+std::unique_ptr<OwnedScalar> reduce_with_init(
+    const OwnedColumn& col,
+    int32_t agg_kind,
+    int32_t output_type_id,
+    const OwnedScalar& init);
+
+/// Check if a reduction aggregation is valid for a given source data type.
+bool is_valid_reduction_aggregation(int32_t source_type_id, int32_t agg_kind);
+
 } // namespace cudf_shims

@@ -70,4 +70,26 @@ std::unique_ptr<OwnedColumn> find_and_replace_all(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+void normalize_nans_and_zeros_inplace(OwnedColumn& col)
+{
+    auto mut_view = col.mutable_view();
+    cudf::normalize_nans_and_zeros(mut_view);
+}
+
+std::unique_ptr<OwnedColumn> clamp_with_replace(
+    const OwnedColumn& col,
+    const OwnedScalar& lo,
+    const OwnedScalar& lo_replace,
+    const OwnedScalar& hi,
+    const OwnedScalar& hi_replace)
+{
+    auto result = cudf::clamp(
+        col.view(),
+        *lo.inner,
+        *lo_replace.inner,
+        *hi.inner,
+        *hi_replace.inner);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

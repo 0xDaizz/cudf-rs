@@ -63,4 +63,10 @@ std::unique_ptr<OwnedColumn> sequence_f64(
     double init,
     double step);
 
+/// Generate a sequence of months starting from a timestamp scalar.
+std::unique_ptr<OwnedColumn> calendrical_month_sequence(
+    int32_t size,
+    const OwnedScalar& init,
+    int32_t months);
+
 } // namespace cudf_shims

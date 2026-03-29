@@ -100,4 +100,10 @@ std::unique_ptr<BitmaskResult> bitmask_and(const BitmaskBuilder& builder);
 /// Bitwise OR of null masks from multiple columns.
 std::unique_ptr<BitmaskResult> bitmask_or(const BitmaskBuilder& builder);
 
+/// Compute the null count for a given mask state and size.
+int32_t state_null_count(int32_t state, int32_t size);
+
+/// Compute the number of bitmask_type words needed for the given number of bits.
+int32_t num_bitmask_words(int32_t number_of_bits);
+
 } // namespace cudf_shims

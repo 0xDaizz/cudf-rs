@@ -13,4 +13,10 @@ namespace cudf_shims {
 std::unique_ptr<OwnedColumn> str_all_characters_of_type(
     const OwnedColumn& col, uint32_t types, uint32_t verify_types);
 
+/// Filter characters of the given types, replacing removed characters with `replacement`.
+/// `types_to_remove` = character types to remove.
+/// `types_to_keep` = character types to keep (NONE = 0 for default).
+std::unique_ptr<OwnedColumn> str_filter_characters_of_type(
+    const OwnedColumn& col, uint32_t types_to_remove, rust::Str replacement, uint32_t types_to_keep);
+
 } // namespace cudf_shims

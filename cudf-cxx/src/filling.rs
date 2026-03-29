@@ -57,5 +57,12 @@ pub mod ffi {
 
         /// Generate an f64 sequence.
         fn sequence_f64(size: i32, init: f64, step: f64) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Generate a sequence of months starting from a timestamp scalar.
+        fn calendrical_month_sequence(
+            size: i32,
+            init: &OwnedScalar,
+            months: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

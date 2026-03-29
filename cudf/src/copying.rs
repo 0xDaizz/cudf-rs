@@ -22,6 +22,17 @@ use crate::error::{CudfError, Result};
 use crate::scalar::Scalar;
 use crate::table::Table;
 
+/// Select elements from a scalar (true in mask) or a column (false in mask).
+///
+/// For each element: if `mask[i]` is true, take from `scalar`;
+/// if false, take from `rhs`.
+pub fn copy_if_else_scalar_col(scalar: &Scalar, rhs: &Column, mask: &Column) -> Result<Column> {
+    let raw =
+        cudf_cxx::copying::ffi::copy_if_else_scalar_col(&scalar.inner, &rhs.inner, &mask.inner)
+            .map_err(CudfError::from_cxx)?;
+    Ok(Column { inner: raw })
+}
+
 /// Policy for out-of-bounds indices in gather operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutOfBoundsPolicy {
@@ -209,6 +220,39 @@ impl Column {
         let raw = cudf_cxx::copying::ffi::allocate_like(&self.inner, mask_policy)
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
+    }
+
+    /// Select elements from a column (true in mask) or a scalar (false in mask).
+    ///
+    /// For each element: if `mask[i]` is true, take from `self`;
+    /// if false, use `scalar`.
+    pub fn copy_if_else_scalar(&self, scalar: &Scalar, mask: &Column) -> Result<Column> {
+        let raw = cudf_cxx::copying::ffi::copy_if_else_col_scalar(
+            &self.inner,
+            &scalar.inner,
+            &mask.inner,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Slice a column by pairs of `[begin, end)` indices.
+    ///
+    /// The `indices` slice must contain an even number of values,
+    /// forming pairs: `[begin0, end0, begin1, end1, ...]`.
+    /// Returns one column for each pair.
+    pub fn slice_indices(&self, indices: &[usize]) -> Result<Vec<Column>> {
+        let idx: Vec<i32> = indices.iter().map(|&i| i as i32).collect();
+        let mut result =
+            cudf_cxx::copying::ffi::slice_column(&self.inner, &idx).map_err(CudfError::from_cxx)?;
+        let count = cudf_cxx::copying::ffi::column_slice_result_count(&result);
+        let mut columns = Vec::with_capacity(count as usize);
+        for i in 0..count {
+            let raw = cudf_cxx::copying::ffi::column_slice_result_get(result.pin_mut(), i)
+                .map_err(CudfError::from_cxx)?;
+            columns.push(Column { inner: raw });
+        }
+        Ok(columns)
     }
 
     /// Copy a range from `source` into this column (in-place).

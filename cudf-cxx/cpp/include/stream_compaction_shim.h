@@ -29,6 +29,12 @@ std::unique_ptr<OwnedTable> drop_nans(
     const OwnedTable& table,
     rust::Slice<const int32_t> keys);
 
+/// Drop rows from a table where key columns contain NaN, with a threshold.
+std::unique_ptr<OwnedTable> drop_nans_threshold(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> keys,
+    int32_t threshold);
+
 /// Apply a boolean mask to a table, keeping only rows where mask is true.
 std::unique_ptr<OwnedTable> apply_boolean_mask(
     const OwnedTable& table,

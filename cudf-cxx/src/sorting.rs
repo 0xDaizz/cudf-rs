@@ -82,5 +82,41 @@ pub mod ffi {
         /// Return the top k values of a column.
         /// order: 0=ascending, 1=descending.
         fn top_k(col: &OwnedColumn, k: i32, order: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── Segmented Sorting ─────────────────────────────────────
+
+        /// Returns row indices that would sort each segment of the table.
+        fn segmented_sorted_order(
+            table: &OwnedTable,
+            segment_offsets: &OwnedColumn,
+            column_order: &[i32],
+            null_order: &[i32],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Stable version of segmented_sorted_order.
+        fn stable_segmented_sorted_order(
+            table: &OwnedTable,
+            segment_offsets: &OwnedColumn,
+            column_order: &[i32],
+            null_order: &[i32],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Sort values by keys within each segment.
+        fn segmented_sort_by_key(
+            values: &OwnedTable,
+            keys: &OwnedTable,
+            segment_offsets: &OwnedColumn,
+            column_order: &[i32],
+            null_order: &[i32],
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Stable version of segmented_sort_by_key.
+        fn stable_segmented_sort_by_key(
+            values: &OwnedTable,
+            keys: &OwnedTable,
+            segment_offsets: &OwnedColumn,
+            column_order: &[i32],
+            null_order: &[i32],
+        ) -> Result<UniquePtr<OwnedTable>>;
     }
 }

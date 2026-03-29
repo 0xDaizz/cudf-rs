@@ -160,4 +160,30 @@ impl Column {
 
         Ok(Column { inner: raw })
     }
+
+    /// Reduce with an initial value.
+    ///
+    /// Only `sum`, `product`, `min`, `max`, `any`, `all` reductions support
+    /// an initial value. The initial value is included in the reduction.
+    pub fn reduce_with_init(
+        &self,
+        op: ReduceOp,
+        output_type: DataType,
+        init: &Scalar,
+    ) -> Result<Scalar> {
+        let raw = cudf_cxx::reduction::ffi::reduce_with_init(
+            &self.inner,
+            op as i32,
+            output_type.id() as i32,
+            &init.inner,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Scalar { inner: raw })
+    }
+}
+
+/// Check if a reduction aggregation is valid for a given source data type.
+pub fn is_valid_reduction_aggregation(source_type: DataType, op: ReduceOp) -> Result<bool> {
+    cudf_cxx::reduction::ffi::is_valid_reduction_aggregation(source_type.id() as i32, op as i32)
+        .map_err(CudfError::from_cxx)
 }

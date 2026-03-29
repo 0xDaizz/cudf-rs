@@ -123,4 +123,30 @@ std::unique_ptr<OwnedTable> boolean_mask_scatter(
 /// Check if a column has non-empty null elements.
 bool has_nonempty_nulls(const OwnedColumn& col);
 
+/// Elementwise: select lhs_col where mask true, rhs_scalar where false.
+std::unique_ptr<OwnedColumn> copy_if_else_col_scalar(
+    const OwnedColumn& lhs,
+    const OwnedScalar& rhs,
+    const OwnedColumn& boolean_mask);
+
+/// Elementwise: select lhs_scalar where mask true, rhs_col where false.
+std::unique_ptr<OwnedColumn> copy_if_else_scalar_col(
+    const OwnedScalar& lhs,
+    const OwnedColumn& rhs,
+    const OwnedColumn& boolean_mask);
+
+/// Slice a column by pairs of [begin, end) indices, returning deep copies.
+/// The indices vec must contain pairs: [begin0, end0, begin1, end1, ...].
+struct ColumnSliceResult {
+    std::vector<std::unique_ptr<OwnedColumn>> parts;
+};
+
+std::unique_ptr<ColumnSliceResult> slice_column(
+    const OwnedColumn& col, rust::Slice<const int32_t> indices);
+
+int32_t column_slice_result_count(const ColumnSliceResult& result);
+
+std::unique_ptr<OwnedColumn> column_slice_result_get(
+    ColumnSliceResult& result, int32_t index);
+
 } // namespace cudf_shims

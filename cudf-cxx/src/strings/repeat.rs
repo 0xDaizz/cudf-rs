@@ -10,5 +10,11 @@ pub mod ffi {
 
         /// Repeat each string `count` times.
         fn str_repeat(col: &OwnedColumn, count: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Repeat each string by the count in a per-row column.
+        fn str_repeat_per_row(
+            col: &OwnedColumn,
+            counts: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }
