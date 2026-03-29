@@ -39,16 +39,16 @@ impl Table {
     pub fn merge(
         &self,
         other: &Table,
-        key_cols: &[i32],
+        key_cols: &[usize],
         orders: &[SortOrder],
         null_orders: &[NullOrder],
     ) -> Result<Table> {
+        let keys: Vec<i32> = key_cols.iter().map(|&k| k as i32).collect();
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();
 
-        let raw =
-            cudf_cxx::merge::ffi::merge_tables(&self.inner, &other.inner, key_cols, &ord, &nul)
-                .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::merge::ffi::merge_tables(&self.inner, &other.inner, &keys, &ord, &nul)
+            .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }

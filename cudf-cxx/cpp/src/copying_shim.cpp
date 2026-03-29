@@ -69,26 +69,31 @@ std::unique_ptr<OwnedTable> slice_table(
     return std::make_unique<OwnedTable>(std::move(owned));
 }
 
-int32_t split_table_count(rust::Slice<const int32_t> splits) {
-    return static_cast<int32_t>(splits.size()) + 1;
-}
-
-std::unique_ptr<OwnedTable> split_table_part(
-    const OwnedTable& table,
-    rust::Slice<const int32_t> splits,
-    int32_t part_index)
+std::unique_ptr<SplitResult> split_table_all(
+    const OwnedTable& table, rust::Slice<const int32_t> splits)
 {
     std::vector<cudf::size_type> split_vec(splits.begin(), splits.end());
     auto views = cudf::split(table.view(), split_vec);
-
-    if (part_index < 0 || static_cast<size_t>(part_index) >= views.size()) {
-        throw std::runtime_error("split part index out of bounds");
-    }
-
     auto stream = cudf::get_default_stream();
     auto mr = cudf::get_current_device_resource_ref();
-    auto owned = std::make_unique<cudf::table>(views[part_index], stream, mr);
-    return std::make_unique<OwnedTable>(std::move(owned));
+
+    auto result = std::make_unique<SplitResult>();
+    for (auto& view : views) {
+        auto owned = std::make_unique<cudf::table>(view, stream, mr);
+        result->parts.push_back(std::make_unique<OwnedTable>(std::move(owned)));
+    }
+    return result;
+}
+
+int32_t split_result_count(const SplitResult& result) {
+    return static_cast<int32_t>(result.parts.size());
+}
+
+std::unique_ptr<OwnedTable> split_result_get(SplitResult& result, int32_t index) {
+    if (index < 0 || static_cast<size_t>(index) >= result.parts.size()) {
+        throw std::runtime_error("split result index out of bounds");
+    }
+    return std::move(result.parts[index]);
 }
 
 std::unique_ptr<OwnedColumn> empty_like(const OwnedColumn& col) {

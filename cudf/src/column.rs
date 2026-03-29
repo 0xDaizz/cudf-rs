@@ -105,6 +105,67 @@ impl Column {
         Ok(Self { inner: raw })
     }
 
+    /// Create a string column from a slice of string-like values, copying data to GPU.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cudf::Column;
+    ///
+    /// let col = Column::from_strings(&["hello", "world", "!"]).unwrap();
+    /// assert_eq!(col.len(), 3);
+    /// ```
+    pub fn from_strings(data: &[impl AsRef<str>]) -> Result<Self> {
+        let strings: Vec<String> = data.iter().map(|s| s.as_ref().to_string()).collect();
+        let raw =
+            cudf_cxx::column::ffi::column_from_strings(&strings).map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable i32 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_i32(data: &[Option<i32>]) -> Result<Self> {
+        let values: Vec<i32> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_i32_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable i64 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_i64(data: &[Option<i64>]) -> Result<Self> {
+        let values: Vec<i64> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_i64_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable f32 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_f32(data: &[Option<f32>]) -> Result<Self> {
+        let values: Vec<f32> = data.iter().map(|o| o.unwrap_or(0.0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_f32_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable f64 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_f64(data: &[Option<f64>]) -> Result<Self> {
+        let values: Vec<f64> = data.iter().map(|o| o.unwrap_or(0.0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_f64_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
     // -- Data Transfer --
 
     /// Copy the null bitmask to a host byte vector.
@@ -168,6 +229,9 @@ impl CudfType for f32 {
 }
 impl CudfType for f64 {
     const TYPE_ID: TypeId = TypeId::Float64;
+}
+impl CudfType for bool {
+    const TYPE_ID: TypeId = TypeId::Bool8;
 }
 
 impl Column {
@@ -233,6 +297,11 @@ impl Column {
                 let data =
                     unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f64, data.len()) };
                 cudf_cxx::column::ffi::column_from_f64(data)
+            }
+            TypeId::Bool8 => {
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const bool, data.len()) };
+                cudf_cxx::column::ffi::column_from_bool(data)
             }
             _ => {
                 return Err(CudfError::InvalidArgument(format!(
@@ -332,6 +401,11 @@ impl Column {
             TypeId::Float64 => {
                 let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut f64, len) };
                 cudf_cxx::column::ffi::column_to_f64(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Bool8 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u8, len) };
+                cudf_cxx::column::ffi::column_to_u8(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
             _ => {

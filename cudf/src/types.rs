@@ -176,8 +176,8 @@ impl TypeId {
 
     /// Convert from raw i32 value. Returns None if the value is not a valid TypeId.
     pub fn from_raw(value: i32) -> Option<Self> {
-        if (0..=28).contains(&value) {
-            // SAFETY: TypeId is repr(i32) with contiguous values 0..=28
+        if (0..=Self::Struct as i32).contains(&value) {
+            // SAFETY: TypeId is repr(i32) with contiguous values 0..=Struct
             Some(unsafe { std::mem::transmute::<i32, TypeId>(value) })
         } else {
             None
@@ -246,4 +246,14 @@ impl fmt::Display for DataType {
             write!(f, "{:?}", self.id)
         }
     }
+}
+
+/// Policy for handling null values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum NullHandling {
+    /// Include nulls in the computation.
+    Include = 0,
+    /// Exclude nulls from the computation.
+    Exclude = 1,
 }

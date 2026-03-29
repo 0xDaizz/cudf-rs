@@ -56,55 +56,55 @@ impl Scalar {
 
         // Set the value via the appropriate typed setter.
         // SAFETY for each arm: CudfType guarantees T matches TYPE_ID,
-        // so T IS the exact type we cast to (same size, same repr).
+        // so T IS the exact type we transmute to (same size, same repr).
         match type_id {
             TypeId::Int8 => {
-                let v = unsafe { *(&value as *const T as *const i8) };
+                let v: i8 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i8(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int16 => {
-                let v = unsafe { *(&value as *const T as *const i16) };
+                let v: i16 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i16(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int32 => {
-                let v = unsafe { *(&value as *const T as *const i32) };
+                let v: i32 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i32(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int64 => {
-                let v = unsafe { *(&value as *const T as *const i64) };
+                let v: i64 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i64(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint8 => {
-                let v = unsafe { *(&value as *const T as *const u8) };
+                let v: u8 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u8(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint16 => {
-                let v = unsafe { *(&value as *const T as *const u16) };
+                let v: u16 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u16(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint32 => {
-                let v = unsafe { *(&value as *const T as *const u32) };
+                let v: u32 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u32(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint64 => {
-                let v = unsafe { *(&value as *const T as *const u64) };
+                let v: u64 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u64(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Float32 => {
-                let v = unsafe { *(&value as *const T as *const f32) };
+                let v: f32 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_f32(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Float64 => {
-                let v = unsafe { *(&value as *const T as *const f64) };
+                let v: f64 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_f64(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
@@ -158,57 +158,57 @@ impl Scalar {
         }
 
         // SAFETY for each arm: T is guaranteed to match TYPE_ID by the
-        // CudfType trait, so the pointer cast is between identical types.
+        // CudfType trait, so transmute_copy is between identical types.
         match T::TYPE_ID {
             TypeId::Int8 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i8(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const i8 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Int16 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i16(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const i16 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Int32 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i32(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const i32 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Int64 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i64(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const i64 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint8 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u8(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const u8 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint16 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u16(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const u16 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint32 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u32(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const u32 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint64 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u64(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const u64 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Float32 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_f32(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const f32 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Float64 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_f64(&self.inner)
                     .map_err(CudfError::from_cxx)?;
-                Ok(unsafe { *(&v as *const f64 as *const T) })
+                Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             _ => Err(CudfError::InvalidArgument(format!(
                 "Scalar::value does not yet support {:?}",

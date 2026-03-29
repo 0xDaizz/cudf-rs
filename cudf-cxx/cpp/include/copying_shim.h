@@ -42,14 +42,20 @@ std::unique_ptr<OwnedTable> slice_table(
     int32_t begin,
     int32_t end);
 
-/// Return the number of parts from splitting at the given indices.
-int32_t split_table_count(rust::Slice<const int32_t> splits);
+/// Result of splitting a table into multiple parts.
+struct SplitResult {
+    std::vector<std::unique_ptr<OwnedTable>> parts;
+};
 
-/// Get one part from a split operation (deep copy). Index 0..split_table_count.
-std::unique_ptr<OwnedTable> split_table_part(
-    const OwnedTable& table,
-    rust::Slice<const int32_t> splits,
-    int32_t part_index);
+/// Split a table at the given indices, returning all parts at once.
+std::unique_ptr<SplitResult> split_table_all(
+    const OwnedTable& table, rust::Slice<const int32_t> splits);
+
+/// Return the number of parts in a split result.
+int32_t split_result_count(const SplitResult& result);
+
+/// Move one part out of a split result by index.
+std::unique_ptr<OwnedTable> split_result_get(SplitResult& result, int32_t index);
 
 // ── Empty / Allocate ───────────────────────────────────────────
 

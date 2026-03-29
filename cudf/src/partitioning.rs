@@ -25,13 +25,15 @@ impl Table {
     ///
     /// * `columns_to_hash` - Column indices to hash for partitioning.
     /// * `num_partitions` - Number of partitions to create.
-    pub fn hash_partition(&self, columns_to_hash: &[i32], num_partitions: usize) -> Result<Table> {
-        let raw = cudf_cxx::partitioning::ffi::hash_partition(
-            &self.inner,
-            columns_to_hash,
-            num_partitions as i32,
-        )
-        .map_err(CudfError::from_cxx)?;
+    pub fn hash_partition(
+        &self,
+        columns_to_hash: &[usize],
+        num_partitions: usize,
+    ) -> Result<Table> {
+        let cols: Vec<i32> = columns_to_hash.iter().map(|&c| c as i32).collect();
+        let raw =
+            cudf_cxx::partitioning::ffi::hash_partition(&self.inner, &cols, num_partitions as i32)
+                .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 

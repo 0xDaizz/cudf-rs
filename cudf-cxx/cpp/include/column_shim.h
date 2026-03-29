@@ -60,6 +60,19 @@ std::unique_ptr<OwnedColumn> column_from_bool(rust::Slice<const bool> data);
 
 std::unique_ptr<OwnedColumn> column_empty(int32_t type_id, int32_t size);
 
+// String column creation from host strings.
+std::unique_ptr<OwnedColumn> column_from_strings(rust::Slice<const rust::String> data);
+
+// Nullable column creation from host data + validity mask.
+std::unique_ptr<OwnedColumn> column_from_i32_nullable(
+    rust::Slice<const int32_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_i64_nullable(
+    rust::Slice<const int64_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_f32_nullable(
+    rust::Slice<const float> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_f64_nullable(
+    rust::Slice<const double> data, rust::Slice<const bool> validity);
+
 // ── Data Transfer ──────────────────────────────────────────────
 
 /// Copy GPU column data to a host buffer.

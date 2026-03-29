@@ -44,15 +44,19 @@ pub mod ffi {
         /// Extract a contiguous slice [begin, end) as an owned deep copy.
         fn slice_table(table: &OwnedTable, begin: i32, end: i32) -> Result<UniquePtr<OwnedTable>>;
 
-        /// Split a table at the given indices. Returns the number of resulting parts.
-        fn split_table_count(splits: &[i32]) -> i32;
+        /// Opaque result of splitting a table into multiple parts.
+        type SplitResult;
 
-        /// Get one part from a split operation (deep copy).
-        /// Call with index 0..split_table_count.
-        fn split_table_part(
-            table: &OwnedTable,
-            splits: &[i32],
-            part_index: i32,
+        /// Split a table at the given indices, returning all parts at once.
+        fn split_table_all(table: &OwnedTable, splits: &[i32]) -> Result<UniquePtr<SplitResult>>;
+
+        /// Return the number of parts in a split result.
+        fn split_result_count(result: &SplitResult) -> i32;
+
+        /// Move one part out of a split result by index.
+        fn split_result_get(
+            result: Pin<&mut SplitResult>,
+            index: i32,
         ) -> Result<UniquePtr<OwnedTable>>;
 
         // ── Empty / Allocate ───────────────────────────────────────

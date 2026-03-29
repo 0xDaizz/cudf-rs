@@ -106,14 +106,16 @@ impl Table {
     /// Returns an error if indices are not strictly increasing or out of bounds.
     pub fn split(&self, indices: &[usize]) -> Result<Vec<Table>> {
         let idx: Vec<i32> = indices.iter().map(|&i| i as i32).collect();
-        let count = cudf_cxx::copying::ffi::split_table_count(&idx);
-        let mut result = Vec::with_capacity(count as usize);
+        let mut result = cudf_cxx::copying::ffi::split_table_all(&self.inner, &idx)
+            .map_err(CudfError::from_cxx)?;
+        let count = cudf_cxx::copying::ffi::split_result_count(&result);
+        let mut tables = Vec::with_capacity(count as usize);
         for i in 0..count {
-            let raw = cudf_cxx::copying::ffi::split_table_part(&self.inner, &idx, i)
+            let raw = cudf_cxx::copying::ffi::split_result_get(result.pin_mut(), i)
                 .map_err(CudfError::from_cxx)?;
-            result.push(Table { inner: raw });
+            tables.push(Table { inner: raw });
         }
-        Ok(result)
+        Ok(tables)
     }
 }
 

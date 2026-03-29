@@ -110,6 +110,10 @@ fn main() {
         "src/partitioning.rs",
         "src/merge.rs",
         "src/search.rs",
+        "src/lists/ops.rs",
+        "src/structs.rs",
+        "src/dictionary.rs",
+        "src/replace.rs",
     ]);
     build
         .file(cpp_src.join("types_shim.cpp"))
@@ -155,6 +159,10 @@ fn main() {
         .file(cpp_src.join("partitioning_shim.cpp"))
         .file(cpp_src.join("merge_shim.cpp"))
         .file(cpp_src.join("search_shim.cpp"))
+        .file(cpp_src.join("lists/lists_shim.cpp"))
+        .file(cpp_src.join("structs_shim.cpp"))
+        .file(cpp_src.join("dictionary_shim.cpp"))
+        .file(cpp_src.join("replace_shim.cpp"))
         .include(&cpp_include)
         .include(&cudf_include);
 

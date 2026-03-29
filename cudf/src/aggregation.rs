@@ -16,14 +16,7 @@
 
 use cxx::UniquePtr;
 
-/// How null values are handled in aggregations that support it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NullHandling {
-    /// Include nulls in the computation.
-    Include = 0,
-    /// Exclude nulls from the computation.
-    Exclude = 1,
-}
+use crate::types::NullHandling;
 
 /// The kind of aggregation to perform.
 #[derive(Debug, Clone, PartialEq)]

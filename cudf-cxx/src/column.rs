@@ -75,6 +75,33 @@ pub mod ffi {
         /// Create an empty column of the given type and size (all null).
         fn column_empty(type_id: i32, size: i32) -> Result<UniquePtr<OwnedColumn>>;
 
+        /// Create a string column from host string data.
+        fn column_from_strings(data: &[String]) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable i32 column from host data and validity mask.
+        fn column_from_i32_nullable(
+            data: &[i32],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable i64 column from host data and validity mask.
+        fn column_from_i64_nullable(
+            data: &[i64],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable f32 column from host data and validity mask.
+        fn column_from_f32_nullable(
+            data: &[f32],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable f64 column from host data and validity mask.
+        fn column_from_f64_nullable(
+            data: &[f64],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
         // ── Data Transfer ──────────────────────────────────────────
 
         /// Copy column data to host as i32. Panics if type mismatch.

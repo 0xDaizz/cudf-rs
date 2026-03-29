@@ -20,6 +20,7 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+pub use crate::types::NullHandling;
 
 /// Sort direction for a column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,15 +53,6 @@ pub enum RankMethod {
     Max = 3,
     /// Dense ranking (no gaps between ranks).
     Dense = 4,
-}
-
-/// How to handle null values when ranking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NullHandling {
-    /// Include nulls in the ranking.
-    Include = 0,
-    /// Exclude nulls from the ranking (assign null rank).
-    Exclude = 1,
 }
 
 // -- Helper conversions --
