@@ -46,5 +46,21 @@ pub mod ffi {
             table: Pin<&mut OwnedTable>,
             index: i32,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── TableWithMetadata (IO readers with column names) ──────
+
+        /// Opaque owning handle wrapping table + column name metadata.
+        type OwnedTableWithMetadata;
+
+        /// Number of columns in the metadata wrapper.
+        fn table_meta_num_columns(meta: &OwnedTableWithMetadata) -> i32;
+
+        /// Get the column name at a given index.
+        fn table_meta_column_name(meta: &OwnedTableWithMetadata, index: i32) -> Result<String>;
+
+        /// Extract the inner table, consuming the metadata wrapper.
+        fn table_meta_into_table(
+            meta: UniquePtr<OwnedTableWithMetadata>,
+        ) -> Result<UniquePtr<OwnedTable>>;
     }
 }

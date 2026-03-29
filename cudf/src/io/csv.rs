@@ -1,7 +1,7 @@
 //! CSV I/O.
 
 use crate::error::{CudfError, Result};
-use crate::table::Table;
+use crate::table::{Table, TableWithMetadata};
 
 pub struct CsvReader {
     path: String,
@@ -47,6 +47,20 @@ impl CsvReader {
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
+    }
+
+    /// Read a CSV file, returning both the table and column names
+    /// from the header row.
+    pub fn read_with_metadata(self) -> Result<TableWithMetadata> {
+        let raw = cudf_cxx::io::csv::ffi::read_csv_with_metadata(
+            &self.path,
+            self.delimiter,
+            self.header_row,
+            self.skip_rows,
+            self.num_rows,
+        )
+        .map_err(CudfError::from_cxx)?;
+        TableWithMetadata::from_raw(raw)
     }
 }
 

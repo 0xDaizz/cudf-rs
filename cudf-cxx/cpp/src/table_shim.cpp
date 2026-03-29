@@ -45,4 +45,25 @@ std::unique_ptr<OwnedColumn> table_release_column(
     return std::make_unique<OwnedColumn>(std::move(col));
 }
 
+// ── TableWithMetadata accessors ──────────────────────────────
+
+int32_t table_meta_num_columns(const OwnedTableWithMetadata& meta) {
+    return meta.num_columns();
+}
+
+rust::String table_meta_column_name(const OwnedTableWithMetadata& meta, int32_t index) {
+    if (index < 0 || static_cast<size_t>(index) >= meta.column_names.size()) {
+        throw std::runtime_error("Column name index out of bounds");
+    }
+    const auto& name = meta.column_names[index];
+    return rust::String(name.data(), name.size());
+}
+
+std::unique_ptr<OwnedTable> table_meta_into_table(std::unique_ptr<OwnedTableWithMetadata> meta) {
+    if (!meta) {
+        throw std::runtime_error("Null OwnedTableWithMetadata pointer");
+    }
+    return std::make_unique<OwnedTable>(std::move(meta->table));
+}
+
 } // namespace cudf_shims

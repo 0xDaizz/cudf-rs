@@ -138,6 +138,62 @@ impl Table {
     }
 }
 
+/// A table together with column names, as returned by IO readers.
+///
+/// This wraps a [`Table`] with the column names extracted from the
+/// file metadata (e.g., Parquet schema, CSV header, JSON keys).
+pub struct TableWithMetadata {
+    /// The GPU-resident table data.
+    pub table: Table,
+    /// Column names corresponding to each column in `table`.
+    pub column_names: Vec<String>,
+}
+
+impl TableWithMetadata {
+    /// Build from the raw FFI metadata wrapper.
+    pub(crate) fn from_raw(
+        raw: cxx::UniquePtr<cudf_cxx::table::ffi::OwnedTableWithMetadata>,
+    ) -> Result<Self> {
+        let ncols = cudf_cxx::table::ffi::table_meta_num_columns(&raw);
+        let mut names = Vec::with_capacity(ncols as usize);
+        for i in 0..ncols {
+            let name = cudf_cxx::table::ffi::table_meta_column_name(&raw, i)
+                .map_err(CudfError::from_cxx)?;
+            names.push(name);
+        }
+        let inner =
+            cudf_cxx::table::ffi::table_meta_into_table(raw).map_err(CudfError::from_cxx)?;
+        Ok(Self {
+            table: Table { inner },
+            column_names: names,
+        })
+    }
+}
+
+impl fmt::Debug for TableWithMetadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TableWithMetadata(columns={}, rows={}, names={:?})",
+            self.table.num_columns(),
+            self.table.num_rows(),
+            self.column_names
+        )
+    }
+}
+
+impl fmt::Display for TableWithMetadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TableWithMetadata(columns={}, rows={}, names={:?})",
+            self.table.num_columns(),
+            self.table.num_rows(),
+            self.column_names
+        )
+    }
+}
+
 impl fmt::Debug for Table {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)

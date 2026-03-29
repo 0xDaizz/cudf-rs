@@ -3,7 +3,9 @@
 #include <cudf/table/table.hpp>
 #include <cudf/table/table_view.hpp>
 #include <cudf/copying.hpp>
+#include <cudf/io/types.hpp>
 #include <memory>
+#include <string>
 #include <vector>
 #include "rust/cxx.h"
 #include "column_shim.h"
@@ -44,6 +46,20 @@ struct OwnedTable {
     }
 };
 
+/// Owning wrapper around a table + column name metadata from IO readers.
+struct OwnedTableWithMetadata {
+    std::unique_ptr<cudf::table> table;
+    std::vector<std::string> column_names;
+
+    OwnedTableWithMetadata(std::unique_ptr<cudf::table> tbl,
+                           std::vector<std::string> names)
+        : table(std::move(tbl)), column_names(std::move(names)) {}
+
+    int32_t num_columns() const {
+        return static_cast<int32_t>(column_names.size());
+    }
+};
+
 /// Builder for constructing a table column-by-column.
 /// Avoids passing Vec<UniquePtr<T>> across the cxx boundary.
 struct TableBuilder {
@@ -77,5 +93,16 @@ std::unique_ptr<OwnedColumn> table_get_column(
 /// Release a single column by index (extracts it from the underlying table).
 std::unique_ptr<OwnedColumn> table_release_column(
     OwnedTable& table, int32_t index);
+
+// ── TableWithMetadata accessors ────────────────────────────────
+
+/// Number of columns in the metadata wrapper.
+int32_t table_meta_num_columns(const OwnedTableWithMetadata& meta);
+
+/// Get the column name at a given index.
+rust::String table_meta_column_name(const OwnedTableWithMetadata& meta, int32_t index);
+
+/// Extract the inner table, consuming the metadata wrapper.
+std::unique_ptr<OwnedTable> table_meta_into_table(std::unique_ptr<OwnedTableWithMetadata> meta);
 
 } // namespace cudf_shims

@@ -38,6 +38,15 @@ pub struct JoinResult {
     pub right_indices: Column,
 }
 
+/// Result of a semi/anti join: a single gather map for the left table.
+///
+/// Use the index column with `Table::gather()` to construct the filtered
+/// left table.
+pub struct SemiJoinResult {
+    /// Index column for gathering matching (or non-matching) rows from the left table.
+    pub left_indices: Column,
+}
+
 impl Table {
     /// Perform an inner join on key columns.
     ///
@@ -81,6 +90,34 @@ impl Table {
         extract_join_result(maps)
     }
 
+    /// Perform a left semi join on key columns.
+    ///
+    /// Returns a gather map of left-table row indices that have at least
+    /// one matching row in the right table.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if column types don't match or a GPU error occurs.
+    pub fn left_semi_join(&self, right_keys: &Table) -> Result<SemiJoinResult> {
+        let maps = cudf_cxx::join::ffi::left_semi_join(&self.inner, &right_keys.inner)
+            .map_err(CudfError::from_cxx)?;
+        extract_semi_join_result(maps)
+    }
+
+    /// Perform a left anti join on key columns.
+    ///
+    /// Returns a gather map of left-table row indices that have NO
+    /// matching row in the right table.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if column types don't match or a GPU error occurs.
+    pub fn left_anti_join(&self, right_keys: &Table) -> Result<SemiJoinResult> {
+        let maps = cudf_cxx::join::ffi::left_anti_join(&self.inner, &right_keys.inner)
+            .map_err(CudfError::from_cxx)?;
+        extract_semi_join_result(maps)
+    }
+
     /// Cross join (cartesian product) of two tables.
     ///
     /// Returns a table containing every combination of rows from the left
@@ -95,6 +132,17 @@ impl Table {
             .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
+}
+
+/// Extract the single index column from a 1-column gather map table (semi/anti join).
+fn extract_semi_join_result(
+    mut maps: cxx::UniquePtr<cudf_cxx::table::ffi::OwnedTable>,
+) -> Result<SemiJoinResult> {
+    let left = cudf_cxx::table::ffi::table_release_column(maps.pin_mut(), 0)
+        .map_err(CudfError::from_cxx)?;
+    Ok(SemiJoinResult {
+        left_indices: Column { inner: left },
+    })
 }
 
 /// Extract left and right index columns from a 2-column gather map table.

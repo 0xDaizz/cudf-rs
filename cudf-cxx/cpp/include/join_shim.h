@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cudf/join/join.hpp>
+#include <cudf/join/filtered_join.hpp>
 #include <memory>
 #include "rust/cxx.h"
 #include "table_shim.h"
@@ -18,5 +19,11 @@ std::unique_ptr<OwnedTable> full_join(
 // Cross join returns the full cartesian product table.
 std::unique_ptr<OwnedTable> cross_join(
     const OwnedTable& left, const OwnedTable& right);
+
+// Semi/anti joins return a single-column table of left indices.
+std::unique_ptr<OwnedTable> left_semi_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys);
+std::unique_ptr<OwnedTable> left_anti_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys);
 
 } // namespace cudf_shims

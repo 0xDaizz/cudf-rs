@@ -1,7 +1,7 @@
 //! Parquet I/O.
 
 use crate::error::{CudfError, Result};
-use crate::table::Table;
+use crate::table::{Table, TableWithMetadata};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
@@ -57,6 +57,19 @@ impl ParquetReader {
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
+    }
+
+    /// Read a Parquet file, returning both the table and column names
+    /// from the file schema metadata.
+    pub fn read_with_metadata(self) -> Result<TableWithMetadata> {
+        let raw = cudf_cxx::io::parquet::ffi::read_parquet_with_metadata(
+            &self.path,
+            &self.columns,
+            self.skip_rows,
+            self.num_rows,
+        )
+        .map_err(CudfError::from_cxx)?;
+        TableWithMetadata::from_raw(raw)
     }
 }
 

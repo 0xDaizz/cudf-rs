@@ -31,5 +31,19 @@ pub mod ffi {
 
         /// Cross join: cartesian product of two tables.
         fn cross_join(left: &OwnedTable, right: &OwnedTable) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Left semi join: returns a 1-column table [left_indices].
+        /// Only left rows with a match in right are included.
+        fn left_semi_join(
+            left_keys: &OwnedTable,
+            right_keys: &OwnedTable,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Left anti join: returns a 1-column table [left_indices].
+        /// Only left rows with NO match in right are included.
+        fn left_anti_join(
+            left_keys: &OwnedTable,
+            right_keys: &OwnedTable,
+        ) -> Result<UniquePtr<OwnedTable>>;
     }
 }

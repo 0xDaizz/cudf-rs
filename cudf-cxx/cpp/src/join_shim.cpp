@@ -1,5 +1,6 @@
 #include "join_shim.h"
 #include <cudf/join/join.hpp>
+#include <cudf/join/filtered_join.hpp>
 #include <cudf/table/table.hpp>
 #include <cudf/column/column_factories.hpp>
 
@@ -63,6 +64,43 @@ std::unique_ptr<OwnedTable> cross_join(
 {
     auto result = cudf::cross_join(left.view(), right.view());
     return std::make_unique<OwnedTable>(std::move(result));
+}
+
+namespace {
+
+/// Package a single gather map device_uvector into a 1-column OwnedTable.
+std::unique_ptr<OwnedTable> package_single_map(
+    std::unique_ptr<rmm::device_uvector<cudf::size_type>> map)
+{
+    auto col = std::make_unique<cudf::column>(
+        cudf::data_type{cudf::type_id::INT32},
+        static_cast<cudf::size_type>(map->size()),
+        map->release(),
+        rmm::device_buffer{}, 0);
+
+    std::vector<std::unique_ptr<cudf::column>> cols;
+    cols.push_back(std::move(col));
+
+    auto table = std::make_unique<cudf::table>(std::move(cols));
+    return std::make_unique<OwnedTable>(std::move(table));
+}
+
+} // anonymous namespace
+
+std::unique_ptr<OwnedTable> left_semi_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys)
+{
+    cudf::filtered_join fj(right_keys.view(), cudf::null_equality::EQUAL, cudf::set_as_build_table::RIGHT, 0.5);
+    auto map = fj.semi_join(left_keys.view());
+    return package_single_map(std::move(map));
+}
+
+std::unique_ptr<OwnedTable> left_anti_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys)
+{
+    cudf::filtered_join fj(right_keys.view(), cudf::null_equality::EQUAL, cudf::set_as_build_table::RIGHT, 0.5);
+    auto map = fj.anti_join(left_keys.view());
+    return package_single_map(std::move(map));
 }
 
 } // namespace cudf_shims

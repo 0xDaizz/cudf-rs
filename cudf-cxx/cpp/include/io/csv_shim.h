@@ -6,5 +6,6 @@
 
 namespace cudf_shims {
 std::unique_ptr<OwnedTable> read_csv(rust::Str filepath, uint8_t delimiter, int32_t header_row, int64_t skip_rows, int64_t num_rows);
+std::unique_ptr<OwnedTableWithMetadata> read_csv_with_metadata(rust::Str filepath, uint8_t delimiter, int32_t header_row, int64_t skip_rows, int64_t num_rows);
 void write_csv(const OwnedTable& table, rust::Str filepath, uint8_t delimiter, bool include_header);
 } // namespace cudf_shims

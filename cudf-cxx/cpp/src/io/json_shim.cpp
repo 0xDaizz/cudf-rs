@@ -13,6 +13,21 @@ std::unique_ptr<OwnedTable> read_json(rust::Str filepath, bool lines) {
     return std::make_unique<OwnedTable>(std::move(result.tbl));
 }
 
+std::unique_ptr<OwnedTableWithMetadata> read_json_with_metadata(rust::Str filepath, bool lines) {
+    std::string path(filepath.data(), filepath.size());
+    auto source = cudf::io::source_info(path);
+    auto builder = cudf::io::json_reader_options::builder(source);
+    builder.lines(lines);
+    auto result = cudf::io::read_json(builder.build());
+
+    std::vector<std::string> names;
+    for (const auto& info : result.metadata.schema_info) {
+        names.push_back(info.name);
+    }
+
+    return std::make_unique<OwnedTableWithMetadata>(std::move(result.tbl), std::move(names));
+}
+
 void write_json(const OwnedTable& table, rust::Str filepath, bool lines) {
     std::string path(filepath.data(), filepath.size());
     auto sink = cudf::io::sink_info(path);

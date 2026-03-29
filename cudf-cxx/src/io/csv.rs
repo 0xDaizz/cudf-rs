@@ -4,6 +4,7 @@ pub mod ffi {
         include!("io/csv_shim.h");
         include!("table_shim.h");
         type OwnedTable = crate::table::ffi::OwnedTable;
+        type OwnedTableWithMetadata = crate::table::ffi::OwnedTableWithMetadata;
 
         fn read_csv(
             filepath: &str,
@@ -12,6 +13,15 @@ pub mod ffi {
             skip_rows: i64,
             num_rows: i64,
         ) -> Result<UniquePtr<OwnedTable>>;
+
+        fn read_csv_with_metadata(
+            filepath: &str,
+            delimiter: u8,
+            header_row: i32,
+            skip_rows: i64,
+            num_rows: i64,
+        ) -> Result<UniquePtr<OwnedTableWithMetadata>>;
+
         fn write_csv(
             table: &OwnedTable,
             filepath: &str,

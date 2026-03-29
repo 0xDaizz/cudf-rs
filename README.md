@@ -233,17 +233,6 @@ Each libcudf C++ module maps to three files:
 - **OS**: Linux only (libcudf does not support macOS or Windows)
 - **Rust**: 1.85+ (edition 2024)
 
-## Known Limitations
-
-| Limitation | Details |
-|-----------|---------|
-| Linux only | libcudf only builds on Linux. Cross-compilation from macOS/Windows is not supported. |
-| GPU required | All operations require an NVIDIA GPU at runtime. CPU fallback is not provided. |
-| Avro write | Not supported by libcudf; read-only. |
-| Column names | Tables do not carry column name metadata. Track names externally or use positional access. |
-| Semi/anti joins | `left_semi_join` and `left_anti_join` were removed in libcudf 26.x. Use `hash_join` or conditional joins instead. |
-| Decimal types | Limited to fixed-point representations matching libcudf's `Decimal32`/`Decimal64`/`Decimal128`. |
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution guide, including how to add new bindings.

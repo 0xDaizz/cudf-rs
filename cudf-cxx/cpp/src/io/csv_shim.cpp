@@ -17,6 +17,25 @@ std::unique_ptr<OwnedTable> read_csv(rust::Str filepath, uint8_t delimiter, int3
     return std::make_unique<OwnedTable>(std::move(result.tbl));
 }
 
+std::unique_ptr<OwnedTableWithMetadata> read_csv_with_metadata(rust::Str filepath, uint8_t delimiter, int32_t header_row, int64_t skip_rows, int64_t num_rows) {
+    std::string path(filepath.data(), filepath.size());
+    auto source = cudf::io::source_info(path);
+    auto builder = cudf::io::csv_reader_options::builder(source);
+    builder.delimiter(static_cast<char>(delimiter));
+    if (header_row >= 0) builder.header(header_row);
+    else builder.header(-1);
+    if (skip_rows >= 0) builder.skiprows(skip_rows);
+    if (num_rows >= 0) builder.nrows(num_rows);
+    auto result = cudf::io::read_csv(builder.build());
+
+    std::vector<std::string> names;
+    for (const auto& info : result.metadata.schema_info) {
+        names.push_back(info.name);
+    }
+
+    return std::make_unique<OwnedTableWithMetadata>(std::move(result.tbl), std::move(names));
+}
+
 void write_csv(const OwnedTable& table, rust::Str filepath, uint8_t delimiter, bool include_header) {
     std::string path(filepath.data(), filepath.size());
     auto sink = cudf::io::sink_info(path);

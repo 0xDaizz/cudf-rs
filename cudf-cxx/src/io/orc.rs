@@ -4,6 +4,7 @@ pub mod ffi {
         include!("io/orc_shim.h");
         include!("table_shim.h");
         type OwnedTable = crate::table::ffi::OwnedTable;
+        type OwnedTableWithMetadata = crate::table::ffi::OwnedTableWithMetadata;
 
         fn read_orc(
             filepath: &str,
@@ -11,6 +12,14 @@ pub mod ffi {
             skip_rows: i64,
             num_rows: i64,
         ) -> Result<UniquePtr<OwnedTable>>;
+
+        fn read_orc_with_metadata(
+            filepath: &str,
+            columns: &[String],
+            skip_rows: i64,
+            num_rows: i64,
+        ) -> Result<UniquePtr<OwnedTableWithMetadata>>;
+
         fn write_orc(table: &OwnedTable, filepath: &str, compression: i32) -> Result<()>;
     }
 }

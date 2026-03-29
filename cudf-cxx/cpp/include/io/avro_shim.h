@@ -6,4 +6,5 @@
 
 namespace cudf_shims {
 std::unique_ptr<OwnedTable> read_avro(rust::Str filepath, rust::Slice<const rust::String> columns);
+std::unique_ptr<OwnedTableWithMetadata> read_avro_with_metadata(rust::Str filepath, rust::Slice<const rust::String> columns);
 } // namespace cudf_shims
