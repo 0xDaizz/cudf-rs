@@ -101,5 +101,23 @@ pub mod ffi {
 
         /// URL-decode each string.
         fn str_url_decode(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── Fixed Point Check ─────────────────────────────────────
+
+        /// Check if each string is a valid fixed-point representation for the given type.
+        fn str_is_fixed_point(col: &OwnedColumn, type_id: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── Integer Cast (encode/decode) ──────────────────────────
+
+        /// Encode strings as integer values (byte representation).
+        fn str_cast_to_integer(col: &OwnedColumn, type_id: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Decode integer-encoded values back to strings.
+        fn str_cast_from_integer(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        // ── Format List Column ────────────────────────────────────
+
+        /// Convert a list column of strings into a formatted strings column.
+        fn str_format_list_column(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

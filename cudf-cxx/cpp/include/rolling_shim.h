@@ -27,4 +27,13 @@ std::unique_ptr<OwnedColumn> grouped_rolling_window(
     int32_t min_periods,
     int32_t agg_kind);
 
+/// Variable-size rolling window aggregation.
+/// preceding_col and following_col specify per-row window sizes.
+std::unique_ptr<OwnedColumn> rolling_window_variable(
+    const OwnedColumn& col,
+    const OwnedColumn& preceding_col,
+    const OwnedColumn& following_col,
+    int32_t min_periods,
+    int32_t agg_kind);
+
 } // namespace cudf_shims

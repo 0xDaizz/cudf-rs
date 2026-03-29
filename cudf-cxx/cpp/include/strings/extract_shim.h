@@ -11,4 +11,8 @@ namespace cudf_shims {
 std::unique_ptr<OwnedTable> str_extract(
     const OwnedColumn& col, rust::Str pattern);
 
+/// Extract all matches of capture groups per row, returning a list column.
+std::unique_ptr<OwnedColumn> str_extract_all_record(
+    const OwnedColumn& col, rust::Str pattern);
+
 } // namespace cudf_shims

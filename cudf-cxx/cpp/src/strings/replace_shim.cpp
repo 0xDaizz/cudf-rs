@@ -37,4 +37,42 @@ std::unique_ptr<OwnedColumn> str_replace_re(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_replace_slice(
+    const OwnedColumn& col, rust::Str replacement, int32_t start, int32_t stop)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::string repl(replacement.data(), replacement.size());
+    cudf::string_scalar scalar_repl(repl, true, stream);
+    auto result = cudf::strings::replace_slice(
+        col.view(), scalar_repl, start, stop, stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> str_replace_multiple(
+    const OwnedColumn& col, const OwnedColumn& targets, const OwnedColumn& replacements)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto result = cudf::strings::replace_multiple(
+        col.view(),
+        cudf::strings_column_view(targets.view()),
+        cudf::strings_column_view(replacements.view()),
+        stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
+std::unique_ptr<OwnedColumn> str_replace_with_backrefs(
+    const OwnedColumn& col, rust::Str pattern, rust::Str replacement)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::string pat(pattern.data(), pattern.size());
+    std::string repl(replacement.data(), replacement.size());
+    auto prog = cudf::strings::regex_program::create(pat);
+    auto result = cudf::strings::replace_with_backrefs(
+        col.view(), *prog, repl, stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

@@ -67,4 +67,23 @@ std::unique_ptr<OwnedColumn> grouped_rolling_window(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> rolling_window_variable(
+    const OwnedColumn& col,
+    const OwnedColumn& preceding_col,
+    const OwnedColumn& following_col,
+    int32_t min_periods,
+    int32_t agg_kind)
+{
+    auto agg = make_rolling_agg(agg_kind);
+
+    auto result = cudf::rolling_window(
+        col.view(),
+        preceding_col.view(),
+        following_col.view(),
+        min_periods,
+        *agg);
+
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

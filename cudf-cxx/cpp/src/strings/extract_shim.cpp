@@ -17,4 +17,15 @@ std::unique_ptr<OwnedTable> str_extract(
     return std::make_unique<OwnedTable>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_extract_all_record(
+    const OwnedColumn& col, rust::Str pattern)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    std::string pat(pattern.data(), pattern.size());
+    auto prog = cudf::strings::regex_program::create(pat);
+    auto result = cudf::strings::extract_all_record(col.view(), *prog, stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

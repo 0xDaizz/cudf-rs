@@ -13,5 +13,11 @@ pub mod ffi {
         /// Extract the first capture group from each string matching `pattern`.
         /// Returns a table with one column per capture group.
         fn str_extract(col: &OwnedColumn, pattern: &str) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Extract all matches of capture groups per row, returning a list column.
+        fn str_extract_all_record(
+            col: &OwnedColumn,
+            pattern: &str,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

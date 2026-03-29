@@ -112,4 +112,33 @@ impl Column {
 
         Ok(Column { inner: raw })
     }
+
+    /// Apply a variable-size rolling window aggregation.
+    ///
+    /// Unlike [`rolling`](Self::rolling), the window size can vary per row.
+    /// `preceding_col` and `following_col` are integer columns specifying
+    /// the window sizes for each element.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation is unsupported, window columns
+    /// have mismatched sizes, or a GPU error occurs.
+    pub fn rolling_variable(
+        &self,
+        preceding_col: &Column,
+        following_col: &Column,
+        min_periods: usize,
+        agg: RollingAgg,
+    ) -> Result<Column> {
+        let raw = cudf_cxx::rolling::ffi::rolling_window_variable(
+            &self.inner,
+            &preceding_col.inner,
+            &following_col.inner,
+            min_periods as i32,
+            agg as i32,
+        )
+        .map_err(CudfError::from_cxx)?;
+
+        Ok(Column { inner: raw })
+    }
 }

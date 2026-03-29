@@ -13,4 +13,14 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: result })
     }
+
+    /// Extract all matches of capture groups per row, returning a list column.
+    ///
+    /// Each row in the output lists column contains all captured substrings
+    /// from all matches found in the corresponding input string.
+    pub fn str_extract_all_record(&self, pattern: &str) -> Result<Column> {
+        let result = cudf_cxx::strings::extract::ffi::str_extract_all_record(&self.inner, pattern)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

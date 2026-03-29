@@ -19,4 +19,14 @@ std::unique_ptr<OwnedColumn> str_slice(
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 
+std::unique_ptr<OwnedColumn> str_slice_column(
+    const OwnedColumn& col, const OwnedColumn& starts, const OwnedColumn& stops)
+{
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto result = cudf::strings::slice_strings(
+        col.view(), starts.view(), stops.view(), stream, mr);
+    return std::make_unique<OwnedColumn>(std::move(result));
+}
+
 } // namespace cudf_shims

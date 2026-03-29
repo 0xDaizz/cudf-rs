@@ -21,5 +21,27 @@ pub mod ffi {
             pattern: &str,
             replacement: &str,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Replace characters in the [start, stop) range with `replacement`.
+        fn str_replace_slice(
+            col: &OwnedColumn,
+            replacement: &str,
+            start: i32,
+            stop: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Replace multiple target strings with corresponding replacements.
+        fn str_replace_multiple(
+            col: &OwnedColumn,
+            targets: &OwnedColumn,
+            replacements: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Replace regex matches using back-references in the replacement template.
+        fn str_replace_with_backrefs(
+            col: &OwnedColumn,
+            pattern: &str,
+            replacement: &str,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

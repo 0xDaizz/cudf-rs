@@ -34,5 +34,15 @@ pub mod ffi {
             min_periods: i32,
             agg_kind: i32,
         ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Variable-size rolling window aggregation.
+        /// `preceding_col` and `following_col` specify per-row window sizes.
+        fn rolling_window_variable(
+            col: &OwnedColumn,
+            preceding_col: &OwnedColumn,
+            following_col: &OwnedColumn,
+            min_periods: i32,
+            agg_kind: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

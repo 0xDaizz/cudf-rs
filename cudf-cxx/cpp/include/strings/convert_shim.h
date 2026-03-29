@@ -61,4 +61,15 @@ std::unique_ptr<OwnedColumn> str_integers_to_ipv4(const OwnedColumn& col);
 std::unique_ptr<OwnedColumn> str_url_encode(const OwnedColumn& col);
 std::unique_ptr<OwnedColumn> str_url_decode(const OwnedColumn& col);
 
+// Fixed-point check
+std::unique_ptr<OwnedColumn> str_is_fixed_point(const OwnedColumn& col, int32_t type_id);
+
+// Integer cast (encode strings to integers and back)
+std::unique_ptr<OwnedColumn> str_cast_to_integer(
+    const OwnedColumn& col, int32_t type_id);
+std::unique_ptr<OwnedColumn> str_cast_from_integer(const OwnedColumn& col);
+
+// Format list column as strings
+std::unique_ptr<OwnedColumn> str_format_list_column(const OwnedColumn& col);
+
 } // namespace cudf_shims

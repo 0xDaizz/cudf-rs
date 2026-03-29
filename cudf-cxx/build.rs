@@ -90,11 +90,16 @@ fn main() {
         "src/io/orc.rs",
         "src/io/avro.rs",
         "src/join.rs",
+        "src/json.rs",
+        "src/label_bins.rs",
+        "src/timezone.rs",
         "src/strings/case.rs",
         "src/strings/find.rs",
         "src/strings/contains.rs",
         "src/strings/replace.rs",
         "src/strings/split.rs",
+        "src/strings/split_re.rs",
+        "src/strings/partition.rs",
         "src/strings/strip.rs",
         "src/strings/convert.rs",
         "src/strings/combine.rs",
@@ -148,11 +153,16 @@ fn main() {
         .file(cpp_src.join("io/orc_shim.cpp"))
         .file(cpp_src.join("io/avro_shim.cpp"))
         .file(cpp_src.join("join_shim.cpp"))
+        .file(cpp_src.join("json_shim.cpp"))
+        .file(cpp_src.join("label_bins_shim.cpp"))
+        .file(cpp_src.join("timezone_shim.cpp"))
         .file(cpp_src.join("strings/case_shim.cpp"))
         .file(cpp_src.join("strings/find_shim.cpp"))
         .file(cpp_src.join("strings/contains_shim.cpp"))
         .file(cpp_src.join("strings/replace_shim.cpp"))
         .file(cpp_src.join("strings/split_shim.cpp"))
+        .file(cpp_src.join("strings/split_re_shim.cpp"))
+        .file(cpp_src.join("strings/partition_shim.cpp"))
         .file(cpp_src.join("strings/strip_shim.cpp"))
         .file(cpp_src.join("strings/convert_shim.cpp"))
         .file(cpp_src.join("strings/combine_shim.cpp"))

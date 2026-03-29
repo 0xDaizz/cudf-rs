@@ -12,5 +12,12 @@ pub mod ffi {
         /// Negative indices are not supported; use 0 for start and -1 for stop
         /// to indicate end-of-string.
         fn str_slice(col: &OwnedColumn, start: i32, stop: i32) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Extract substrings using per-row start/stop integer columns.
+        fn str_slice_column(
+            col: &OwnedColumn,
+            starts: &OwnedColumn,
+            stops: &OwnedColumn,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

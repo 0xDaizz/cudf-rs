@@ -13,4 +13,16 @@ std::unique_ptr<OwnedColumn> str_replace(
 std::unique_ptr<OwnedColumn> str_replace_re(
     const OwnedColumn& col, rust::Str pattern, rust::Str replacement);
 
+/// Replace characters in the [start, stop) range with `replacement`.
+std::unique_ptr<OwnedColumn> str_replace_slice(
+    const OwnedColumn& col, rust::Str replacement, int32_t start, int32_t stop);
+
+/// Replace multiple target strings with corresponding replacements.
+std::unique_ptr<OwnedColumn> str_replace_multiple(
+    const OwnedColumn& col, const OwnedColumn& targets, const OwnedColumn& replacements);
+
+/// Replace regex matches using back-references in the replacement template.
+std::unique_ptr<OwnedColumn> str_replace_with_backrefs(
+    const OwnedColumn& col, rust::Str pattern, rust::Str replacement);
+
 } // namespace cudf_shims

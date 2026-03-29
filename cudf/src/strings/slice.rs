@@ -12,4 +12,18 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    /// Extract substrings using per-row `starts` and `stops` integer columns.
+    ///
+    /// Both `starts` and `stops` must be integer columns of the same type
+    /// and the same size as this string column.
+    pub fn str_slice_column(&self, starts: &Column, stops: &Column) -> Result<Column> {
+        let result = cudf_cxx::strings::slice::ffi::str_slice_column(
+            &self.inner,
+            &starts.inner,
+            &stops.inner,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }

@@ -177,4 +177,47 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
+
+    // ── Fixed-point check ────────────────────────────────────
+
+    /// Check if each string is a valid fixed-point representation for the given type.
+    pub fn str_is_fixed_point(&self, dtype: DataType) -> Result<Column> {
+        let result =
+            cudf_cxx::strings::convert::ffi::str_is_fixed_point(&self.inner, dtype.id() as i32)
+                .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
+
+    // ── Integer Cast (encode/decode) ─────────────────────────
+
+    /// Encode strings as integer values (byte representation).
+    ///
+    /// Strings up to 8 bytes can be encoded into an integer type
+    /// (INT8, INT16, INT32, INT64). Useful for groupby/join/sort.
+    pub fn str_cast_to_integer(&self, dtype: DataType) -> Result<Column> {
+        let result =
+            cudf_cxx::strings::convert::ffi::str_cast_to_integer(&self.inner, dtype.id() as i32)
+                .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
+
+    /// Decode integer-encoded values back to strings.
+    ///
+    /// Inverse of [`str_cast_to_integer`](Self::str_cast_to_integer).
+    pub fn str_cast_from_integer(&self) -> Result<Column> {
+        let result = cudf_cxx::strings::convert::ffi::str_cast_from_integer(&self.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
+
+    // ── Format List Column ───────────────────────────────────
+
+    /// Convert a list column of strings into a formatted strings column.
+    ///
+    /// Nested lists are formatted with brackets and commas by default.
+    pub fn str_format_list_column(&self) -> Result<Column> {
+        let result = cudf_cxx::strings::convert::ffi::str_format_list_column(&self.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
 }
