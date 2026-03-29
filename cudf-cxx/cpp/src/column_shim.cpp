@@ -269,6 +269,34 @@ std::unique_ptr<OwnedColumn> column_from_u64_nullable(
     return column_from_nullable(data, validity, cudf::type_id::UINT64);
 }
 
+std::unique_ptr<OwnedColumn> column_from_bool_nullable(
+    rust::Slice<const bool> data, rust::Slice<const bool> validity) {
+    if (data.size() != validity.size()) {
+        throw std::runtime_error("data and validity slices must have the same length");
+    }
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto size = static_cast<cudf::size_type>(data.size());
+
+    // Convert bool -> int8_t (cudf stores BOOL8 as int8)
+    std::vector<int8_t> int_data(size);
+    for (cudf::size_type i = 0; i < size; ++i) {
+        int_data[i] = data[i] ? 1 : 0;
+    }
+
+    rmm::device_buffer dev_buf(int_data.data(), size * sizeof(int8_t), stream, mr);
+    auto [mask, null_count] = build_null_mask(validity, size, stream, mr);
+
+    auto col = std::make_unique<cudf::column>(
+        cudf::data_type{cudf::type_id::BOOL8},
+        size,
+        std::move(dev_buf),
+        std::move(mask),
+        null_count);
+
+    return std::make_unique<OwnedColumn>(std::move(col));
+}
+
 std::unique_ptr<OwnedColumn> column_empty(int32_t type_id, int32_t size) {
     auto tid = static_cast<cudf::type_id>(type_id);
     auto col = cudf::make_numeric_column(

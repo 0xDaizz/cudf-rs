@@ -58,12 +58,21 @@ pub enum AggregationKind {
     /// Index of the minimum value.
     Argmin,
     /// Row number (1-based rank by order of appearance).
+    ///
+    /// **Note:** This is a scan-only aggregation. Using it with `GroupBy::aggregate`
+    /// will return an error. Use [`GroupByScan`](crate::groupby::GroupByScan) instead.
     RowNumber,
     /// Quantile at the given probability.
     Quantile { q: f64 },
     /// Lag (shift values backward by offset).
+    ///
+    /// **Note:** This is a scan-only aggregation. Using it with `GroupBy::aggregate`
+    /// will return an error. Use [`GroupByScan`](crate::groupby::GroupByScan) instead.
     Lag { offset: i32 },
     /// Lead (shift values forward by offset).
+    ///
+    /// **Note:** This is a scan-only aggregation. Using it with `GroupBy::aggregate`
+    /// will return an error. Use [`GroupByScan`](crate::groupby::GroupByScan) instead.
     Lead { offset: i32 },
 }
 

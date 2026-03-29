@@ -84,6 +84,8 @@ std::unique_ptr<OwnedColumn> column_from_u32_nullable(
     rust::Slice<const uint32_t> data, rust::Slice<const bool> validity);
 std::unique_ptr<OwnedColumn> column_from_u64_nullable(
     rust::Slice<const uint64_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_bool_nullable(
+    rust::Slice<const bool> data, rust::Slice<const bool> validity);
 
 // ── Data Transfer ──────────────────────────────────────────────
 

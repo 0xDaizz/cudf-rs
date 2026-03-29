@@ -47,6 +47,9 @@ impl Table {
     }
 
     /// Number of rows in this table.
+    ///
+    /// Returns 0 if the table's columns have been released (e.g., after
+    /// `table_release_column` has consumed all columns on the C++ side).
     pub fn num_rows(&self) -> usize {
         self.inner.num_rows() as usize
     }

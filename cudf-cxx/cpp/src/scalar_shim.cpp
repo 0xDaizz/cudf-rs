@@ -91,6 +91,13 @@ void scalar_set_u64(OwnedScalar& s, uint64_t value) {
     typed->set_valid_async(true, cudf::get_default_stream());
 }
 
+void scalar_set_bool(OwnedScalar& s, bool value) {
+    auto* typed = dynamic_cast<cudf::numeric_scalar<bool>*>(s.inner.get());
+    if (!typed) throw std::runtime_error("scalar is not BOOL8");
+    typed->set_value(value, cudf::get_default_stream());
+    typed->set_valid_async(true, cudf::get_default_stream());
+}
+
 void scalar_set_valid(OwnedScalar& s, bool valid) {
     s.inner->set_valid_async(valid, cudf::get_default_stream());
 }
@@ -154,6 +161,12 @@ uint32_t scalar_get_u32(const OwnedScalar& s) {
 uint64_t scalar_get_u64(const OwnedScalar& s) {
     auto* typed = dynamic_cast<const cudf::numeric_scalar<uint64_t>*>(s.inner.get());
     if (!typed) throw std::runtime_error("scalar is not UINT64");
+    return typed->value(cudf::get_default_stream());
+}
+
+bool scalar_get_bool(const OwnedScalar& s) {
+    auto* typed = dynamic_cast<const cudf::numeric_scalar<bool>*>(s.inner.get());
+    if (!typed) throw std::runtime_error("scalar is not BOOL8");
     return typed->value(cudf::get_default_stream());
 }
 

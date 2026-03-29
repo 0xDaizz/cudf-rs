@@ -18,7 +18,7 @@
 //! assert_eq!(roundtrip.len(), 3);
 //!
 //! // Pack / unpack
-//! let packed = cudf::PackedTable::pack(&Table::from_columns(vec![col]).unwrap()).unwrap();
+//! let packed = cudf::PackedTable::pack(&Table::new(vec![col]).unwrap()).unwrap();
 //! let unpacked = packed.unpack().unwrap();
 //! ```
 
@@ -313,7 +313,7 @@ impl SplitResult {
     /// use cudf::interop::SplitResult;
     ///
     /// let col = Column::from_slice(&[1i32, 2, 3, 4, 5]).unwrap();
-    /// let table = Table::from_columns(vec![col]).unwrap();
+    /// let table = Table::new(vec![col]).unwrap();
     /// let result = SplitResult::split(&table, &[2, 4]).unwrap();
     /// assert_eq!(result.num_parts(), 3);
     /// ```

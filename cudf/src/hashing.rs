@@ -20,7 +20,7 @@ use crate::table::Table;
 impl Table {
     /// Hash each row using MurmurHash3 (32-bit).
     ///
-    /// Returns an `i32` column of hash values.
+    /// Returns a `u32` column of hash values.
     pub fn hash_murmur3(&self, seed: u32) -> Result<Column> {
         let raw =
             cudf_cxx::hashing::ffi::hash_murmur3(&self.inner, seed).map_err(CudfError::from_cxx)?;
@@ -29,7 +29,7 @@ impl Table {
 
     /// Hash each row using xxHash64.
     ///
-    /// Returns an `i64` column of hash values.
+    /// Returns a `u64` column of hash values.
     pub fn hash_xxhash64(&self, seed: u64) -> Result<Column> {
         let raw = cudf_cxx::hashing::ffi::hash_xxhash64(&self.inner, seed)
             .map_err(CudfError::from_cxx)?;
@@ -86,7 +86,7 @@ impl Table {
 
     /// Hash each row using xxHash32.
     ///
-    /// Returns an `i32` column of hash values.
+    /// Returns a `u32` column of hash values.
     pub fn hash_xxhash32(&self, seed: u32) -> Result<Column> {
         let raw = cudf_cxx::hashing::ffi::hash_xxhash32(&self.inner, seed)
             .map_err(CudfError::from_cxx)?;

@@ -46,6 +46,7 @@ void scalar_set_u8(OwnedScalar& s, uint8_t value);
 void scalar_set_u16(OwnedScalar& s, uint16_t value);
 void scalar_set_u32(OwnedScalar& s, uint32_t value);
 void scalar_set_u64(OwnedScalar& s, uint64_t value);
+void scalar_set_bool(OwnedScalar& s, bool value);
 void scalar_set_valid(OwnedScalar& s, bool valid);
 
 // ── Getters ────────────────────────────────────────────────────
@@ -60,5 +61,6 @@ uint8_t scalar_get_u8(const OwnedScalar& s);
 uint16_t scalar_get_u16(const OwnedScalar& s);
 uint32_t scalar_get_u32(const OwnedScalar& s);
 uint64_t scalar_get_u64(const OwnedScalar& s);
+bool scalar_get_bool(const OwnedScalar& s);
 
 } // namespace cudf_shims

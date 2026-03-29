@@ -149,7 +149,8 @@ fn extract_semi_join_result(
 ///
 /// Uses `table_release_column` (zero-copy) instead of `table_get_column`
 /// (which copies GPU memory). Columns are released in reverse order
-/// (index 1 then 0) because each release shifts subsequent indices.
+/// (index 1 then 0) so that releasing a column does not shift the
+/// indices of columns we still need to release.
 fn extract_join_result(
     mut maps: cxx::UniquePtr<cudf_cxx::table::ffi::OwnedTable>,
 ) -> Result<JoinResult> {

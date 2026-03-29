@@ -232,6 +232,17 @@ impl Column {
         Ok(Self { inner: raw })
     }
 
+    /// Create a nullable bool column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_bool(data: &[Option<bool>]) -> Result<Self> {
+        let values: Vec<bool> = data.iter().map(|o| o.unwrap_or(false)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_bool_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
     // -- Data Transfer --
 
     /// Copy the null bitmask to a host byte vector.
@@ -388,6 +399,13 @@ impl Column {
     /// The type parameter `T` must match the column's actual data type.
     /// Returns `Err(CudfError::TypeMismatch)` if they don't match.
     ///
+    /// # Nullability
+    ///
+    /// Returns `Err(CudfError::InvalidArgument)` if the column contains nulls,
+    /// because null values would be silently replaced by whatever GPU memory
+    /// happens to contain (indistinguishable from real values).
+    /// Use [`to_optional_vec`](Self::to_optional_vec) instead for nullable columns.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -398,6 +416,59 @@ impl Column {
     /// assert_eq!(data, vec![1, 2, 3]);
     /// ```
     pub fn to_vec<T: CudfType>(&self) -> Result<Vec<T>> {
+        if self.has_nulls() {
+            return Err(CudfError::InvalidArgument(
+                "to_vec() cannot be used on columns with null values (null values would be \
+                 indistinguishable from real data). Use to_optional_vec() instead, or use \
+                 null_mask_to_host() to get the null mask separately."
+                    .into(),
+            ));
+        }
+        self.to_vec_raw()
+    }
+
+    /// Copy column data back to host as a `Vec<Option<T>>`, preserving null information.
+    ///
+    /// Valid elements are wrapped in `Some`, null elements become `None`.
+    /// If the column has no nulls, all elements will be `Some`.
+    ///
+    /// # Type Safety
+    ///
+    /// The type parameter `T` must match the column's actual data type.
+    /// Returns `Err(CudfError::TypeMismatch)` if they don't match.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cudf::Column;
+    ///
+    /// let col = Column::from_optional_i32(&[Some(1), None, Some(3)]).unwrap();
+    /// let data: Vec<Option<i32>> = col.to_optional_vec().unwrap();
+    /// assert_eq!(data, vec![Some(1), None, Some(3)]);
+    /// ```
+    pub fn to_optional_vec<T: CudfType>(&self) -> Result<Vec<Option<T>>> {
+        let values = self.to_vec_raw::<T>()?;
+
+        if !self.has_nulls() {
+            return Ok(values.into_iter().map(Some).collect());
+        }
+
+        let mask = self.null_mask_to_host()?;
+        Ok(values
+            .into_iter()
+            .enumerate()
+            .map(|(i, v)| {
+                if mask[i / 8] & (1 << (i % 8)) != 0 {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+            .collect())
+    }
+
+    /// Internal: transfer column data to host without null checking.
+    fn to_vec_raw<T: CudfType>(&self) -> Result<Vec<T>> {
         // Type check
         let actual = self.data_type().id();
         if actual != T::TYPE_ID {

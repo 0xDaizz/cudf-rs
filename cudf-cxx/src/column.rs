@@ -138,6 +138,12 @@ pub mod ffi {
             validity: &[bool],
         ) -> Result<UniquePtr<OwnedColumn>>;
 
+        /// Create a nullable bool column from host data and validity mask.
+        fn column_from_bool_nullable(
+            data: &[bool],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
         // ── Data Transfer ──────────────────────────────────────────
 
         /// Copy column data to host as i32. Panics if type mismatch.

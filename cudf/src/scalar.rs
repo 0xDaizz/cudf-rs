@@ -118,6 +118,12 @@ impl Scalar {
                 cudf_cxx::scalar::ffi::scalar_set_f64(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
+            TypeId::Bool8 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<bool>());
+                let b: bool = unsafe { std::mem::transmute_copy(&value) };
+                cudf_cxx::scalar::ffi::scalar_set_bool(inner.pin_mut(), b)
+                    .map_err(CudfError::from_cxx)?;
+            }
             _ => {
                 return Err(CudfError::InvalidArgument(format!(
                     "Scalar::new does not support {:?}",
@@ -229,6 +235,12 @@ impl Scalar {
                     .map_err(CudfError::from_cxx)?;
                 debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<f64>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
+            }
+            TypeId::Bool8 => {
+                let b = cudf_cxx::scalar::ffi::scalar_get_bool(&self.inner)
+                    .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<bool>());
+                Ok(unsafe { std::mem::transmute_copy(&b) })
             }
             _ => Err(CudfError::InvalidArgument(format!(
                 "Scalar::value does not yet support {:?}",

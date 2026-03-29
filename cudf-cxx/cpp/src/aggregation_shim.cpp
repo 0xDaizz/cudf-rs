@@ -100,7 +100,9 @@ std::unique_ptr<OwnedAggregation> agg_argmin() {
 }
 
 std::unique_ptr<OwnedAggregation> agg_row_number() {
-    return wrap(cudf::make_row_number_aggregation<cudf::groupby_aggregation>());
+    throw std::runtime_error(
+        "row_number is a scan-only aggregation and cannot be used with groupby aggregate. "
+        "Use GroupByScan instead.");
 }
 
 std::unique_ptr<OwnedAggregation> agg_quantile(double q) {
@@ -109,13 +111,15 @@ std::unique_ptr<OwnedAggregation> agg_quantile(double q) {
 }
 
 std::unique_ptr<OwnedAggregation> agg_lag(int32_t offset) {
-    return wrap(cudf::make_lag_aggregation<cudf::groupby_aggregation>(
-        static_cast<cudf::size_type>(offset)));
+    throw std::runtime_error(
+        "lag is a scan-only aggregation and cannot be used with groupby aggregate. "
+        "Use GroupByScan instead.");
 }
 
 std::unique_ptr<OwnedAggregation> agg_lead(int32_t offset) {
-    return wrap(cudf::make_lead_aggregation<cudf::groupby_aggregation>(
-        static_cast<cudf::size_type>(offset)));
+    throw std::runtime_error(
+        "lead is a scan-only aggregation and cannot be used with groupby aggregate. "
+        "Use GroupByScan instead.");
 }
 
 } // namespace cudf_shims

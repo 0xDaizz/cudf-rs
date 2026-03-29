@@ -59,6 +59,9 @@ pub mod ffi {
         /// Set the value of a UINT64 scalar.
         fn scalar_set_u64(s: Pin<&mut OwnedScalar>, value: u64) -> Result<()>;
 
+        /// Set the value of a BOOL8 scalar.
+        fn scalar_set_bool(s: Pin<&mut OwnedScalar>, value: bool) -> Result<()>;
+
         /// Set the validity flag of this scalar.
         fn scalar_set_valid(s: Pin<&mut OwnedScalar>, valid: bool) -> Result<()>;
 
@@ -93,5 +96,8 @@ pub mod ffi {
 
         /// Get the value of a UINT64 scalar.
         fn scalar_get_u64(s: &OwnedScalar) -> Result<u64>;
+
+        /// Get the value of a BOOL8 scalar.
+        fn scalar_get_bool(s: &OwnedScalar) -> Result<bool>;
     }
 }
