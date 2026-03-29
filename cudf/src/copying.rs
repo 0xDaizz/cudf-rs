@@ -21,6 +21,7 @@ use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::scalar::Scalar;
 use crate::table::Table;
+use crate::types::checked_i32;
 
 /// Select elements from a scalar (true in mask) or a column (false in mask).
 ///
@@ -143,7 +144,10 @@ impl Table {
     ///
     /// Returns an error if indices are not strictly increasing or out of bounds.
     pub fn split(&self, indices: &[usize]) -> Result<Vec<Table>> {
-        let idx: Vec<i32> = indices.iter().map(|&i| i as i32).collect();
+        let idx: Vec<i32> = indices
+            .iter()
+            .map(|&i| checked_i32(i))
+            .collect::<Result<Vec<i32>>>()?;
         let mut result = cudf_cxx::copying::ffi::split_table_all(&self.inner, &idx)
             .map_err(CudfError::from_cxx)?;
         let count = cudf_cxx::copying::ffi::split_result_count(&result);

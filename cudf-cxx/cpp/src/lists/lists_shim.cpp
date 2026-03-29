@@ -46,7 +46,7 @@ std::unique_ptr<OwnedColumn> lists_sort(
 {
     auto lists_view = cudf::lists_column_view(col.view());
     auto order = ascending ? cudf::order::ASCENDING : cudf::order::DESCENDING;
-    auto null_prec = null_order == 0 ? cudf::null_order::BEFORE : cudf::null_order::AFTER;
+    auto null_prec = null_order == 0 ? cudf::null_order::AFTER : cudf::null_order::BEFORE;
 
     auto result = cudf::lists::sort_lists(
         lists_view,
@@ -254,7 +254,7 @@ std::unique_ptr<OwnedColumn> lists_stable_sort(
 {
     auto lists_view = cudf::lists_column_view(col.view());
     auto order = ascending ? cudf::order::ASCENDING : cudf::order::DESCENDING;
-    auto null_prec = null_order == 0 ? cudf::null_order::BEFORE : cudf::null_order::AFTER;
+    auto null_prec = null_order == 0 ? cudf::null_order::AFTER : cudf::null_order::BEFORE;
 
     auto result = cudf::lists::stable_sort_lists(
         lists_view, order, null_prec);

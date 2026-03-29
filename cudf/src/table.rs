@@ -22,6 +22,7 @@ use cxx::UniquePtr;
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
+use crate::types::checked_i32;
 
 /// An owning, GPU-resident table (ordered collection of columns).
 ///
@@ -117,7 +118,8 @@ impl Table {
             });
         }
 
-        let raw = cudf_cxx::table::ffi::table_get_column(&self.inner, index as i32)
+        let index_i32 = checked_i32(index)?;
+        let raw = cudf_cxx::table::ffi::table_get_column(&self.inner, index_i32)
             .map_err(CudfError::from_cxx)?;
 
         Ok(Column { inner: raw })

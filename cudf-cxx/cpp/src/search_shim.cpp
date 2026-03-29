@@ -21,7 +21,7 @@ std::vector<cudf::null_order> to_null_order(rust::Slice<const int32_t> order) {
     std::vector<cudf::null_order> result;
     result.reserve(order.size());
     for (auto v : order) {
-        result.push_back(v == 0 ? cudf::null_order::BEFORE : cudf::null_order::AFTER);
+        result.push_back(v == 0 ? cudf::null_order::AFTER : cudf::null_order::BEFORE);
     }
     return result;
 }

@@ -292,7 +292,8 @@ impl Column {
 
     /// Compute the rank of each element in this column.
     ///
-    /// Returns a column of `f64` rank values.
+    /// Returns a column of rank values. Type is `f64` for `Average` method
+    /// or when `percentage=true`, `i32` (size_type) for all other methods.
     pub fn rank(
         &self,
         method: RankMethod,

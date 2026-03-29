@@ -248,6 +248,20 @@ impl fmt::Display for DataType {
     }
 }
 
+/// Convert a `usize` value to `i32`, returning an error if it overflows.
+///
+/// This is used at user-facing API boundaries where sizes or indices are
+/// passed to the C++ layer as `i32` (libcudf's `size_type`).
+pub fn checked_i32(val: usize) -> crate::error::Result<i32> {
+    i32::try_from(val).map_err(|_| {
+        crate::error::CudfError::InvalidArgument(format!(
+            "value {} exceeds i32::MAX ({})",
+            val,
+            i32::MAX
+        ))
+    })
+}
+
 /// Policy for handling null values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]

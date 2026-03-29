@@ -144,7 +144,16 @@ pub mod ffi {
             validity: &[bool],
         ) -> Result<UniquePtr<OwnedColumn>>;
 
+        /// Create a nullable string column from host data and validity mask.
+        fn column_from_strings_nullable(
+            data: &[String],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
         // ── Data Transfer ──────────────────────────────────────────
+
+        /// Extract all strings from a string column to host.
+        fn column_to_strings(col: &OwnedColumn) -> Result<Vec<String>>;
 
         /// Copy column data to host as i32. Panics if type mismatch.
         fn column_to_i32(col: &OwnedColumn, out: &mut [i32]) -> Result<()>;

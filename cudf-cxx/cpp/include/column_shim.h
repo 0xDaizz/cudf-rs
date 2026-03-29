@@ -87,7 +87,15 @@ std::unique_ptr<OwnedColumn> column_from_u64_nullable(
 std::unique_ptr<OwnedColumn> column_from_bool_nullable(
     rust::Slice<const bool> data, rust::Slice<const bool> validity);
 
+// Nullable string column creation from host strings + validity mask.
+std::unique_ptr<OwnedColumn> column_from_strings_nullable(
+    rust::Slice<const rust::String> data,
+    rust::Slice<const bool> validity);
+
 // ── Data Transfer ──────────────────────────────────────────────
+
+/// Extract all strings from a string column to host.
+rust::Vec<rust::String> column_to_strings(const OwnedColumn& col);
 
 /// Copy GPU column data to a host buffer.
 void column_to_i8(const OwnedColumn& col, rust::Slice<int8_t> out);

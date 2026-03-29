@@ -22,7 +22,7 @@ std::vector<cudf::null_order> to_null_order(rust::Slice<const int32_t> order) {
     std::vector<cudf::null_order> result;
     result.reserve(order.size());
     for (auto v : order) {
-        result.push_back(v == 0 ? cudf::null_order::BEFORE : cudf::null_order::AFTER);
+        result.push_back(v == 0 ? cudf::null_order::AFTER : cudf::null_order::BEFORE);
     }
     return result;
 }
@@ -107,7 +107,7 @@ std::unique_ptr<OwnedColumn> rank(
 {
     auto m = static_cast<cudf::rank_method>(method);
     auto co = column_order == 0 ? cudf::order::ASCENDING : cudf::order::DESCENDING;
-    auto no = null_order == 0 ? cudf::null_order::BEFORE : cudf::null_order::AFTER;
+    auto no = null_order == 0 ? cudf::null_order::AFTER : cudf::null_order::BEFORE;
     auto nh = null_handling == 0 ? cudf::null_policy::INCLUDE : cudf::null_policy::EXCLUDE;
 
     auto result = cudf::rank(

@@ -1,5 +1,6 @@
 #include "column_shim.h"
 #include <cudf/column/column_factories.hpp>
+#include <cudf/strings/strings_column_view.hpp>
 #include <cudf/utilities/default_stream.hpp>
 #include <rmm/device_buffer.hpp>
 #include <cuda_runtime.h>
@@ -297,6 +298,78 @@ std::unique_ptr<OwnedColumn> column_from_bool_nullable(
     return std::make_unique<OwnedColumn>(std::move(col));
 }
 
+std::unique_ptr<OwnedColumn> column_from_strings_nullable(
+    rust::Slice<const rust::String> data,
+    rust::Slice<const bool> validity)
+{
+    if (data.size() != validity.size()) {
+        throw std::runtime_error("data and validity slices must have the same length");
+    }
+    auto stream = cudf::get_default_stream();
+    auto mr = cudf::get_current_device_resource_ref();
+    auto num_strings = static_cast<cudf::size_type>(data.size());
+
+    if (num_strings == 0) {
+        // Build an empty strings column.
+        auto offsets_col = std::make_unique<cudf::column>(
+            cudf::data_type{cudf::type_id::INT32},
+            1,
+            rmm::device_buffer(sizeof(int32_t), stream, mr),
+            rmm::device_buffer{}, 0);
+        int32_t zero = 0;
+        cudaMemcpyAsync(offsets_col->mutable_view().data<int32_t>(), &zero,
+                        sizeof(int32_t), cudaMemcpyHostToDevice, stream.value());
+        stream.synchronize();
+        return std::make_unique<OwnedColumn>(
+            cudf::make_strings_column(
+                0, std::move(offsets_col),
+                rmm::device_buffer{0, stream, mr}, 0,
+                rmm::device_buffer{0, stream, mr}));
+    }
+
+    // Guard: total string data must fit in int32_t offsets (2GB limit).
+    size_t total_chars = 0;
+    for (const auto& s : data) {
+        total_chars += s.size();
+    }
+    if (total_chars > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+        throw std::runtime_error("Total string data exceeds INT32_MAX bytes (2GB limit)");
+    }
+
+    // Build concatenated char buffer and offsets on host.
+    std::vector<int32_t> offsets_vec;
+    offsets_vec.reserve(num_strings + 1);
+    std::string combined;
+    int32_t offset = 0;
+    offsets_vec.push_back(0);
+    for (const auto& s : data) {
+        combined.append(s.data(), s.size());
+        offset += static_cast<int32_t>(s.size());
+        offsets_vec.push_back(offset);
+    }
+
+    // Upload chars to device.
+    rmm::device_buffer chars_buf(combined.data(), combined.size(), stream, mr);
+
+    // Upload offsets to device as a cudf::column.
+    auto offsets_byte_size = offsets_vec.size() * sizeof(int32_t);
+    rmm::device_buffer offsets_buf(offsets_vec.data(), offsets_byte_size, stream, mr);
+    auto offsets_col = std::make_unique<cudf::column>(
+        cudf::data_type{cudf::type_id::INT32},
+        static_cast<cudf::size_type>(offsets_vec.size()),
+        std::move(offsets_buf),
+        rmm::device_buffer{}, 0);
+
+    // Build null mask.
+    auto [mask, null_count] = build_null_mask(validity, num_strings, stream, mr);
+
+    auto col = cudf::make_strings_column(
+        num_strings, std::move(offsets_col),
+        std::move(chars_buf), null_count, std::move(mask));
+
+    return std::make_unique<OwnedColumn>(std::move(col));
+}
+
 std::unique_ptr<OwnedColumn> column_empty(int32_t type_id, int32_t size) {
     auto tid = static_cast<cudf::type_id>(type_id);
     auto col = cudf::make_numeric_column(
@@ -398,6 +471,82 @@ void column_null_mask(const OwnedColumn& col, rust::Slice<uint8_t> out) {
         throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
     }
     stream.synchronize();
+}
+
+rust::Vec<rust::String> column_to_strings(const OwnedColumn& col) {
+    auto view = col.view();
+    if (view.type().id() != cudf::type_id::STRING) {
+        throw std::runtime_error("column_to_strings: column is not a STRING type");
+    }
+
+    auto stream = cudf::get_default_stream();
+    auto num_strings = view.size();
+    rust::Vec<rust::String> result;
+
+    if (num_strings == 0) {
+        return result;
+    }
+
+    auto strings_view = cudf::strings_column_view(view);
+
+    // Get offsets from device.
+    auto offsets_view = strings_view.offsets();
+    auto offsets_size = (num_strings + 1) * sizeof(int32_t);
+    std::vector<int32_t> host_offsets(num_strings + 1);
+    auto offset_data = offsets_view.data<int32_t>() + strings_view.offset();
+    auto err = cudaMemcpyAsync(
+        host_offsets.data(), offset_data,
+        offsets_size, cudaMemcpyDeviceToHost, stream.value());
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpyAsync offsets failed: ") + cudaGetErrorString(err));
+    }
+
+    // Get chars from device.
+    auto chars_size = host_offsets.back() - host_offsets.front();
+    // Synchronize here to ensure offsets are available before computing chars_size
+    stream.synchronize();
+    chars_size = host_offsets.back() - host_offsets.front();
+
+    std::vector<char> host_chars(chars_size);
+    if (chars_size > 0) {
+        auto chars_data = strings_view.chars_begin(stream);
+        err = cudaMemcpyAsync(
+            host_chars.data(), chars_data,
+            chars_size, cudaMemcpyDeviceToHost, stream.value());
+        if (err != cudaSuccess) {
+            throw std::runtime_error(std::string("cudaMemcpyAsync chars failed: ") + cudaGetErrorString(err));
+        }
+    }
+
+    // Get null mask if nullable.
+    std::vector<uint8_t> host_mask;
+    bool has_nulls = view.nullable() && view.null_count() > 0;
+    if (has_nulls) {
+        auto mask_bytes = cudf::bitmask_allocation_size_bytes(num_strings);
+        host_mask.resize(mask_bytes);
+        err = cudaMemcpyAsync(
+            host_mask.data(), view.null_mask(),
+            mask_bytes, cudaMemcpyDeviceToHost, stream.value());
+        if (err != cudaSuccess) {
+            throw std::runtime_error(std::string("cudaMemcpyAsync mask failed: ") + cudaGetErrorString(err));
+        }
+    }
+
+    stream.synchronize();
+
+    auto base_offset = host_offsets.front();
+    for (cudf::size_type i = 0; i < num_strings; ++i) {
+        if (has_nulls && !(host_mask[i / 8] & (1u << (i % 8)))) {
+            // Null entry -- push empty string (caller checks null mask separately)
+            result.push_back(rust::String());
+        } else {
+            auto start = host_offsets[i] - base_offset;
+            auto len = host_offsets[i + 1] - host_offsets[i];
+            result.push_back(rust::String(host_chars.data() + start, len));
+        }
+    }
+
+    return result;
 }
 
 } // namespace cudf_shims

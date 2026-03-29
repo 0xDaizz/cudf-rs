@@ -23,7 +23,7 @@ use std::fmt;
 use cxx::UniquePtr;
 
 use crate::error::{CudfError, Result};
-use crate::types::{DataType, TypeId};
+use crate::types::{DataType, TypeId, checked_i32};
 
 /// An owning, GPU-resident column of typed data.
 ///
@@ -100,7 +100,8 @@ impl Column {
                 dtype.id()
             )));
         }
-        let raw = cudf_cxx::column::ffi::column_empty(dtype.id() as i32, size as i32)
+        let size_i32 = checked_i32(size)?;
+        let raw = cudf_cxx::column::ffi::column_empty(dtype.id() as i32, size_i32)
             .map_err(CudfError::from_cxx)?;
         Ok(Self { inner: raw })
     }
@@ -232,6 +233,35 @@ impl Column {
         Ok(Self { inner: raw })
     }
 
+    /// Create a nullable string column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    /// For `None` entries, an empty string is stored as a placeholder;
+    /// the null bitmask records which entries are actually null.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cudf::Column;
+    ///
+    /// let col = Column::from_optional_strings(&[Some("hello"), None, Some("world")]).unwrap();
+    /// assert_eq!(col.len(), 3);
+    /// assert_eq!(col.null_count(), 1);
+    /// ```
+    pub fn from_optional_strings(data: &[Option<impl AsRef<str>>]) -> Result<Self> {
+        let strings: Vec<String> = data
+            .iter()
+            .map(|o| match o {
+                Some(s) => s.as_ref().to_string(),
+                None => String::new(),
+            })
+            .collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_strings_nullable(&strings, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
     /// Create a nullable bool column from optional values.
     ///
     /// `None` values become null entries in the GPU column.
@@ -241,6 +271,62 @@ impl Column {
         let raw = cudf_cxx::column::ffi::column_from_bool_nullable(&values, &validity)
             .map_err(CudfError::from_cxx)?;
         Ok(Self { inner: raw })
+    }
+
+    // -- String Data Transfer --
+
+    /// Extract all strings from a string column to host.
+    ///
+    /// Returns `Err` if the column is not a `STRING` type.
+    /// For nullable columns, null entries are returned as empty strings.
+    /// Use [`null_mask_to_host`](Self::null_mask_to_host) to distinguish nulls from
+    /// actual empty strings.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cudf::Column;
+    ///
+    /// let col = Column::from_strings(&["hello", "world"]).unwrap();
+    /// let strings = col.to_strings().unwrap();
+    /// assert_eq!(strings, vec!["hello".to_string(), "world".to_string()]);
+    /// ```
+    pub fn to_strings(&self) -> Result<Vec<String>> {
+        cudf_cxx::column::ffi::column_to_strings(&self.inner).map_err(CudfError::from_cxx)
+    }
+
+    /// Extract all strings from a nullable string column as `Option<String>`.
+    ///
+    /// Valid entries are wrapped in `Some`, null entries become `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cudf::Column;
+    ///
+    /// let col = Column::from_optional_strings(&[Some("hello"), None, Some("world")]).unwrap();
+    /// let strings = col.to_optional_strings().unwrap();
+    /// assert_eq!(strings, vec![Some("hello".to_string()), None, Some("world".to_string())]);
+    /// ```
+    pub fn to_optional_strings(&self) -> Result<Vec<Option<String>>> {
+        let strings = self.to_strings()?;
+
+        if !self.has_nulls() {
+            return Ok(strings.into_iter().map(Some).collect());
+        }
+
+        let mask = self.null_mask_to_host()?;
+        Ok(strings
+            .into_iter()
+            .enumerate()
+            .map(|(i, s)| {
+                if mask[i / 8] & (1 << (i % 8)) != 0 {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .collect())
     }
 
     // -- Data Transfer --
