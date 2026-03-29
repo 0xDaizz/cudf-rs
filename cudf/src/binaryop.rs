@@ -118,7 +118,8 @@ impl Column {
             &other.inner,
             op as i32,
             output_type.id() as i32,
-        ).map_err(CudfError::from_cxx)?;
+        )
+        .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
@@ -136,13 +137,19 @@ impl Column {
     /// let scalar = Scalar::new(10i32).unwrap();
     /// let result = col.binary_op_scalar(&scalar, BinaryOp::Mul, DataType::new(TypeId::Int32)).unwrap();
     /// ```
-    pub fn binary_op_scalar(&self, scalar: &Scalar, op: BinaryOp, output_type: DataType) -> Result<Column> {
+    pub fn binary_op_scalar(
+        &self,
+        scalar: &Scalar,
+        op: BinaryOp,
+        output_type: DataType,
+    ) -> Result<Column> {
         let result = cudf_cxx::binaryop::ffi::binary_operation_col_scalar(
             &self.inner,
             &scalar.inner,
             op as i32,
             output_type.id() as i32,
-        ).map_err(CudfError::from_cxx)?;
+        )
+        .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 }
@@ -150,12 +157,18 @@ impl Column {
 /// Apply a binary operation between a scalar and a column.
 ///
 /// The scalar is broadcast to match the column length.
-pub fn binary_op(lhs: &Scalar, rhs: &Column, op: BinaryOp, output_type: DataType) -> Result<Column> {
+pub fn binary_op(
+    lhs: &Scalar,
+    rhs: &Column,
+    op: BinaryOp,
+    output_type: DataType,
+) -> Result<Column> {
     let result = cudf_cxx::binaryop::ffi::binary_operation_scalar_col(
         &lhs.inner,
         &rhs.inner,
         op as i32,
         output_type.id() as i32,
-    ).map_err(CudfError::from_cxx)?;
+    )
+    .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: result })
 }

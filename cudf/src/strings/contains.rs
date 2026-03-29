@@ -8,9 +8,8 @@ impl Column {
     ///
     /// Returns a BOOL8 column.
     pub fn str_contains(&self, target: &str) -> Result<Column> {
-        let result =
-            cudf_cxx::strings::contains::ffi::str_contains(&self.inner, target)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::contains::ffi::str_contains(&self.inner, target)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
@@ -18,9 +17,8 @@ impl Column {
     ///
     /// Returns a BOOL8 column.
     pub fn str_contains_re(&self, pattern: &str) -> Result<Column> {
-        let result =
-            cudf_cxx::strings::contains::ffi::str_contains_re(&self.inner, pattern)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::contains::ffi::str_contains_re(&self.inner, pattern)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
@@ -28,9 +26,8 @@ impl Column {
     ///
     /// Returns a BOOL8 column.
     pub fn str_matches_re(&self, pattern: &str) -> Result<Column> {
-        let result =
-            cudf_cxx::strings::contains::ffi::str_matches_re(&self.inner, pattern)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::contains::ffi::str_matches_re(&self.inner, pattern)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
@@ -38,9 +35,8 @@ impl Column {
     ///
     /// Returns an INT32 column.
     pub fn str_count_re(&self, pattern: &str) -> Result<Column> {
-        let result =
-            cudf_cxx::strings::contains::ffi::str_count_re(&self.inner, pattern)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::contains::ffi::str_count_re(&self.inner, pattern)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 }

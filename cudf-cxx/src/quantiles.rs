@@ -15,11 +15,7 @@ pub mod ffi {
 
         /// Compute quantile(s) of a column.
         /// interp: 0=linear, 1=lower, 2=higher, 3=midpoint, 4=nearest
-        fn quantile(
-            col: &OwnedColumn,
-            q: &[f64],
-            interp: i32,
-        ) -> Result<UniquePtr<OwnedColumn>>;
+        fn quantile(col: &OwnedColumn, q: &[f64], interp: i32) -> Result<UniquePtr<OwnedColumn>>;
 
         /// Compute quantiles of a table (row-wise).
         fn quantiles_table(

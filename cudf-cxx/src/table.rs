@@ -42,6 +42,9 @@ pub mod ffi {
 
         /// Release a single column by index (takes ownership, invalidates that slot).
         /// Use reverse order to avoid index shifting.
-        fn table_release_column(table: Pin<&mut OwnedTable>, index: i32) -> Result<UniquePtr<OwnedColumn>>;
+        fn table_release_column(
+            table: Pin<&mut OwnedTable>,
+            index: i32,
+        ) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

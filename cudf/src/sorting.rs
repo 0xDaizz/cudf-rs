@@ -90,8 +90,8 @@ impl Table {
         let co = sort_orders_to_i32(column_order);
         let no = null_orders_to_i32(null_order);
 
-        let raw = cudf_cxx::sorting::ffi::sort(&self.inner, &co, &no)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::sorting::ffi::sort(&self.inner, &co, &no).map_err(CudfError::from_cxx)?;
 
         Ok(Table { inner: raw })
     }
@@ -117,18 +117,13 @@ impl Table {
     }
 
     /// Check whether this table is sorted according to the given order.
-    pub fn is_sorted(
-        &self,
-        column_order: &[SortOrder],
-        null_order: &[NullOrder],
-    ) -> Result<bool> {
+    pub fn is_sorted(&self, column_order: &[SortOrder], null_order: &[NullOrder]) -> Result<bool> {
         self.validate_order_slices(column_order.len(), null_order.len())?;
 
         let co = sort_orders_to_i32(column_order);
         let no = null_orders_to_i32(null_order);
 
-        cudf_cxx::sorting::ffi::is_sorted(&self.inner, &co, &no)
-            .map_err(CudfError::from_cxx)
+        cudf_cxx::sorting::ffi::is_sorted(&self.inner, &co, &no).map_err(CudfError::from_cxx)
     }
 
     /// Validate that order slices match the number of columns.

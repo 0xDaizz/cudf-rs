@@ -101,12 +101,8 @@ impl Aggregation {
             AggregationKind::NthElement { n } => {
                 ffi::agg_nth_element(n, NullHandling::Include as i32)
             }
-            AggregationKind::CollectList => {
-                ffi::agg_collect_list(NullHandling::Include as i32)
-            }
-            AggregationKind::CollectSet => {
-                ffi::agg_collect_set(NullHandling::Include as i32)
-            }
+            AggregationKind::CollectList => ffi::agg_collect_list(NullHandling::Include as i32),
+            AggregationKind::CollectSet => ffi::agg_collect_set(NullHandling::Include as i32),
             AggregationKind::Argmax => ffi::agg_argmax(),
             AggregationKind::Argmin => ffi::agg_argmin(),
             AggregationKind::RowNumber => ffi::agg_row_number(),

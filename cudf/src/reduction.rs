@@ -73,12 +73,8 @@ impl Column {
     /// Returns an error if the operation is unsupported for the column type
     /// or if a GPU error occurs.
     pub fn reduce(&self, op: ReduceOp, output_type: DataType) -> Result<Scalar> {
-        let raw = cudf_cxx::reduction::ffi::reduce(
-            &self.inner,
-            op as i32,
-            output_type.id() as i32,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::reduction::ffi::reduce(&self.inner, op as i32, output_type.id() as i32)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Scalar { inner: raw })
     }
@@ -96,12 +92,8 @@ impl Column {
     /// Returns an error if the operation is unsupported for the column type
     /// or if a GPU error occurs.
     pub fn scan(&self, op: ScanOp, inclusive: bool) -> Result<Column> {
-        let raw = cudf_cxx::reduction::ffi::scan(
-            &self.inner,
-            op as i32,
-            inclusive,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::reduction::ffi::scan(&self.inner, op as i32, inclusive)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Column { inner: raw })
     }

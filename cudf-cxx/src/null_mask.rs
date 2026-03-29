@@ -32,10 +32,7 @@ pub mod ffi {
 
         /// Create a null mask device buffer.
         /// `state`: 0=UNALLOCATED, 1=UNINITIALIZED, 2=ALL_VALID, 3=ALL_NULL.
-        fn create_null_mask(
-            size: i32,
-            state: i32,
-        ) -> Result<UniquePtr<OwnedDeviceBuffer>>;
+        fn create_null_mask(size: i32, state: i32) -> Result<UniquePtr<OwnedDeviceBuffer>>;
 
         /// Count null values in a column.
         fn null_count_column(col: &OwnedColumn) -> i32;
@@ -44,10 +41,7 @@ pub mod ffi {
         fn bitmask_allocation_size(number_of_bits: i32) -> i32;
 
         /// Copy a column's null mask to host.
-        fn copy_null_mask_to_host(
-            col: &OwnedColumn,
-            out: &mut [u8],
-        ) -> Result<()>;
+        fn copy_null_mask_to_host(col: &OwnedColumn, out: &mut [u8]) -> Result<()>;
 
         /// Create a new column with a null mask set from host-side bytes.
         fn set_null_mask_from_host(

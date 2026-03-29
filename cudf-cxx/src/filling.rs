@@ -36,10 +36,7 @@ pub mod ffi {
         // ── Repeat ─────────────────────────────────────────────────
 
         /// Repeat rows of a table `count` times.
-        fn repeat_table(
-            table: &OwnedTable,
-            count: i32,
-        ) -> Result<UniquePtr<OwnedTable>>;
+        fn repeat_table(table: &OwnedTable, count: i32) -> Result<UniquePtr<OwnedTable>>;
 
         /// Repeat rows of a table, each row repeated by the corresponding count.
         fn repeat_table_variable(

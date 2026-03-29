@@ -5,12 +5,12 @@
 //! concatenation, slicing, and regex extraction.
 
 pub mod case;
-pub mod find;
+pub mod combine;
 pub mod contains;
+pub mod convert;
+pub mod extract;
+pub mod find;
 pub mod replace;
+pub mod slice;
 pub mod split;
 pub mod strip;
-pub mod convert;
-pub mod combine;
-pub mod slice;
-pub mod extract;

@@ -24,15 +24,10 @@ pub mod ffi {
         ) -> Result<UniquePtr<OwnedTable>>;
 
         /// Drop null values from a single column.
-        fn drop_nulls_column(
-            col: &OwnedColumn,
-        ) -> Result<UniquePtr<OwnedColumn>>;
+        fn drop_nulls_column(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
 
         /// Drop rows from a table where key columns contain NaN.
-        fn drop_nans(
-            table: &OwnedTable,
-            keys: &[i32],
-        ) -> Result<UniquePtr<OwnedTable>>;
+        fn drop_nans(table: &OwnedTable, keys: &[i32]) -> Result<UniquePtr<OwnedTable>>;
 
         // ── Boolean Mask ───────────────────────────────────────────
 

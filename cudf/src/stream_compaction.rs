@@ -67,11 +67,8 @@ impl Table {
     ///
     /// Returns an error if the mask column type or length is invalid.
     pub fn apply_boolean_mask(&self, mask: &Column) -> Result<Table> {
-        let raw = cudf_cxx::stream_compaction::ffi::apply_boolean_mask(
-            &self.inner,
-            &mask.inner,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::stream_compaction::ffi::apply_boolean_mask(&self.inner, &mask.inner)
+            .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 
@@ -123,11 +120,8 @@ impl Table {
     /// if a key column is not a floating-point type.
     pub fn drop_nans(&self, key_columns: &[usize]) -> Result<Table> {
         let keys: Vec<i32> = key_columns.iter().map(|&k| k as i32).collect();
-        let raw = cudf_cxx::stream_compaction::ffi::drop_nans(
-            &self.inner,
-            &keys,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::stream_compaction::ffi::drop_nans(&self.inner, &keys)
+            .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }

@@ -63,10 +63,6 @@ pub mod ffi {
         ) -> Result<UniquePtr<OwnedColumn>>;
 
         /// Check whether a table is already sorted.
-        fn is_sorted(
-            table: &OwnedTable,
-            column_order: &[i32],
-            null_order: &[i32],
-        ) -> Result<bool>;
+        fn is_sorted(table: &OwnedTable, column_order: &[i32], null_order: &[i32]) -> Result<bool>;
     }
 }

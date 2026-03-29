@@ -89,24 +89,20 @@ impl Column {
     /// let sqrt = col.unary_op(UnaryOp::Sqrt).unwrap();
     /// ```
     pub fn unary_op(&self, op: UnaryOp) -> Result<Column> {
-        let result = cudf_cxx::unary::ffi::unary_operation(
-            &self.inner,
-            op as i32,
-        ).map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::unary::ffi::unary_operation(&self.inner, op as i32)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
     /// Return a bool8 column indicating which elements are null.
     pub fn is_null(&self) -> Result<Column> {
-        let result = cudf_cxx::unary::ffi::is_null(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::unary::ffi::is_null(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
     /// Return a bool8 column indicating which elements are valid (non-null).
     pub fn is_valid(&self) -> Result<Column> {
-        let result = cudf_cxx::unary::ffi::is_valid(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::unary::ffi::is_valid(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
@@ -114,8 +110,7 @@ impl Column {
     ///
     /// Only applicable to floating-point columns.
     pub fn is_nan(&self) -> Result<Column> {
-        let result = cudf_cxx::unary::ffi::is_nan(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::unary::ffi::is_nan(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
@@ -123,8 +118,7 @@ impl Column {
     ///
     /// Only applicable to floating-point columns.
     pub fn is_not_nan(&self) -> Result<Column> {
-        let result = cudf_cxx::unary::ffi::is_not_nan(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::unary::ffi::is_not_nan(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 
@@ -139,10 +133,8 @@ impl Column {
     /// let as_i32 = col.cast(DataType::new(TypeId::Int32)).unwrap();
     /// ```
     pub fn cast(&self, dtype: DataType) -> Result<Column> {
-        let result = cudf_cxx::unary::ffi::cast(
-            &self.inner,
-            dtype.id() as i32,
-        ).map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::unary::ffi::cast(&self.inner, dtype.id() as i32)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 }

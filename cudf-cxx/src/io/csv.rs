@@ -5,7 +5,18 @@ pub mod ffi {
         include!("table_shim.h");
         type OwnedTable = crate::table::ffi::OwnedTable;
 
-        fn read_csv(filepath: &str, delimiter: u8, header_row: i32, skip_rows: i64, num_rows: i64) -> Result<UniquePtr<OwnedTable>>;
-        fn write_csv(table: &OwnedTable, filepath: &str, delimiter: u8, include_header: bool) -> Result<()>;
+        fn read_csv(
+            filepath: &str,
+            delimiter: u8,
+            header_row: i32,
+            skip_rows: i64,
+            num_rows: i64,
+        ) -> Result<UniquePtr<OwnedTable>>;
+        fn write_csv(
+            table: &OwnedTable,
+            filepath: &str,
+            delimiter: u8,
+            include_header: bool,
+        ) -> Result<()>;
     }
 }

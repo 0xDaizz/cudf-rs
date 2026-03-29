@@ -106,17 +106,29 @@ mod type_id_tests {
     #[test]
     fn is_numeric() {
         let numeric = [
-            TypeId::Int8, TypeId::Int16, TypeId::Int32, TypeId::Int64,
-            TypeId::Uint8, TypeId::Uint16, TypeId::Uint32, TypeId::Uint64,
-            TypeId::Float32, TypeId::Float64,
+            TypeId::Int8,
+            TypeId::Int16,
+            TypeId::Int32,
+            TypeId::Int64,
+            TypeId::Uint8,
+            TypeId::Uint16,
+            TypeId::Uint32,
+            TypeId::Uint64,
+            TypeId::Float32,
+            TypeId::Float64,
         ];
         for t in &numeric {
             assert!(t.is_numeric(), "{:?} should be numeric", t);
         }
 
         let not_numeric = [
-            TypeId::Empty, TypeId::Bool8, TypeId::String, TypeId::List,
-            TypeId::Struct, TypeId::TimestampDays, TypeId::Decimal64,
+            TypeId::Empty,
+            TypeId::Bool8,
+            TypeId::String,
+            TypeId::List,
+            TypeId::Struct,
+            TypeId::TimestampDays,
+            TypeId::Decimal64,
         ];
         for t in &not_numeric {
             assert!(!t.is_numeric(), "{:?} should NOT be numeric", t);
@@ -126,8 +138,14 @@ mod type_id_tests {
     #[test]
     fn is_integer() {
         let integers = [
-            TypeId::Int8, TypeId::Int16, TypeId::Int32, TypeId::Int64,
-            TypeId::Uint8, TypeId::Uint16, TypeId::Uint32, TypeId::Uint64,
+            TypeId::Int8,
+            TypeId::Int16,
+            TypeId::Int32,
+            TypeId::Int64,
+            TypeId::Uint8,
+            TypeId::Uint16,
+            TypeId::Uint32,
+            TypeId::Uint64,
         ];
         for t in &integers {
             assert!(t.is_integer(), "{:?} should be integer", t);
@@ -148,11 +166,16 @@ mod type_id_tests {
     #[test]
     fn is_temporal() {
         let temporal = [
-            TypeId::TimestampDays, TypeId::TimestampSeconds,
-            TypeId::TimestampMilliseconds, TypeId::TimestampMicroseconds,
-            TypeId::TimestampNanoseconds, TypeId::DurationDays,
-            TypeId::DurationSeconds, TypeId::DurationMilliseconds,
-            TypeId::DurationMicroseconds, TypeId::DurationNanoseconds,
+            TypeId::TimestampDays,
+            TypeId::TimestampSeconds,
+            TypeId::TimestampMilliseconds,
+            TypeId::TimestampMicroseconds,
+            TypeId::TimestampNanoseconds,
+            TypeId::DurationDays,
+            TypeId::DurationSeconds,
+            TypeId::DurationMilliseconds,
+            TypeId::DurationMicroseconds,
+            TypeId::DurationNanoseconds,
         ];
         for t in &temporal {
             assert!(t.is_temporal(), "{:?} should be temporal", t);
@@ -203,7 +226,7 @@ mod type_id_tests {
     fn clone_copy_eq_hash() {
         let a = TypeId::Int32;
         let b = a; // Copy
-        let c = a.clone(); // Clone
+        let c = a; // Copy (also Clone)
         assert_eq!(a, b);
         assert_eq!(a, c);
 
@@ -374,7 +397,7 @@ mod data_type_tests {
     fn clone_copy() {
         let dt = DataType::new(TypeId::Int32);
         let dt2 = dt; // Copy
-        let dt3 = dt.clone(); // Clone
+        let dt3 = dt; // Copy (also Clone)
         assert_eq!(dt, dt2);
         assert_eq!(dt, dt3);
     }
@@ -398,25 +421,45 @@ mod cudf_type_tests {
     use cudf::{CudfType, TypeId};
 
     #[test]
-    fn i8_type_id() { assert_eq!(i8::TYPE_ID, TypeId::Int8); }
+    fn i8_type_id() {
+        assert_eq!(i8::TYPE_ID, TypeId::Int8);
+    }
     #[test]
-    fn i16_type_id() { assert_eq!(i16::TYPE_ID, TypeId::Int16); }
+    fn i16_type_id() {
+        assert_eq!(i16::TYPE_ID, TypeId::Int16);
+    }
     #[test]
-    fn i32_type_id() { assert_eq!(i32::TYPE_ID, TypeId::Int32); }
+    fn i32_type_id() {
+        assert_eq!(i32::TYPE_ID, TypeId::Int32);
+    }
     #[test]
-    fn i64_type_id() { assert_eq!(i64::TYPE_ID, TypeId::Int64); }
+    fn i64_type_id() {
+        assert_eq!(i64::TYPE_ID, TypeId::Int64);
+    }
     #[test]
-    fn u8_type_id() { assert_eq!(u8::TYPE_ID, TypeId::Uint8); }
+    fn u8_type_id() {
+        assert_eq!(u8::TYPE_ID, TypeId::Uint8);
+    }
     #[test]
-    fn u16_type_id() { assert_eq!(u16::TYPE_ID, TypeId::Uint16); }
+    fn u16_type_id() {
+        assert_eq!(u16::TYPE_ID, TypeId::Uint16);
+    }
     #[test]
-    fn u32_type_id() { assert_eq!(u32::TYPE_ID, TypeId::Uint32); }
+    fn u32_type_id() {
+        assert_eq!(u32::TYPE_ID, TypeId::Uint32);
+    }
     #[test]
-    fn u64_type_id() { assert_eq!(u64::TYPE_ID, TypeId::Uint64); }
+    fn u64_type_id() {
+        assert_eq!(u64::TYPE_ID, TypeId::Uint64);
+    }
     #[test]
-    fn f32_type_id() { assert_eq!(f32::TYPE_ID, TypeId::Float32); }
+    fn f32_type_id() {
+        assert_eq!(f32::TYPE_ID, TypeId::Float32);
+    }
     #[test]
-    fn f64_type_id() { assert_eq!(f64::TYPE_ID, TypeId::Float64); }
+    fn f64_type_id() {
+        assert_eq!(f64::TYPE_ID, TypeId::Float64);
+    }
 
     #[test]
     fn all_numeric_types_are_numeric() {
@@ -472,26 +515,34 @@ mod cudf_type_tests {
 
 #[cfg(test)]
 mod enum_tests {
-    use cudf::sorting::{SortOrder, NullOrder, RankMethod, NullHandling};
-    use cudf::unary::UnaryOp;
     use cudf::binaryop::BinaryOp;
-    use cudf::stream_compaction::DuplicateKeepOption;
-    use cudf::reduction::{ReduceOp, ScanOp};
-    use cudf::quantiles::Interpolation;
-    use cudf::rolling::RollingAgg;
     use cudf::io::parquet::Compression;
+    use cudf::quantiles::Interpolation;
+    use cudf::reduction::{ReduceOp, ScanOp};
+    use cudf::rolling::RollingAgg;
+    use cudf::sorting::{NullHandling, NullOrder, RankMethod, SortOrder};
+    use cudf::stream_compaction::DuplicateKeepOption;
+    use cudf::unary::UnaryOp;
 
     // -- SortOrder --
     #[test]
-    fn sort_order_ascending() { assert_eq!(SortOrder::Ascending as i32, 0); }
+    fn sort_order_ascending() {
+        assert_eq!(SortOrder::Ascending as i32, 0);
+    }
     #[test]
-    fn sort_order_descending() { assert_eq!(SortOrder::Descending as i32, 1); }
+    fn sort_order_descending() {
+        assert_eq!(SortOrder::Descending as i32, 1);
+    }
 
     // -- NullOrder --
     #[test]
-    fn null_order_after() { assert_eq!(NullOrder::After as i32, 0); }
+    fn null_order_after() {
+        assert_eq!(NullOrder::After as i32, 0);
+    }
     #[test]
-    fn null_order_before() { assert_eq!(NullOrder::Before as i32, 1); }
+    fn null_order_before() {
+        assert_eq!(NullOrder::Before as i32, 1);
+    }
 
     // -- RankMethod --
     #[test]
@@ -512,9 +563,13 @@ mod enum_tests {
 
     // -- UnaryOp --
     #[test]
-    fn unary_op_first() { assert_eq!(UnaryOp::Sin as i32, 0); }
+    fn unary_op_first() {
+        assert_eq!(UnaryOp::Sin as i32, 0);
+    }
     #[test]
-    fn unary_op_last() { assert_eq!(UnaryOp::Negate as i32, 23); }
+    fn unary_op_last() {
+        assert_eq!(UnaryOp::Negate as i32, 23);
+    }
     #[test]
     fn unary_op_all_values() {
         assert_eq!(UnaryOp::Sin as i32, 0);
@@ -545,9 +600,13 @@ mod enum_tests {
 
     // -- BinaryOp --
     #[test]
-    fn binary_op_first() { assert_eq!(BinaryOp::Add as i32, 0); }
+    fn binary_op_first() {
+        assert_eq!(BinaryOp::Add as i32, 0);
+    }
     #[test]
-    fn binary_op_last() { assert_eq!(BinaryOp::InvalidBinary as i32, 34); }
+    fn binary_op_last() {
+        assert_eq!(BinaryOp::InvalidBinary as i32, 34);
+    }
     #[test]
     fn binary_op_key_values() {
         assert_eq!(BinaryOp::Add as i32, 0);
@@ -567,13 +626,21 @@ mod enum_tests {
 
     // -- DuplicateKeepOption --
     #[test]
-    fn duplicate_keep_any() { assert_eq!(DuplicateKeepOption::Any as i32, 0); }
+    fn duplicate_keep_any() {
+        assert_eq!(DuplicateKeepOption::Any as i32, 0);
+    }
     #[test]
-    fn duplicate_keep_first() { assert_eq!(DuplicateKeepOption::First as i32, 1); }
+    fn duplicate_keep_first() {
+        assert_eq!(DuplicateKeepOption::First as i32, 1);
+    }
     #[test]
-    fn duplicate_keep_last() { assert_eq!(DuplicateKeepOption::Last as i32, 2); }
+    fn duplicate_keep_last() {
+        assert_eq!(DuplicateKeepOption::Last as i32, 2);
+    }
     #[test]
-    fn duplicate_keep_none() { assert_eq!(DuplicateKeepOption::None as i32, 3); }
+    fn duplicate_keep_none() {
+        assert_eq!(DuplicateKeepOption::None as i32, 3);
+    }
 
     // -- ReduceOp --
     #[test]
@@ -646,9 +713,9 @@ mod enum_tests {
 
 #[cfg(test)]
 mod io_builder_tests {
-    use cudf::io::parquet::{ParquetReader, Compression};
     use cudf::io::csv::CsvReader;
     use cudf::io::json::JsonReader;
+    use cudf::io::parquet::{Compression, ParquetReader};
 
     #[test]
     fn parquet_reader_builder_basic() {
@@ -657,20 +724,18 @@ mod io_builder_tests {
 
     #[test]
     fn parquet_reader_builder_with_columns() {
-        let _reader = ParquetReader::new("/tmp/test.parquet")
-            .columns(vec!["a".to_string(), "b".to_string()]);
+        let _reader =
+            ParquetReader::new("/tmp/test.parquet").columns(vec!["a".to_string(), "b".to_string()]);
     }
 
     #[test]
     fn parquet_reader_builder_with_skip_rows() {
-        let _reader = ParquetReader::new("/tmp/test.parquet")
-            .skip_rows(10);
+        let _reader = ParquetReader::new("/tmp/test.parquet").skip_rows(10);
     }
 
     #[test]
     fn parquet_reader_builder_with_num_rows() {
-        let _reader = ParquetReader::new("/tmp/test.parquet")
-            .num_rows(100);
+        let _reader = ParquetReader::new("/tmp/test.parquet").num_rows(100);
     }
 
     #[test]
@@ -694,14 +759,12 @@ mod io_builder_tests {
 
     #[test]
     fn csv_reader_builder_tab_delimiter() {
-        let _reader = CsvReader::new("/tmp/test.csv")
-            .delimiter(b'\t');
+        let _reader = CsvReader::new("/tmp/test.csv").delimiter(b'\t');
     }
 
     #[test]
     fn csv_reader_builder_no_header() {
-        let _reader = CsvReader::new("/tmp/test.csv")
-            .no_header();
+        let _reader = CsvReader::new("/tmp/test.csv").no_header();
     }
 
     #[test]
@@ -720,14 +783,12 @@ mod io_builder_tests {
 
     #[test]
     fn json_reader_builder_lines() {
-        let _reader = JsonReader::new("/tmp/test.json")
-            .lines(true);
+        let _reader = JsonReader::new("/tmp/test.json").lines(true);
     }
 
     #[test]
     fn json_reader_builder_no_lines() {
-        let _reader = JsonReader::new("/tmp/test.json")
-            .lines(false);
+        let _reader = JsonReader::new("/tmp/test.json").lines(false);
     }
 
     // Verify Compression enum is constructible and Debug-printable

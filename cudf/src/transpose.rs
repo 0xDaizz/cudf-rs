@@ -25,8 +25,8 @@ impl Table {
     /// All columns must have the same data type. The resulting table
     /// will have `num_rows` columns and `num_columns` rows.
     pub fn transpose(&self) -> Result<Table> {
-        let raw = cudf_cxx::transpose::ffi::transpose_table(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::transpose::ffi::transpose_table(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }

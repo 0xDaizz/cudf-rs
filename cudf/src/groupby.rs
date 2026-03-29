@@ -83,8 +83,7 @@ impl<'a> GroupBy<'a> {
             ));
         }
 
-        let mut builder =
-            cudf_cxx::groupby::ffi::groupby_new(&self.keys.inner);
+        let mut builder = cudf_cxx::groupby::ffi::groupby_new(&self.keys.inner);
 
         for (col_idx, agg) in self.requests {
             cudf_cxx::groupby::ffi::groupby_add_request(
@@ -94,11 +93,8 @@ impl<'a> GroupBy<'a> {
             );
         }
 
-        let raw = cudf_cxx::groupby::ffi::groupby_execute(
-            builder.pin_mut(),
-            &values.inner,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::groupby::ffi::groupby_execute(builder.pin_mut(), &values.inner)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Table { inner: raw })
     }
@@ -113,8 +109,7 @@ impl<'a> GroupBy<'a> {
             ));
         }
 
-        let mut builder =
-            cudf_cxx::groupby::ffi::groupby_new(&self.keys.inner);
+        let mut builder = cudf_cxx::groupby::ffi::groupby_new(&self.keys.inner);
 
         for (col_idx, agg) in self.requests {
             cudf_cxx::groupby::ffi::groupby_add_request(
@@ -124,11 +119,8 @@ impl<'a> GroupBy<'a> {
             );
         }
 
-        let raw = cudf_cxx::groupby::ffi::groupby_execute_keys(
-            builder.pin_mut(),
-            &values.inner,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::groupby::ffi::groupby_execute_keys(builder.pin_mut(), &values.inner)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Table { inner: raw })
     }
@@ -141,8 +133,7 @@ impl<'a> GroupBy<'a> {
             ));
         }
 
-        let mut builder =
-            cudf_cxx::groupby::ffi::groupby_new(&self.keys.inner);
+        let mut builder = cudf_cxx::groupby::ffi::groupby_new(&self.keys.inner);
 
         for (col_idx, agg) in self.requests {
             cudf_cxx::groupby::ffi::groupby_add_request(
@@ -152,11 +143,8 @@ impl<'a> GroupBy<'a> {
             );
         }
 
-        let raw = cudf_cxx::groupby::ffi::groupby_execute_values(
-            builder.pin_mut(),
-            &values.inner,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::groupby::ffi::groupby_execute_values(builder.pin_mut(), &values.inner)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Table { inner: raw })
     }

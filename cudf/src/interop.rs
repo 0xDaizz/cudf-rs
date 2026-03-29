@@ -22,14 +22,13 @@ use crate::table::Table;
 impl Column {
     /// Export this column to Arrow IPC format (serialized bytes).
     pub fn to_arrow_ipc(&self) -> Result<Vec<u8>> {
-        cudf_cxx::interop::ffi::column_to_arrow_ipc(&self.inner)
-            .map_err(CudfError::from_cxx)
+        cudf_cxx::interop::ffi::column_to_arrow_ipc(&self.inner).map_err(CudfError::from_cxx)
     }
 
     /// Import a column from Arrow IPC format.
     pub fn from_arrow_ipc(data: &[u8]) -> Result<Self> {
-        let raw = cudf_cxx::interop::ffi::column_from_arrow_ipc(data)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::interop::ffi::column_from_arrow_ipc(data).map_err(CudfError::from_cxx)?;
         Ok(Self { inner: raw })
     }
 }
@@ -37,14 +36,13 @@ impl Column {
 impl Table {
     /// Export this table to Arrow IPC format (serialized bytes).
     pub fn to_arrow_ipc(&self) -> Result<Vec<u8>> {
-        cudf_cxx::interop::ffi::table_to_arrow_ipc(&self.inner)
-            .map_err(CudfError::from_cxx)
+        cudf_cxx::interop::ffi::table_to_arrow_ipc(&self.inner).map_err(CudfError::from_cxx)
     }
 
     /// Import a table from Arrow IPC format.
     pub fn from_arrow_ipc(data: &[u8]) -> Result<Self> {
-        let raw = cudf_cxx::interop::ffi::table_from_arrow_ipc(data)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::interop::ffi::table_from_arrow_ipc(data).map_err(CudfError::from_cxx)?;
         Ok(Self { inner: raw })
     }
 }
@@ -66,14 +64,12 @@ mod arrow_conv {
         pub fn to_record_batch(&self) -> Result<RecordBatch> {
             let ipc_bytes = self.to_arrow_ipc()?;
             let cursor = std::io::Cursor::new(ipc_bytes);
-            let reader = ipc::reader::FileReader::try_new(cursor, None)
-                .map_err(CudfError::Arrow)?;
+            let reader =
+                ipc::reader::FileReader::try_new(cursor, None).map_err(CudfError::Arrow)?;
             reader
                 .into_iter()
                 .next()
-                .ok_or_else(|| {
-                    CudfError::InvalidArgument("empty IPC stream".into())
-                })?
+                .ok_or_else(|| CudfError::InvalidArgument("empty IPC stream".into()))?
                 .map_err(CudfError::Arrow)
         }
 
@@ -84,9 +80,8 @@ mod arrow_conv {
         pub fn from_record_batch(batch: &RecordBatch) -> Result<Self> {
             let mut buf = Vec::new();
             {
-                let mut writer =
-                    ipc::writer::FileWriter::try_new(&mut buf, batch.schema_ref())
-                        .map_err(CudfError::Arrow)?;
+                let mut writer = ipc::writer::FileWriter::try_new(&mut buf, batch.schema_ref())
+                    .map_err(CudfError::Arrow)?;
                 writer.write(batch).map_err(CudfError::Arrow)?;
                 writer.finish().map_err(CudfError::Arrow)?;
             }

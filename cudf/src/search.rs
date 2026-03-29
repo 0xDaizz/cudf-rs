@@ -20,7 +20,7 @@
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
-use crate::sorting::{SortOrder, NullOrder};
+use crate::sorting::{NullOrder, SortOrder};
 use crate::table::Table;
 
 impl Table {
@@ -37,13 +37,8 @@ impl Table {
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();
 
-        let raw = cudf_cxx::search::ffi::lower_bound(
-            &self.inner,
-            &values.inner,
-            &ord,
-            &nul,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::search::ffi::lower_bound(&self.inner, &values.inner, &ord, &nul)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 
@@ -60,13 +55,8 @@ impl Table {
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();
 
-        let raw = cudf_cxx::search::ffi::upper_bound(
-            &self.inner,
-            &values.inner,
-            &ord,
-            &nul,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::search::ffi::upper_bound(&self.inner, &values.inner, &ord, &nul)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 }
@@ -77,11 +67,8 @@ impl Column {
     /// Returns a boolean column where `true` indicates the needle was found
     /// in this column (the haystack).
     pub fn contains(&self, needles: &Column) -> Result<Column> {
-        let raw = cudf_cxx::search::ffi::contains_column(
-            &self.inner,
-            &needles.inner,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::search::ffi::contains_column(&self.inner, &needles.inner)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 }

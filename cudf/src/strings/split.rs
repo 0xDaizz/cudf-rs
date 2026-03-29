@@ -1,7 +1,7 @@
 //! String split operations.
 
-use crate::error::{CudfError, Result};
 use crate::column::Column;
+use crate::error::{CudfError, Result};
 use crate::table::Table;
 
 impl Column {
@@ -9,12 +9,8 @@ impl Column {
     ///
     /// `maxsplit` limits the number of splits (-1 for unlimited).
     pub fn str_split(&self, delimiter: &str, maxsplit: i32) -> Result<Table> {
-        let result = cudf_cxx::strings::split::ffi::str_split(
-            &self.inner,
-            delimiter,
-            maxsplit,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::split::ffi::str_split(&self.inner, delimiter, maxsplit)
+            .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: result })
     }
 
@@ -22,12 +18,8 @@ impl Column {
     ///
     /// `maxsplit` limits the number of splits (-1 for unlimited).
     pub fn str_rsplit(&self, delimiter: &str, maxsplit: i32) -> Result<Table> {
-        let result = cudf_cxx::strings::split::ffi::str_rsplit(
-            &self.inner,
-            delimiter,
-            maxsplit,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::split::ffi::str_rsplit(&self.inner, delimiter, maxsplit)
+            .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: result })
     }
 }

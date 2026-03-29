@@ -64,12 +64,8 @@ impl Table {
     /// For each row `i` in `self`, the row is placed at position
     /// `scatter_map[i]` in the result (which starts as a copy of `target`).
     pub fn scatter(&self, scatter_map: &Column, target: &Table) -> Result<Table> {
-        let raw = cudf_cxx::copying::ffi::scatter(
-            &self.inner,
-            &scatter_map.inner,
-            &target.inner,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::copying::ffi::scatter(&self.inner, &scatter_map.inner, &target.inner)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Table { inner: raw })
     }
@@ -95,12 +91,8 @@ impl Table {
             });
         }
 
-        let raw = cudf_cxx::copying::ffi::slice_table(
-            &self.inner,
-            begin as i32,
-            end as i32,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::copying::ffi::slice_table(&self.inner, begin as i32, end as i32)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Table { inner: raw })
     }
@@ -133,20 +125,15 @@ impl Column {
     /// For each element: if `mask[i]` is true, take from `self`;
     /// if false, take from `other`.
     pub fn copy_if_else(&self, other: &Column, mask: &Column) -> Result<Column> {
-        let raw = cudf_cxx::copying::ffi::copy_if_else(
-            &self.inner,
-            &other.inner,
-            &mask.inner,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::copying::ffi::copy_if_else(&self.inner, &other.inner, &mask.inner)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Column { inner: raw })
     }
 
     /// Create an empty column with the same type and size, all nulls.
     pub fn empty_like(&self) -> Result<Column> {
-        let raw = cudf_cxx::copying::ffi::empty_like(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::copying::ffi::empty_like(&self.inner).map_err(CudfError::from_cxx)?;
 
         Ok(Column { inner: raw })
     }

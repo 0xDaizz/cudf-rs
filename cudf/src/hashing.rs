@@ -22,8 +22,8 @@ impl Table {
     ///
     /// Returns an `i32` column of hash values.
     pub fn hash_murmur3(&self, seed: u32) -> Result<Column> {
-        let raw = cudf_cxx::hashing::ffi::hash_murmur3(&self.inner, seed)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::hashing::ffi::hash_murmur3(&self.inner, seed).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 
@@ -40,8 +40,7 @@ impl Table {
     ///
     /// Returns a string column of hex-encoded hash values.
     pub fn hash_md5(&self) -> Result<Column> {
-        let raw = cudf_cxx::hashing::ffi::hash_md5(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::hashing::ffi::hash_md5(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 
@@ -49,8 +48,7 @@ impl Table {
     ///
     /// Returns a string column of hex-encoded hash values.
     pub fn hash_sha256(&self) -> Result<Column> {
-        let raw = cudf_cxx::hashing::ffi::hash_sha256(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::hashing::ffi::hash_sha256(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 }

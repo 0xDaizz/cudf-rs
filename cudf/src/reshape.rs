@@ -25,8 +25,8 @@ impl Table {
     /// Columns must all have the same data type. Elements are taken
     /// round-robin from each column: `[col0[0], col1[0], col0[1], col1[1], ...]`.
     pub fn interleave_columns(&self) -> Result<Column> {
-        let raw = cudf_cxx::reshape::ffi::interleave_columns(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::reshape::ffi::interleave_columns(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 
@@ -34,8 +34,8 @@ impl Table {
     ///
     /// Returns a new table with `num_rows * count` rows.
     pub fn tile(&self, count: usize) -> Result<Table> {
-        let raw = cudf_cxx::reshape::ffi::tile(&self.inner, count as i32)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::reshape::ffi::tile(&self.inner, count as i32).map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }

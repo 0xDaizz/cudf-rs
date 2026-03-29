@@ -233,22 +233,30 @@ impl Scalar {
 
 impl TryFrom<i32> for Scalar {
     type Error = CudfError;
-    fn try_from(v: i32) -> Result<Self> { Self::new(v) }
+    fn try_from(v: i32) -> Result<Self> {
+        Self::new(v)
+    }
 }
 
 impl TryFrom<i64> for Scalar {
     type Error = CudfError;
-    fn try_from(v: i64) -> Result<Self> { Self::new(v) }
+    fn try_from(v: i64) -> Result<Self> {
+        Self::new(v)
+    }
 }
 
 impl TryFrom<f32> for Scalar {
     type Error = CudfError;
-    fn try_from(v: f32) -> Result<Self> { Self::new(v) }
+    fn try_from(v: f32) -> Result<Self> {
+        Self::new(v)
+    }
 }
 
 impl TryFrom<f64> for Scalar {
     type Error = CudfError;
-    fn try_from(v: f64) -> Result<Self> { Self::new(v) }
+    fn try_from(v: f64) -> Result<Self> {
+        Self::new(v)
+    }
 }
 
 impl std::fmt::Debug for Scalar {
@@ -259,11 +267,6 @@ impl std::fmt::Debug for Scalar {
 
 impl std::fmt::Display for Scalar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Scalar({}, valid={})",
-            self.data_type(),
-            self.is_valid()
-        )
+        write!(f, "Scalar({}, valid={})", self.data_type(), self.is_valid())
     }
 }

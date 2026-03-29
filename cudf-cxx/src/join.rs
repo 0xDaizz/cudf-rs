@@ -30,9 +30,6 @@ pub mod ffi {
         ) -> Result<UniquePtr<OwnedTable>>;
 
         /// Cross join: cartesian product of two tables.
-        fn cross_join(
-            left: &OwnedTable,
-            right: &OwnedTable,
-        ) -> Result<UniquePtr<OwnedTable>>;
+        fn cross_join(left: &OwnedTable, right: &OwnedTable) -> Result<UniquePtr<OwnedTable>>;
     }
 }

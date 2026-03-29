@@ -20,8 +20,8 @@ impl Column {
     ///
     /// Returns a new column with the same data but NaN values replaced by nulls.
     pub fn nans_to_nulls(&self) -> Result<Column> {
-        let raw = cudf_cxx::transform::ffi::nans_to_nulls(&self.inner)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::transform::ffi::nans_to_nulls(&self.inner).map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 
@@ -30,7 +30,6 @@ impl Column {
     /// Each bit in the output corresponds to one element:
     /// bit is 1 if the boolean value is true, 0 if false.
     pub fn bools_to_mask(&self) -> Result<Vec<u8>> {
-        cudf_cxx::transform::ffi::bools_to_mask(&self.inner)
-            .map_err(CudfError::from_cxx)
+        cudf_cxx::transform::ffi::bools_to_mask(&self.inner).map_err(CudfError::from_cxx)
     }
 }

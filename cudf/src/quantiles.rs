@@ -47,12 +47,8 @@ impl Column {
     /// Returns an error if the column type doesn't support quantiles
     /// or if a GPU error occurs.
     pub fn quantile(&self, q: &[f64], interp: Interpolation) -> Result<Column> {
-        let raw = cudf_cxx::quantiles::ffi::quantile(
-            &self.inner,
-            q,
-            interp as i32,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::quantiles::ffi::quantile(&self.inner, q, interp as i32)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Column { inner: raw })
     }
@@ -71,11 +67,8 @@ impl Column {
     /// Returns an error if the column is not a valid t-digest column
     /// or if a GPU error occurs.
     pub fn percentile_approx(&self, percentiles: &[f64]) -> Result<Column> {
-        let raw = cudf_cxx::quantiles::ffi::percentile_approx(
-            &self.inner,
-            percentiles,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::quantiles::ffi::percentile_approx(&self.inner, percentiles)
+            .map_err(CudfError::from_cxx)?;
 
         Ok(Column { inner: raw })
     }

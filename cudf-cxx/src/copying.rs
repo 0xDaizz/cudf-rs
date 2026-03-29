@@ -42,11 +42,7 @@ pub mod ffi {
         // ── Slice / Split ──────────────────────────────────────────
 
         /// Extract a contiguous slice [begin, end) as an owned deep copy.
-        fn slice_table(
-            table: &OwnedTable,
-            begin: i32,
-            end: i32,
-        ) -> Result<UniquePtr<OwnedTable>>;
+        fn slice_table(table: &OwnedTable, begin: i32, end: i32) -> Result<UniquePtr<OwnedTable>>;
 
         /// Split a table at the given indices. Returns the number of resulting parts.
         fn split_table_count(splits: &[i32]) -> i32;
@@ -67,10 +63,7 @@ pub mod ffi {
         /// Create a column with the same type and size as `col`, with allocated
         /// but uninitialized data.
         /// `mask_policy`: 0=NEVER, 1=ALWAYS, 2=RETAIN.
-        fn allocate_like(
-            col: &OwnedColumn,
-            mask_policy: i32,
-        ) -> Result<UniquePtr<OwnedColumn>>;
+        fn allocate_like(col: &OwnedColumn, mask_policy: i32) -> Result<UniquePtr<OwnedColumn>>;
 
         // ── In-place Copy ──────────────────────────────────────────
 

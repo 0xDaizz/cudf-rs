@@ -8,9 +8,8 @@ impl Column {
     ///
     /// Use `stop = -1` to slice to end of string.
     pub fn str_slice(&self, start: i32, stop: i32) -> Result<Column> {
-        let result =
-            cudf_cxx::strings::slice::ffi::str_slice(&self.inner, start, stop)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::slice::ffi::str_slice(&self.inner, start, stop)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 }

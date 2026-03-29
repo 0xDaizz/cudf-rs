@@ -21,17 +21,11 @@ pub enum CudfError {
 
     /// Type mismatch between expected and actual column types.
     #[error("type mismatch: expected {expected}, got {actual}")]
-    TypeMismatch {
-        expected: String,
-        actual: String,
-    },
+    TypeMismatch { expected: String, actual: String },
 
     /// Index out of bounds.
     #[error("index out of bounds: {index} (size: {size})")]
-    IndexOutOfBounds {
-        index: usize,
-        size: usize,
-    },
+    IndexOutOfBounds { index: usize, size: usize },
 
     /// An I/O error (e.g., file not found when reading parquet).
     #[error("I/O error: {0}")]

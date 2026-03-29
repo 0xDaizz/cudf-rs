@@ -25,11 +25,7 @@ impl Table {
     ///
     /// * `columns_to_hash` - Column indices to hash for partitioning.
     /// * `num_partitions` - Number of partitions to create.
-    pub fn hash_partition(
-        &self,
-        columns_to_hash: &[i32],
-        num_partitions: usize,
-    ) -> Result<Table> {
+    pub fn hash_partition(&self, columns_to_hash: &[i32], num_partitions: usize) -> Result<Table> {
         let raw = cudf_cxx::partitioning::ffi::hash_partition(
             &self.inner,
             columns_to_hash,
@@ -43,11 +39,9 @@ impl Table {
     ///
     /// Rows are distributed evenly across partitions in order.
     pub fn round_robin_partition(&self, num_partitions: usize) -> Result<Table> {
-        let raw = cudf_cxx::partitioning::ffi::round_robin_partition(
-            &self.inner,
-            num_partitions as i32,
-        )
-        .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::partitioning::ffi::round_robin_partition(&self.inner, num_partitions as i32)
+                .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }

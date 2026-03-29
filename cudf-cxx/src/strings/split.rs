@@ -12,9 +12,17 @@ pub mod ffi {
 
         /// Split each string by the delimiter, returning a table of string columns.
         /// Each row produces one element per resulting column.
-        fn str_split(col: &OwnedColumn, delimiter: &str, maxsplit: i32) -> Result<UniquePtr<OwnedTable>>;
+        fn str_split(
+            col: &OwnedColumn,
+            delimiter: &str,
+            maxsplit: i32,
+        ) -> Result<UniquePtr<OwnedTable>>;
 
         /// Split each string by the delimiter from the right.
-        fn str_rsplit(col: &OwnedColumn, delimiter: &str, maxsplit: i32) -> Result<UniquePtr<OwnedTable>>;
+        fn str_rsplit(
+            col: &OwnedColumn,
+            delimiter: &str,
+            maxsplit: i32,
+        ) -> Result<UniquePtr<OwnedTable>>;
     }
 }

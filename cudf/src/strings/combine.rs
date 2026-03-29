@@ -9,9 +9,8 @@ impl Column {
     ///
     /// Returns a single-element string column.
     pub fn str_join(&self, separator: &str) -> Result<Column> {
-        let result =
-            cudf_cxx::strings::combine::ffi::str_join(&self.inner, separator)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::combine::ffi::str_join(&self.inner, separator)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
 }

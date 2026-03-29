@@ -9,9 +9,8 @@ impl Column {
     ///
     /// Returns a table with one column per capture group.
     pub fn str_extract(&self, pattern: &str) -> Result<Table> {
-        let result =
-            cudf_cxx::strings::extract::ffi::str_extract(&self.inner, pattern)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::strings::extract::ffi::str_extract(&self.inner, pattern)
+            .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: result })
     }
 }

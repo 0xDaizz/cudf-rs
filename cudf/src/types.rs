@@ -86,13 +86,25 @@ impl TypeId {
             Self::Empty => 0,
             Self::Int8 | Self::Uint8 | Self::Bool8 => 1,
             Self::Int16 | Self::Uint16 => 2,
-            Self::Int32 | Self::Uint32 | Self::Float32 | Self::Decimal32
-            | Self::Dictionary32 | Self::TimestampDays | Self::DurationDays => 4,
-            Self::Int64 | Self::Uint64 | Self::Float64 | Self::Decimal64
-            | Self::TimestampSeconds | Self::TimestampMilliseconds
-            | Self::TimestampMicroseconds | Self::TimestampNanoseconds
-            | Self::DurationSeconds | Self::DurationMilliseconds
-            | Self::DurationMicroseconds | Self::DurationNanoseconds => 8,
+            Self::Int32
+            | Self::Uint32
+            | Self::Float32
+            | Self::Decimal32
+            | Self::Dictionary32
+            | Self::TimestampDays
+            | Self::DurationDays => 4,
+            Self::Int64
+            | Self::Uint64
+            | Self::Float64
+            | Self::Decimal64
+            | Self::TimestampSeconds
+            | Self::TimestampMilliseconds
+            | Self::TimestampMicroseconds
+            | Self::TimestampNanoseconds
+            | Self::DurationSeconds
+            | Self::DurationMilliseconds
+            | Self::DurationMicroseconds
+            | Self::DurationNanoseconds => 8,
             Self::Decimal128 => 16,
             Self::String | Self::List | Self::Struct => 0,
         }
@@ -107,9 +119,16 @@ impl TypeId {
     pub fn is_numeric(self) -> bool {
         matches!(
             self,
-            Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64
-            | Self::Uint8 | Self::Uint16 | Self::Uint32 | Self::Uint64
-            | Self::Float32 | Self::Float64
+            Self::Int8
+                | Self::Int16
+                | Self::Int32
+                | Self::Int64
+                | Self::Uint8
+                | Self::Uint16
+                | Self::Uint32
+                | Self::Uint64
+                | Self::Float32
+                | Self::Float64
         )
     }
 
@@ -117,8 +136,14 @@ impl TypeId {
     pub fn is_integer(self) -> bool {
         matches!(
             self,
-            Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64
-            | Self::Uint8 | Self::Uint16 | Self::Uint32 | Self::Uint64
+            Self::Int8
+                | Self::Int16
+                | Self::Int32
+                | Self::Int64
+                | Self::Uint8
+                | Self::Uint16
+                | Self::Uint32
+                | Self::Uint64
         )
     }
 
@@ -131,11 +156,16 @@ impl TypeId {
     pub fn is_temporal(self) -> bool {
         matches!(
             self,
-            Self::TimestampDays | Self::TimestampSeconds
-            | Self::TimestampMilliseconds | Self::TimestampMicroseconds
-            | Self::TimestampNanoseconds | Self::DurationDays
-            | Self::DurationSeconds | Self::DurationMilliseconds
-            | Self::DurationMicroseconds | Self::DurationNanoseconds
+            Self::TimestampDays
+                | Self::TimestampSeconds
+                | Self::TimestampMilliseconds
+                | Self::TimestampMicroseconds
+                | Self::TimestampNanoseconds
+                | Self::DurationDays
+                | Self::DurationSeconds
+                | Self::DurationMilliseconds
+                | Self::DurationMicroseconds
+                | Self::DurationNanoseconds
         )
     }
 
@@ -146,9 +176,9 @@ impl TypeId {
 
     /// Convert from raw i32 value. Returns None if the value is not a valid TypeId.
     pub fn from_raw(value: i32) -> Option<Self> {
-        if value >= 0 && value <= 28 {
+        if (0..=28).contains(&value) {
             // SAFETY: TypeId is repr(i32) with contiguous values 0..=28
-            Some(unsafe { std::mem::transmute(value) })
+            Some(unsafe { std::mem::transmute::<i32, TypeId>(value) })
         } else {
             None
         }
@@ -181,7 +211,10 @@ impl DataType {
     /// Panics if `id` is not a decimal type.
     pub fn decimal(id: TypeId, scale: i32) -> Self {
         assert!(
-            matches!(id, TypeId::Decimal32 | TypeId::Decimal64 | TypeId::Decimal128),
+            matches!(
+                id,
+                TypeId::Decimal32 | TypeId::Decimal64 | TypeId::Decimal128
+            ),
             "decimal() requires a decimal TypeId, got {:?}",
             id
         );

@@ -58,8 +58,7 @@ impl Column {
 
     /// The data type of this column.
     pub fn data_type(&self) -> DataType {
-        let id = TypeId::from_raw(self.inner.type_id())
-            .unwrap_or(TypeId::Empty);
+        let id = TypeId::from_raw(self.inner.type_id()).unwrap_or(TypeId::Empty);
         let scale = self.inner.type_scale();
         if scale != 0 {
             DataType::decimal(id, scale)
@@ -101,10 +100,8 @@ impl Column {
                 dtype.id()
             )));
         }
-        let raw = cudf_cxx::column::ffi::column_empty(
-            dtype.id() as i32,
-            size as i32,
-        ).map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::column::ffi::column_empty(dtype.id() as i32, size as i32)
+            .map_err(CudfError::from_cxx)?;
         Ok(Self { inner: raw })
     }
 
@@ -118,14 +115,14 @@ impl Column {
     pub fn null_mask_to_host(&self) -> Result<Vec<u8>> {
         // libcudf's bitmask_allocation_size_bytes pads to 64-byte boundaries.
         // We must match that to avoid "Output buffer too small" from the C++ side.
-        let num_bits_bytes = (self.len() + 7) / 8;
+        let num_bits_bytes = self.len().div_ceil(8);
         let num_bytes = (num_bits_bytes + 63) & !63; // pad to 64-byte alignment
         let num_bytes = num_bytes.max(64); // minimum 64 bytes (matches cudf policy)
         let mut buf = vec![0u8; num_bytes];
         cudf_cxx::column::ffi::column_null_mask(&self.inner, &mut buf)
             .map_err(CudfError::from_cxx)?;
         // Truncate to only the meaningful bytes
-        buf.truncate((self.len() + 7) / 8);
+        buf.truncate(self.len().div_ceil(8));
         Ok(buf)
     }
 }
@@ -142,16 +139,36 @@ pub trait CudfType: Copy + Send + 'static {
 }
 
 // Register all supported types
-impl CudfType for i8 { const TYPE_ID: TypeId = TypeId::Int8; }
-impl CudfType for i16 { const TYPE_ID: TypeId = TypeId::Int16; }
-impl CudfType for i32 { const TYPE_ID: TypeId = TypeId::Int32; }
-impl CudfType for i64 { const TYPE_ID: TypeId = TypeId::Int64; }
-impl CudfType for u8 { const TYPE_ID: TypeId = TypeId::Uint8; }
-impl CudfType for u16 { const TYPE_ID: TypeId = TypeId::Uint16; }
-impl CudfType for u32 { const TYPE_ID: TypeId = TypeId::Uint32; }
-impl CudfType for u64 { const TYPE_ID: TypeId = TypeId::Uint64; }
-impl CudfType for f32 { const TYPE_ID: TypeId = TypeId::Float32; }
-impl CudfType for f64 { const TYPE_ID: TypeId = TypeId::Float64; }
+impl CudfType for i8 {
+    const TYPE_ID: TypeId = TypeId::Int8;
+}
+impl CudfType for i16 {
+    const TYPE_ID: TypeId = TypeId::Int16;
+}
+impl CudfType for i32 {
+    const TYPE_ID: TypeId = TypeId::Int32;
+}
+impl CudfType for i64 {
+    const TYPE_ID: TypeId = TypeId::Int64;
+}
+impl CudfType for u8 {
+    const TYPE_ID: TypeId = TypeId::Uint8;
+}
+impl CudfType for u16 {
+    const TYPE_ID: TypeId = TypeId::Uint16;
+}
+impl CudfType for u32 {
+    const TYPE_ID: TypeId = TypeId::Uint32;
+}
+impl CudfType for u64 {
+    const TYPE_ID: TypeId = TypeId::Uint64;
+}
+impl CudfType for f32 {
+    const TYPE_ID: TypeId = TypeId::Float32;
+}
+impl CudfType for f64 {
+    const TYPE_ID: TypeId = TypeId::Float64;
+}
 
 impl Column {
     /// Create a column from a host slice, copying data to GPU.
@@ -168,49 +185,63 @@ impl Column {
         let inner = match T::TYPE_ID {
             TypeId::Int8 => {
                 // SAFETY: T is i8 when TYPE_ID is Int8; same size and repr.
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i8, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i8, data.len()) };
                 cudf_cxx::column::ffi::column_from_i8(data)
             }
             TypeId::Int16 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i16, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i16, data.len()) };
                 cudf_cxx::column::ffi::column_from_i16(data)
             }
             TypeId::Int32 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i32, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i32, data.len()) };
                 cudf_cxx::column::ffi::column_from_i32(data)
             }
             TypeId::Int64 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i64, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i64, data.len()) };
                 cudf_cxx::column::ffi::column_from_i64(data)
             }
             TypeId::Uint8 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len()) };
                 cudf_cxx::column::ffi::column_from_u8(data)
             }
             TypeId::Uint16 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u16, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u16, data.len()) };
                 cudf_cxx::column::ffi::column_from_u16(data)
             }
             TypeId::Uint32 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u32, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u32, data.len()) };
                 cudf_cxx::column::ffi::column_from_u32(data)
             }
             TypeId::Uint64 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u64, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u64, data.len()) };
                 cudf_cxx::column::ffi::column_from_u64(data)
             }
             TypeId::Float32 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f32, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f32, data.len()) };
                 cudf_cxx::column::ffi::column_from_f32(data)
             }
             TypeId::Float64 => {
-                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f64, data.len()) };
+                let data =
+                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f64, data.len()) };
                 cudf_cxx::column::ffi::column_from_f64(data)
             }
-            _ => return Err(CudfError::InvalidArgument(
-                format!("from_slice does not support {:?}", T::TYPE_ID)
-            )),
-        }.map_err(CudfError::from_cxx)?;
+            _ => {
+                return Err(CudfError::InvalidArgument(format!(
+                    "from_slice does not support {:?}",
+                    T::TYPE_ID
+                )));
+            }
+        }
+        .map_err(CudfError::from_cxx)?;
 
         Ok(Self { inner })
     }
@@ -303,14 +334,19 @@ impl Column {
                 cudf_cxx::column::ffi::column_to_f64(&self.inner, out)
                     .map_err(CudfError::from_cxx)?;
             }
-            _ => return Err(CudfError::InvalidArgument(
-                format!("to_vec does not yet support {:?}", T::TYPE_ID)
-            )),
+            _ => {
+                return Err(CudfError::InvalidArgument(format!(
+                    "to_vec does not yet support {:?}",
+                    T::TYPE_ID
+                )));
+            }
         }
 
         // SAFETY: The C++ side has successfully filled exactly `len` elements
         // via cudaMemcpy. The type size is guaranteed correct by the type check above.
-        unsafe { result.set_len(len); }
+        unsafe {
+            result.set_len(len);
+        }
         Ok(result)
     }
 }
