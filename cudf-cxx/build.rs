@@ -16,12 +16,55 @@ fn main() {
                 .unwrap_or_else(|_| "/usr/local/include".to_string())
         });
 
+    let cudf_include_path = PathBuf::from(&cudf_include);
+
+    // Auto-discover sibling include paths (librmm, rapids_logger, pyarrow, etc.)
+    // When CUDF_ROOT points to e.g. .../site-packages/libcudf, the parent
+    // directory may contain librmm/include, rapids_logger/include, etc.
+    let mut extra_includes: Vec<PathBuf> = Vec::new();
+    if let Some(parent) = cudf_include_path.parent().and_then(|p| p.parent()) {
+        // parent is e.g. .../site-packages/libcudf -> parent.parent() = .../site-packages
+        let site_packages = parent;
+        // libcudf/include/rapids/ contains CCCL headers (cuda/, cub/, thrust/)
+    let rapids_inc = site_packages.join("libcudf").join("include").join("rapids");
+    if rapids_inc.exists() {
+        extra_includes.push(rapids_inc);
+    }
+    // nvidia/cuda_cccl also has CCCL headers as fallback
+    let cccl_inc = site_packages.join("nvidia").join("cuda_cccl").join("include");
+    if cccl_inc.exists() {
+        extra_includes.push(cccl_inc);
+    }
+    for sibling in &["librmm", "rapids_logger", "pyarrow"] {
+            let inc = site_packages.join(sibling).join("include");
+            if inc.exists() {
+                extra_includes.push(inc);
+            }
+        }
+
+        // Link against Arrow C++ (for IPC serialization in interop shim).
+        // Arrow shared libraries live inside pyarrow's package directory.
+        let pyarrow_lib = site_packages.join("pyarrow");
+        if pyarrow_lib.exists() {
+            println!("cargo:rustc-link-search=native={}", pyarrow_lib.display());
+            println!("cargo:rustc-link-lib=dylib=arrow");
+        }
+    }
+
+    // Also check CUDA include path
+    if let Ok(cuda_path) = env::var("CUDA_PATH") {
+        let cuda_inc = PathBuf::from(&cuda_path).join("include");
+        if cuda_inc.exists() {
+            extra_includes.push(cuda_inc);
+        }
+    }
+
     let cpp_dir = PathBuf::from("cpp");
     let cpp_include = cpp_dir.join("include");
     let cpp_src = cpp_dir.join("src");
 
     // Build cxx bridges with C++ shim sources
-    cxx_build::bridges(&[
+    let mut build = cxx_build::bridges([
         "src/types.rs",
         "src/column.rs",
         "src/table.rs",
@@ -65,8 +108,8 @@ fn main() {
         "src/partitioning.rs",
         "src/merge.rs",
         "src/search.rs",
-    ])
-    .file(cpp_src.join("types_shim.cpp"))
+    ]);
+    build.file(cpp_src.join("types_shim.cpp"))
     .file(cpp_src.join("column_shim.cpp"))
     .file(cpp_src.join("table_shim.cpp"))
     .file(cpp_src.join("sorting_shim.cpp"))
@@ -110,11 +153,26 @@ fn main() {
     .file(cpp_src.join("merge_shim.cpp"))
     .file(cpp_src.join("search_shim.cpp"))
     .include(&cpp_include)
-    .include(&cudf_include)
-    .std("c++17")
+    .include(&cudf_include);
+
+    for inc in &extra_includes {
+        build.include(inc);
+    }
+
+    build.std("c++20")
+    .define("LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE", None)
+    // Force-include default_stream.hpp so all shims have access to cudf::get_default_stream()
+    .flag("-include").flag("cudf/utilities/default_stream.hpp")
     .flag_if_supported("-Wno-unused-parameter")
     .flag_if_supported("-Wno-missing-field-initializers")
     .compile("cudf_cxx");
+
+    // Explicitly link native libraries.
+    // cudf-sys declares these via `links = "cudf"`, but cargo may not propagate
+    // -l flags if the sys crate has no Rust symbols. We re-emit them here.
+    println!("cargo:rustc-link-lib=dylib=cudf");
+    println!("cargo:rustc-link-lib=dylib=cudart");
+    println!("cargo:rustc-link-lib=dylib=rmm");
 
     println!("cargo:rerun-if-changed=cpp/");
     println!("cargo:rerun-if-changed=src/");

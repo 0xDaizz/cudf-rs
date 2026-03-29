@@ -16,11 +16,5 @@ pub mod ffi {
 
         /// Swap case of all characters.
         fn str_swapcase(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
-
-        /// Capitalize first character of each string.
-        fn str_capitalize(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
-
-        /// Capitalize first character of each word (title case).
-        fn str_title(col: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
     }
 }

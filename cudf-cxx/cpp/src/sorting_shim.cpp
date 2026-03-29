@@ -114,8 +114,8 @@ std::unique_ptr<OwnedColumn> rank(
         col.view(),
         m,
         co,
-        no,
         nh,
+        no,
         percentage);
 
     return std::make_unique<OwnedColumn>(std::move(result));

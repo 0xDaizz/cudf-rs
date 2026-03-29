@@ -34,18 +34,4 @@ impl Column {
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
-
-    /// Capitalize the first character of each string.
-    pub fn str_capitalize(&self) -> Result<Column> {
-        let result = cudf_cxx::strings::case::ffi::str_capitalize(&self.inner)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Column { inner: result })
-    }
-
-    /// Convert each string to title case (capitalize first letter of each word).
-    pub fn str_title(&self) -> Result<Column> {
-        let result = cudf_cxx::strings::case::ffi::str_title(&self.inner)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Column { inner: result })
-    }
 }

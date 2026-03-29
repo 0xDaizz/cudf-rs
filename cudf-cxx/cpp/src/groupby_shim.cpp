@@ -51,8 +51,7 @@ execute_impl(GroupByBuilder& builder, const OwnedTable& values)
     // Flatten all result columns from all aggregation results into a single vector.
     std::vector<std::unique_ptr<cudf::column>> value_cols;
     for (auto& result_set : agg_results) {
-        auto cols = result_set.results->release();
-        for (auto& col : cols) {
+        for (auto& col : result_set.results) {
             value_cols.push_back(std::move(col));
         }
     }

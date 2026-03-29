@@ -81,30 +81,6 @@ impl Table {
         extract_join_result(maps)
     }
 
-    /// Left semi join: returns indices of rows in `self` that have at least
-    /// one matching row in `right_keys`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if column types don't match or a GPU error occurs.
-    pub fn left_semi_join(&self, right_keys: &Table) -> Result<Column> {
-        let raw = cudf_cxx::join::ffi::left_semi_join(&self.inner, &right_keys.inner)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Column { inner: raw })
-    }
-
-    /// Left anti join: returns indices of rows in `self` that have NO
-    /// matching rows in `right_keys`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if column types don't match or a GPU error occurs.
-    pub fn left_anti_join(&self, right_keys: &Table) -> Result<Column> {
-        let raw = cudf_cxx::join::ffi::left_anti_join(&self.inner, &right_keys.inner)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Column { inner: raw })
-    }
-
     /// Cross join (cartesian product) of two tables.
     ///
     /// Returns a table containing every combination of rows from the left

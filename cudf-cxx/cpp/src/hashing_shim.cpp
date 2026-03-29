@@ -5,7 +5,7 @@
 namespace cudf_shims {
 
 std::unique_ptr<OwnedColumn> hash_murmur3(const OwnedTable& table, uint32_t seed) {
-    auto result = cudf::hashing::murmurhash3_x86_32(table.view(), {}, seed);
+    auto result = cudf::hashing::murmurhash3_x86_32(table.view(), seed);
     return std::make_unique<OwnedColumn>(std::move(result));
 }
 

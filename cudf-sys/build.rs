@@ -64,6 +64,14 @@ fn link_from_prefix(prefix: &str) {
     // Link libraries
     println!("cargo:rustc-link-lib=dylib=cudf");
 
+    // RMM (sibling package for pip installations)
+    if let Some(parent) = prefix.parent() {
+        let rmm_lib = parent.join("librmm").join("lib64");
+        if rmm_lib.exists() {
+            println!("cargo:rustc-link-search=native={}", rmm_lib.display());
+        }
+    }
+
     // CUDA runtime
     if let Ok(cuda_path) = env::var("CUDA_PATH") {
         let cuda_lib = PathBuf::from(&cuda_path).join("lib64");

@@ -1,6 +1,5 @@
 #include "reduction_shim.h"
 #include <cudf/reduction.hpp>
-#include <cudf/reduction/scan.hpp>
 #include <cudf/utilities/default_stream.hpp>
 #include <stdexcept>
 

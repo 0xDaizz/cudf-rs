@@ -251,6 +251,12 @@ impl TryFrom<f64> for Scalar {
     fn try_from(v: f64) -> Result<Self> { Self::new(v) }
 }
 
+impl std::fmt::Debug for Scalar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
 impl std::fmt::Display for Scalar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

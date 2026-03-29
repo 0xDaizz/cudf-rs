@@ -8,10 +8,8 @@ pub mod ffi {
     unsafe extern "C++" {
         include!("join_shim.h");
         include!("table_shim.h");
-        include!("column_shim.h");
 
         type OwnedTable = crate::table::ffi::OwnedTable;
-        type OwnedColumn = crate::column::ffi::OwnedColumn;
 
         /// Inner join: returns a 2-column table [left_indices, right_indices].
         fn inner_join(
@@ -30,18 +28,6 @@ pub mod ffi {
             left_keys: &OwnedTable,
             right_keys: &OwnedTable,
         ) -> Result<UniquePtr<OwnedTable>>;
-
-        /// Left semi join: returns indices from left that have matches in right.
-        fn left_semi_join(
-            left_keys: &OwnedTable,
-            right_keys: &OwnedTable,
-        ) -> Result<UniquePtr<OwnedColumn>>;
-
-        /// Left anti join: returns indices from left that have NO matches in right.
-        fn left_anti_join(
-            left_keys: &OwnedTable,
-            right_keys: &OwnedTable,
-        ) -> Result<UniquePtr<OwnedColumn>>;
 
         /// Cross join: cartesian product of two tables.
         fn cross_join(
