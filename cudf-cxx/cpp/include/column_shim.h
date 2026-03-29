@@ -72,6 +72,18 @@ std::unique_ptr<OwnedColumn> column_from_f32_nullable(
     rust::Slice<const float> data, rust::Slice<const bool> validity);
 std::unique_ptr<OwnedColumn> column_from_f64_nullable(
     rust::Slice<const double> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_i8_nullable(
+    rust::Slice<const int8_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_i16_nullable(
+    rust::Slice<const int16_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_u8_nullable(
+    rust::Slice<const uint8_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_u16_nullable(
+    rust::Slice<const uint16_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_u32_nullable(
+    rust::Slice<const uint32_t> data, rust::Slice<const bool> validity);
+std::unique_ptr<OwnedColumn> column_from_u64_nullable(
+    rust::Slice<const uint64_t> data, rust::Slice<const bool> validity);
 
 // ── Data Transfer ──────────────────────────────────────────────
 

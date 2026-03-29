@@ -59,51 +59,61 @@ impl Scalar {
         // so T IS the exact type we transmute to (same size, same repr).
         match type_id {
             TypeId::Int8 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i8>());
                 let v: i8 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i8(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int16 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i16>());
                 let v: i16 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i16(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int32 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i32>());
                 let v: i32 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i32(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Int64 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i64>());
                 let v: i64 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_i64(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint8 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u8>());
                 let v: u8 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u8(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint16 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u16>());
                 let v: u16 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u16(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint32 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u32>());
                 let v: u32 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u32(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Uint64 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u64>());
                 let v: u64 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_u64(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Float32 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<f32>());
                 let v: f32 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_f32(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Float64 => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<f64>());
                 let v: f64 = unsafe { std::mem::transmute_copy(&value) };
                 cudf_cxx::scalar::ffi::scalar_set_f64(inner.pin_mut(), v)
                     .map_err(CudfError::from_cxx)?;
@@ -163,51 +173,61 @@ impl Scalar {
             TypeId::Int8 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i8(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i8>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Int16 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i16(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i16>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Int32 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i32(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i32>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Int64 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_i64(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<i64>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint8 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u8(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u8>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint16 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u16(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u16>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint32 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u32(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u32>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Uint64 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_u64(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<u64>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Float32 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_f32(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<f32>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             TypeId::Float64 => {
                 let v = cudf_cxx::scalar::ffi::scalar_get_f64(&self.inner)
                     .map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<f64>());
                 Ok(unsafe { std::mem::transmute_copy(&v) })
             }
             _ => Err(CudfError::InvalidArgument(format!(
@@ -220,6 +240,12 @@ impl Scalar {
     /// Whether this scalar holds a valid (non-null) value.
     pub fn is_valid(&self) -> bool {
         self.inner.is_valid()
+    }
+
+    /// Set the validity (null/not-null) of this scalar.
+    pub fn set_valid(&mut self, valid: bool) -> Result<()> {
+        cudf_cxx::scalar::ffi::scalar_set_valid(self.inner.pin_mut(), valid)
+            .map_err(CudfError::from_cxx)
     }
 
     /// The data type of this scalar.

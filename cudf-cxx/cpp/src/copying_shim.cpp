@@ -93,6 +93,9 @@ std::unique_ptr<OwnedTable> split_result_get(SplitResult& result, int32_t index)
     if (index < 0 || static_cast<size_t>(index) >= result.parts.size()) {
         throw std::runtime_error("split result index out of bounds");
     }
+    if (!result.parts[index]) {
+        throw std::runtime_error("split result part already consumed");
+    }
     return std::move(result.parts[index]);
 }
 

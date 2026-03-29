@@ -139,4 +139,34 @@ impl Column {
 
         Ok(Column { inner: raw })
     }
+
+    /// Create a column with the same type and size, with specified null mask allocation.
+    ///
+    /// `mask_policy`: 0=NEVER, 1=ALWAYS, 2=RETAIN.
+    pub fn allocate_like(&self, mask_policy: i32) -> Result<Column> {
+        let raw = cudf_cxx::copying::ffi::allocate_like(&self.inner, mask_policy)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: raw })
+    }
+
+    /// Copy a range from `source` into this column (in-place).
+    ///
+    /// Copies elements `[source_begin, source_end)` from `source` into
+    /// `self` starting at `target_begin`.
+    pub fn copy_range_from(
+        &mut self,
+        source: &Column,
+        source_begin: usize,
+        source_end: usize,
+        target_begin: usize,
+    ) -> Result<()> {
+        cudf_cxx::copying::ffi::copy_range(
+            &source.inner,
+            self.inner.pin_mut(),
+            source_begin as i32,
+            source_end as i32,
+            target_begin as i32,
+        )
+        .map_err(CudfError::from_cxx)
+    }
 }

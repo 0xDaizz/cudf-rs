@@ -54,9 +54,8 @@ impl Column {
     /// Returns a new list column where the elements within each row are
     /// sorted according to the given order and null placement.
     pub fn lists_sort(&self, ascending: bool, null_order: NullOrder) -> Result<Column> {
-        let raw =
-            cudf_cxx::lists::ops::ffi::lists_sort(&self.inner, ascending, null_order as i32)
-                .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::lists::ops::ffi::lists_sort(&self.inner, ascending, null_order as i32)
+            .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 

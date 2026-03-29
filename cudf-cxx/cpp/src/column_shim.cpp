@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <stdexcept>
 #include <cstring>
+#include <limits>
 
 namespace cudf_shims {
 
@@ -125,6 +126,15 @@ std::unique_ptr<OwnedColumn> column_from_strings(rust::Slice<const rust::String>
                 rmm::device_buffer{0, stream, mr}));
     }
 
+    // Guard: total string data must fit in int32_t offsets (2GB limit).
+    size_t total_chars = 0;
+    for (const auto& s : data) {
+        total_chars += s.size();
+    }
+    if (total_chars > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+        throw std::runtime_error("Total string data exceeds INT32_MAX bytes (2GB limit)");
+    }
+
     // Build concatenated char buffer and offsets on host.
     std::vector<int32_t> offsets_vec;
     offsets_vec.reserve(num_strings + 1);
@@ -186,6 +196,9 @@ std::unique_ptr<OwnedColumn> column_from_nullable(
     rust::Slice<const bool> validity,
     cudf::type_id tid)
 {
+    if (data.size() != validity.size()) {
+        throw std::runtime_error("data and validity slices must have the same length");
+    }
     auto stream = cudf::get_default_stream();
     auto mr = cudf::get_current_device_resource_ref();
     auto size = static_cast<cudf::size_type>(data.size());
@@ -224,6 +237,36 @@ std::unique_ptr<OwnedColumn> column_from_f32_nullable(
 std::unique_ptr<OwnedColumn> column_from_f64_nullable(
     rust::Slice<const double> data, rust::Slice<const bool> validity) {
     return column_from_nullable(data, validity, cudf::type_id::FLOAT64);
+}
+
+std::unique_ptr<OwnedColumn> column_from_i8_nullable(
+    rust::Slice<const int8_t> data, rust::Slice<const bool> validity) {
+    return column_from_nullable(data, validity, cudf::type_id::INT8);
+}
+
+std::unique_ptr<OwnedColumn> column_from_i16_nullable(
+    rust::Slice<const int16_t> data, rust::Slice<const bool> validity) {
+    return column_from_nullable(data, validity, cudf::type_id::INT16);
+}
+
+std::unique_ptr<OwnedColumn> column_from_u8_nullable(
+    rust::Slice<const uint8_t> data, rust::Slice<const bool> validity) {
+    return column_from_nullable(data, validity, cudf::type_id::UINT8);
+}
+
+std::unique_ptr<OwnedColumn> column_from_u16_nullable(
+    rust::Slice<const uint16_t> data, rust::Slice<const bool> validity) {
+    return column_from_nullable(data, validity, cudf::type_id::UINT16);
+}
+
+std::unique_ptr<OwnedColumn> column_from_u32_nullable(
+    rust::Slice<const uint32_t> data, rust::Slice<const bool> validity) {
+    return column_from_nullable(data, validity, cudf::type_id::UINT32);
+}
+
+std::unique_ptr<OwnedColumn> column_from_u64_nullable(
+    rust::Slice<const uint64_t> data, rust::Slice<const bool> validity) {
+    return column_from_nullable(data, validity, cudf::type_id::UINT64);
 }
 
 std::unique_ptr<OwnedColumn> column_empty(int32_t type_id, int32_t size) {

@@ -102,6 +102,42 @@ pub mod ffi {
             validity: &[bool],
         ) -> Result<UniquePtr<OwnedColumn>>;
 
+        /// Create a nullable i8 column from host data and validity mask.
+        fn column_from_i8_nullable(
+            data: &[i8],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable i16 column from host data and validity mask.
+        fn column_from_i16_nullable(
+            data: &[i16],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable u8 column from host data and validity mask.
+        fn column_from_u8_nullable(
+            data: &[u8],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable u16 column from host data and validity mask.
+        fn column_from_u16_nullable(
+            data: &[u16],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable u32 column from host data and validity mask.
+        fn column_from_u32_nullable(
+            data: &[u32],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Create a nullable u64 column from host data and validity mask.
+        fn column_from_u64_nullable(
+            data: &[u64],
+            validity: &[bool],
+        ) -> Result<UniquePtr<OwnedColumn>>;
+
         // ── Data Transfer ──────────────────────────────────────────
 
         /// Copy column data to host as i32. Panics if type mismatch.

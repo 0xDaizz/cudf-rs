@@ -166,6 +166,72 @@ impl Column {
         Ok(Self { inner: raw })
     }
 
+    /// Create a nullable i8 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_i8(data: &[Option<i8>]) -> Result<Self> {
+        let values: Vec<i8> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_i8_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable i16 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_i16(data: &[Option<i16>]) -> Result<Self> {
+        let values: Vec<i16> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_i16_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable u8 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_u8(data: &[Option<u8>]) -> Result<Self> {
+        let values: Vec<u8> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_u8_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable u16 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_u16(data: &[Option<u16>]) -> Result<Self> {
+        let values: Vec<u16> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_u16_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable u32 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_u32(data: &[Option<u32>]) -> Result<Self> {
+        let values: Vec<u32> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_u32_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    /// Create a nullable u64 column from optional values.
+    ///
+    /// `None` values become null entries in the GPU column.
+    pub fn from_optional_u64(data: &[Option<u64>]) -> Result<Self> {
+        let values: Vec<u64> = data.iter().map(|o| o.unwrap_or(0)).collect();
+        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+        let raw = cudf_cxx::column::ffi::column_from_u64_nullable(&values, &validity)
+            .map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
     // -- Data Transfer --
 
     /// Copy the null bitmask to a host byte vector.
@@ -404,9 +470,13 @@ impl Column {
                     .map_err(CudfError::from_cxx)?;
             }
             TypeId::Bool8 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u8, len) };
-                cudf_cxx::column::ffi::column_to_u8(&self.inner, out)
+                // Read into a temporary u8 buffer, then convert to bool safely.
+                // Direct write to Vec<bool> memory is UB if GPU data contains values != 0/1.
+                let mut u8_buf = vec![0u8; len];
+                cudf_cxx::column::ffi::column_to_u8(&self.inner, &mut u8_buf)
                     .map_err(CudfError::from_cxx)?;
+                let bools: Vec<bool> = u8_buf.into_iter().map(|v| v != 0).collect();
+                return Ok(unsafe { std::mem::transmute::<Vec<bool>, Vec<T>>(bools) });
             }
             _ => {
                 return Err(CudfError::InvalidArgument(format!(
