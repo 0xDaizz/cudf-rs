@@ -13,16 +13,22 @@ std::unique_ptr<OwnedTable> package_gather_maps(
     std::unique_ptr<rmm::device_uvector<cudf::size_type>> left_map,
     std::unique_ptr<rmm::device_uvector<cudf::size_type>> right_map)
 {
+    // Capture sizes BEFORE release() — C++ function argument evaluation
+    // order is unspecified, so release() could be evaluated before size().
+    auto left_size = static_cast<cudf::size_type>(left_map->size());
+    auto left_buf = left_map->release();
     auto left_col = std::make_unique<cudf::column>(
         cudf::data_type{cudf::type_id::INT32},
-        static_cast<cudf::size_type>(left_map->size()),
-        left_map->release(),
+        left_size,
+        std::move(left_buf),
         rmm::device_buffer{}, 0);
 
+    auto right_size = static_cast<cudf::size_type>(right_map->size());
+    auto right_buf = right_map->release();
     auto right_col = std::make_unique<cudf::column>(
         cudf::data_type{cudf::type_id::INT32},
-        static_cast<cudf::size_type>(right_map->size()),
-        right_map->release(),
+        right_size,
+        std::move(right_buf),
         rmm::device_buffer{}, 0);
 
     std::vector<std::unique_ptr<cudf::column>> cols;
@@ -72,10 +78,13 @@ namespace {
 std::unique_ptr<OwnedTable> package_single_map(
     std::unique_ptr<rmm::device_uvector<cudf::size_type>> map)
 {
+    // Capture size BEFORE release() — eval order is unspecified in C++
+    auto map_size = static_cast<cudf::size_type>(map->size());
+    auto map_buf = map->release();
     auto col = std::make_unique<cudf::column>(
         cudf::data_type{cudf::type_id::INT32},
-        static_cast<cudf::size_type>(map->size()),
-        map->release(),
+        map_size,
+        std::move(map_buf),
         rmm::device_buffer{}, 0);
 
     std::vector<std::unique_ptr<cudf::column>> cols;
