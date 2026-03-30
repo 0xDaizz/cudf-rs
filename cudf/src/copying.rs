@@ -104,7 +104,7 @@ impl Table {
             });
         }
 
-        let raw = cudf_cxx::copying::ffi::slice_table(&self.inner, begin as i32, end as i32)
+        let raw = cudf_cxx::copying::ffi::slice_table(&self.inner, checked_i32(begin)?, checked_i32(end)?)
             .map_err(CudfError::from_cxx)?;
 
         Ok(Table { inner: raw })
@@ -131,7 +131,7 @@ impl Table {
     ///
     /// Returns an error if `n > num_rows()` and `with_replacement` is false.
     pub fn sample(&self, n: usize, with_replacement: bool, seed: i64) -> Result<Table> {
-        let raw = cudf_cxx::copying::ffi::sample(&self.inner, n as i32, with_replacement, seed)
+        let raw = cudf_cxx::copying::ffi::sample(&self.inner, checked_i32(n)?, with_replacement, seed)
             .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
@@ -194,7 +194,7 @@ impl Column {
     ///
     /// Returns an error if `index` is out of bounds or a GPU error occurs.
     pub fn get_element(&self, index: usize) -> Result<Scalar> {
-        let raw = cudf_cxx::copying::ffi::get_element(&self.inner, index as i32)
+        let raw = cudf_cxx::copying::ffi::get_element(&self.inner, checked_i32(index)?)
             .map_err(CudfError::from_cxx)?;
         Ok(Scalar { inner: raw })
     }
@@ -246,7 +246,7 @@ impl Column {
     /// forming pairs: `[begin0, end0, begin1, end1, ...]`.
     /// Returns one column for each pair.
     pub fn slice_indices(&self, indices: &[usize]) -> Result<Vec<Column>> {
-        let idx: Vec<i32> = indices.iter().map(|&i| i as i32).collect();
+        let idx: Vec<i32> = indices.iter().map(|&i| checked_i32(i)).collect::<Result<Vec<i32>>>()?;
         let mut result =
             cudf_cxx::copying::ffi::slice_column(&self.inner, &idx).map_err(CudfError::from_cxx)?;
         let count = cudf_cxx::copying::ffi::column_slice_result_count(&result);
@@ -273,9 +273,9 @@ impl Column {
         cudf_cxx::copying::ffi::copy_range(
             &source.inner,
             self.inner.pin_mut(),
-            source_begin as i32,
-            source_end as i32,
-            target_begin as i32,
+            checked_i32(source_begin)?,
+            checked_i32(source_end)?,
+            checked_i32(target_begin)?,
         )
         .map_err(CudfError::from_cxx)
     }

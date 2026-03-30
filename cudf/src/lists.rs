@@ -18,6 +18,7 @@ use crate::error::{CudfError, Result};
 use crate::scalar::Scalar;
 use crate::sorting::NullOrder;
 use crate::table::Table;
+use crate::types::checked_i32;
 
 impl Table {
     /// Explode a list column, expanding each list element into its own row.
@@ -31,7 +32,7 @@ impl Table {
     /// Returns an error if the column index is out of bounds, the column is
     /// not a list type, or a GPU error occurs.
     pub fn lists_explode(&self, explode_col_idx: usize) -> Result<Table> {
-        let raw = cudf_cxx::lists::ops::ffi::lists_explode(&self.inner, explode_col_idx as i32)
+        let raw = cudf_cxx::lists::ops::ffi::lists_explode(&self.inner, checked_i32(explode_col_idx)?)
             .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
@@ -42,7 +43,7 @@ impl Table {
     /// produce a null row instead of being dropped.
     pub fn lists_explode_outer(&self, explode_col_idx: usize) -> Result<Table> {
         let raw =
-            cudf_cxx::lists::ops::ffi::lists_explode_outer(&self.inner, explode_col_idx as i32)
+            cudf_cxx::lists::ops::ffi::lists_explode_outer(&self.inner, checked_i32(explode_col_idx)?)
                 .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
@@ -228,7 +229,7 @@ impl Table {
     /// column with the position of each element within its original list.
     pub fn lists_explode_position(&self, explode_col_idx: usize) -> Result<Table> {
         let raw =
-            cudf_cxx::lists::ops::ffi::lists_explode_position(&self.inner, explode_col_idx as i32)
+            cudf_cxx::lists::ops::ffi::lists_explode_position(&self.inner, checked_i32(explode_col_idx)?)
                 .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
@@ -240,7 +241,7 @@ impl Table {
     pub fn lists_explode_outer_position(&self, explode_col_idx: usize) -> Result<Table> {
         let raw = cudf_cxx::lists::ops::ffi::lists_explode_outer_position(
             &self.inner,
-            explode_col_idx as i32,
+            checked_i32(explode_col_idx)?,
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })

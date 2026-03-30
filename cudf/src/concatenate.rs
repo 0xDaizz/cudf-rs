@@ -39,7 +39,10 @@ pub fn concatenate_columns(columns: &[&Column]) -> Result<Column> {
 
     let mut builder = cudf_cxx::concatenate::ffi::new_column_concat_builder();
     for col in columns {
-        builder.as_mut().unwrap().add(&col.inner);
+        builder
+            .as_mut()
+            .ok_or_else(|| CudfError::Cxx("failed to create column concat builder".into()))?
+            .add(&col.inner);
     }
     let raw = builder.build().map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
@@ -65,7 +68,10 @@ pub fn concatenate_tables(tables: &[&Table]) -> Result<Table> {
 
     let mut builder = cudf_cxx::concatenate::ffi::new_table_concat_builder();
     for tbl in tables {
-        builder.as_mut().unwrap().add(&tbl.inner);
+        builder
+            .as_mut()
+            .ok_or_else(|| CudfError::Cxx("failed to create table concat builder".into()))?
+            .add(&tbl.inner);
     }
     let raw = builder.build().map_err(CudfError::from_cxx)?;
     Ok(Table { inner: raw })

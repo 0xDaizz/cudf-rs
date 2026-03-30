@@ -34,20 +34,9 @@ std::unique_ptr<OwnedTable> table_from_arrow_ipc(rust::Slice<const uint8_t> data
 // handle directly.  We heap-allocate them and pass raw pointers as u64.
 // The Rust side uses arrow::ffi to import / export these structs.
 
-/// Export a column via Arrow C Data Interface.
-/// Returns (schema_ptr, array_ptr) as u64 pair.  Caller owns both.
-/// DEPRECATED: Use column_to_arrow_pair() to avoid double GPU→host copy.
-uint64_t column_to_arrow_schema_ptr(const OwnedColumn& col);
-uint64_t column_to_arrow_array_ptr(const OwnedColumn& col);
-
 /// Import a column from Arrow C Data Interface.
 /// Takes ownership of schema + array (will be released internally).
 std::unique_ptr<OwnedColumn> column_from_arrow_cdata(uint64_t schema_ptr, uint64_t array_ptr);
-
-/// Export a table via Arrow C Data Interface.
-/// DEPRECATED: Use table_to_arrow_pair() to avoid double GPU→host copy.
-uint64_t table_to_arrow_schema_ptr(const OwnedTable& table);
-uint64_t table_to_arrow_array_ptr(const OwnedTable& table);
 
 /// Import a table from Arrow C Data Interface.
 std::unique_ptr<OwnedTable> table_from_arrow_cdata(uint64_t schema_ptr, uint64_t array_ptr);
@@ -60,7 +49,7 @@ void free_arrow_array(uint64_t ptr);
 
 /// Opaque pair holding both ArrowSchema and ArrowArray from a single export.
 /// Avoids the double GPU→host copy that happens when calling
-/// column_to_arrow_schema_ptr + column_to_arrow_array_ptr separately.
+/// the separate schema/array export functions that were removed.
 struct ArrowExportPair {
     ArrowSchema* schema;
     ArrowArray* array;

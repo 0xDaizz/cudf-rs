@@ -15,6 +15,7 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 impl Column {
     /// Replace NaN values with nulls in a floating-point column.
@@ -79,7 +80,7 @@ impl Table {
 /// Returns a `bool` column for each bit in `[begin_bit, end_bit)`.
 /// Bit `i` set (1) produces `true`, unset (0) produces `false`.
 pub fn mask_to_bools(mask_data: &[u8], begin_bit: usize, end_bit: usize) -> Result<Column> {
-    let raw = cudf_cxx::transform::ffi::mask_to_bools(mask_data, begin_bit as i32, end_bit as i32)
+    let raw = cudf_cxx::transform::ffi::mask_to_bools(mask_data, checked_i32(begin_bit)?, checked_i32(end_bit)?)
         .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
 }

@@ -1,6 +1,6 @@
 # cudf-rs: Unofficial Rust FFI Bindings for NVIDIA libcudf
 
-**GPU-accelerated DataFrame operations for Rust -- zero `unsafe` in public API, zero-cost FFI via cxx, 47 bridge modules covering the full libcudf surface.**
+**GPU-accelerated DataFrame operations for Rust -- near-zero `unsafe` in public API (only `DLPackTensor::from_raw_ptr`), zero-cost FFI via cxx, 61 bridge modules covering the full libcudf surface.**
 
 [![License: MIT/Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-orange?logo=rust)](https://www.rust-lang.org)
@@ -12,14 +12,14 @@
 
 ## Features
 
-**100% Safe Public API**
-All `unsafe` is confined to the internal FFI layer. Your application code never touches raw pointers.
+**Near-Zero Unsafe Public API**
+All `unsafe` is confined to the internal FFI layer, with the sole exception of `DLPackTensor::from_raw_ptr`. Your application code never touches raw pointers.
 
 **Zero-Cost FFI**
 [cxx](https://cxx.rs) bridge with no serialization overhead -- C++ calls are as cheap as a function pointer indirection.
 
 **Full libcudf Coverage**
-47 bridge modules spanning compute, I/O, strings, nested types, and interop.
+61 bridge modules spanning compute, I/O, strings, nested types, and interop.
 
 **Arrow Interop**
 Conversion to/from `arrow-rs` via Arrow IPC. Seamless data exchange between GPU and the Rust Arrow ecosystem.
@@ -120,7 +120,7 @@ fn main() -> Result<()> {
 
 ```
                    +----------------------------------------------+
-                   |  cudf       -- 100% safe, idiomatic Rust API |
+                   |  cudf       -- safe, idiomatic Rust API      |
                    |             -- Column, Table, GroupBy, I/O   |
                    +----------------------------------------------+
                                          |
@@ -172,6 +172,7 @@ Each libcudf C++ module maps to three files:
 | `round` | Numeric rounding (floor, ceil, half-even) |
 | `transform` | NaN-to-null conversion and boolean mask generation |
 | `search` | Binary search and containment checks on sorted data |
+| `label_bins` | Label elements based on membership in specified bins |
 
 ### Data Manipulation
 
@@ -193,6 +194,8 @@ Each libcudf C++ module maps to three files:
 | `lists` | Explode, sort, contains, and extract on list (nested) columns |
 | `structs` | Extract child columns from struct columns |
 | `dictionary` | Dictionary encoding and decoding |
+| `json` | JSONPath queries on JSON string columns |
+| `timezone` | Timezone transition table support for ORC timestamp conversion |
 
 ### I/O
 
@@ -218,18 +221,29 @@ Each libcudf C++ module maps to three files:
 | `strings::combine` | Concatenate/join strings |
 | `strings::convert` | String-to-numeric and numeric-to-string conversion |
 | `strings::extract` | Regex capture group extraction |
+| `strings::findall` | Regex match extraction (all occurrences) |
+| `strings::like` | SQL LIKE pattern matching |
+| `strings::padding` | String padding (left, right, center) |
+| `strings::partition` | Split string at first/last occurrence of delimiter |
+| `strings::repeat` | Repeat each string N times |
+| `strings::reverse` | Reverse each string character-by-character |
+| `strings::split_re` | Regex-based string splitting |
+| `strings::attributes` | String character/byte count and code point extraction |
+| `strings::char_types` | Character type checking (alpha, digit, etc.) |
+| `strings::translate` | Character-by-character translation |
+| `strings::wrap` | Word-wrap long strings by inserting newlines |
 
 ### Interop
 
 | Module | Description |
 |--------|-------------|
-| `interop` | Arrow IPC serialization; `Column`/`Table` to/from `arrow::RecordBatch` |
+| `interop` | Arrow C Data Interface and IPC; DLPack tensor exchange; pack/unpack/contiguous_split |
 
 ## Prerequisites
 
 - **GPU**: NVIDIA Volta or newer (compute capability 7.0+)
 - **CUDA**: 12.2+
-- **libcudf**: installed via conda or from source (see above)
+- **libcudf**: 24.0+ required, tested with 26.2.1; installed via conda or from source (see above). Enum discriminants are matched to specific libcudf versions -- using an untested version may produce incorrect results.
 - **OS**: Linux only (libcudf does not support macOS or Windows)
 - **Rust**: 1.85+ (edition 2024)
 

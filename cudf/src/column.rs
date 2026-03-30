@@ -61,7 +61,7 @@ impl Column {
         let id = TypeId::from_raw(self.inner.type_id()).unwrap_or(TypeId::Empty);
         let scale = self.inner.type_scale();
         if scale != 0 {
-            DataType::decimal(id, scale)
+            DataType::decimal(id, scale).unwrap_or_else(|_| DataType::new(id))
         } else {
             DataType::new(id)
         }
@@ -353,11 +353,29 @@ impl Column {
 
 // -- Type-specific construction and transfer --
 
+mod private {
+    pub trait Sealed {}
+}
+
+impl private::Sealed for i8 {}
+impl private::Sealed for i16 {}
+impl private::Sealed for i32 {}
+impl private::Sealed for i64 {}
+impl private::Sealed for u8 {}
+impl private::Sealed for u16 {}
+impl private::Sealed for u32 {}
+impl private::Sealed for u64 {}
+impl private::Sealed for f32 {}
+impl private::Sealed for f64 {}
+impl private::Sealed for bool {}
+
 /// Trait for types that can be stored in a GPU column.
 ///
 /// This is implemented for all primitive numeric types supported by libcudf.
 /// It enables generic `Column::from_slice` and `Column::to_vec` operations.
-pub trait CudfType: Copy + Send + 'static {
+///
+/// This trait is sealed and cannot be implemented outside of the `cudf` crate.
+pub trait CudfType: Copy + Send + 'static + private::Sealed {
     /// The corresponding libcudf type ID.
     const TYPE_ID: TypeId;
 }
@@ -633,7 +651,19 @@ impl Column {
                 cudf_cxx::column::ffi::column_to_u8(&self.inner, &mut u8_buf)
                     .map_err(CudfError::from_cxx)?;
                 let bools: Vec<bool> = u8_buf.into_iter().map(|v| v != 0).collect();
-                return Ok(unsafe { std::mem::transmute::<Vec<bool>, Vec<T>>(bools) });
+                // SAFETY: T is guaranteed to be bool by the sealed CudfType trait
+                // (Bool8 maps only to bool). Vec<bool> and Vec<T=bool> have
+                // identical layout. We use manual deconstruction to avoid
+                // relying on transmute's layout guarantees for Vec.
+                let mut bools = std::mem::ManuallyDrop::new(bools);
+                let result = unsafe {
+                    Vec::from_raw_parts(
+                        bools.as_mut_ptr() as *mut T,
+                        bools.len(),
+                        bools.capacity(),
+                    )
+                };
+                return Ok(result);
             }
             _ => {
                 return Err(CudfError::InvalidArgument(format!(

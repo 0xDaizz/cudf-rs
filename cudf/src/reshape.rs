@@ -18,6 +18,7 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 impl Table {
     /// Interleave all columns into a single column.
@@ -35,7 +36,7 @@ impl Table {
     /// Returns a new table with `num_rows * count` rows.
     pub fn tile(&self, count: usize) -> Result<Table> {
         let raw =
-            cudf_cxx::reshape::ffi::tile(&self.inner, count as i32).map_err(CudfError::from_cxx)?;
+            cudf_cxx::reshape::ffi::tile(&self.inner, checked_i32(count)?).map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }

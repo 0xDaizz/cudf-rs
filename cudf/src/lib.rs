@@ -1,7 +1,8 @@
 //! # cudf -- GPU-Accelerated DataFrames for Rust
 //!
 //! `cudf` provides safe Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf),
-//! enabling GPU-accelerated DataFrame operations with zero `unsafe` in the public API.
+//! enabling GPU-accelerated DataFrame operations. The public API is fully safe, with the
+//! sole exception of `DLPackTensor::from_raw_ptr` which requires an unsafe block.
 //!
 //! ## Quick Start
 //!
@@ -31,7 +32,7 @@
 //!
 //! ```text
 //! +---------------------------------------------+
-//! |  cudf (this crate) -- 100% safe Rust API    |
+//! |  cudf (this crate) -- safe Rust API          |
 //! +---------------------------------------------+
 //! |  cudf-cxx -- cxx bridge + C++ shim layer    |
 //! +---------------------------------------------+

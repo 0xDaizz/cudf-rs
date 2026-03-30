@@ -207,18 +207,16 @@ impl DataType {
 
     /// Create a decimal DataType with the given scale.
     ///
-    /// # Panics
-    /// Panics if `id` is not a decimal type.
-    pub fn decimal(id: TypeId, scale: i32) -> Self {
-        assert!(
-            matches!(
-                id,
-                TypeId::Decimal32 | TypeId::Decimal64 | TypeId::Decimal128
-            ),
-            "decimal() requires a decimal TypeId, got {:?}",
-            id
-        );
-        Self { id, scale }
+    /// # Errors
+    /// Returns `CudfError::InvalidArgument` if `id` is not a decimal type
+    /// (`Decimal32`, `Decimal64`, or `Decimal128`).
+    pub fn decimal(id: TypeId, scale: i32) -> crate::error::Result<Self> {
+        if !matches!(id, TypeId::Decimal32 | TypeId::Decimal64 | TypeId::Decimal128) {
+            return Err(crate::error::CudfError::InvalidArgument(
+                format!("decimal() requires a decimal TypeId, got {:?}", id),
+            ));
+        }
+        Ok(Self { id, scale })
     }
 
     /// The type identifier.

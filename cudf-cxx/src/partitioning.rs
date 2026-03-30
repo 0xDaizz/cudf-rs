@@ -12,18 +12,19 @@ pub mod ffi {
         type OwnedColumn = crate::column::ffi::OwnedColumn;
 
         /// Partition a table by hashing the specified columns.
-        /// Returns a reordered table (rows grouped by partition).
+        /// Returns a PartitionResult with the reordered table and offsets.
         fn hash_partition(
             table: &OwnedTable,
             columns_to_hash: &[i32],
             num_partitions: i32,
-        ) -> Result<UniquePtr<OwnedTable>>;
+        ) -> Result<UniquePtr<PartitionResult>>;
 
         /// Partition a table using round-robin assignment.
+        /// Returns a PartitionResult with the reordered table and offsets.
         fn round_robin_partition(
             table: &OwnedTable,
             num_partitions: i32,
-        ) -> Result<UniquePtr<OwnedTable>>;
+        ) -> Result<UniquePtr<PartitionResult>>;
 
         // ── Partition by map ──────────────────────────────────────
 

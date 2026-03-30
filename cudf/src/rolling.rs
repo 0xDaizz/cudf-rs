@@ -15,6 +15,7 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 /// Aggregation type for rolling window operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,9 +65,9 @@ impl Column {
     ) -> Result<Column> {
         let raw = cudf_cxx::rolling::ffi::rolling_window(
             &self.inner,
-            preceding as i32,
-            following as i32,
-            min_periods as i32,
+            checked_i32(preceding)?,
+            checked_i32(following)?,
+            checked_i32(min_periods)?,
             agg as i32,
         )
         .map_err(CudfError::from_cxx)?;
@@ -103,9 +104,9 @@ impl Column {
         let raw = cudf_cxx::rolling::ffi::grouped_rolling_window(
             &group_keys.inner,
             &self.inner,
-            preceding as i32,
-            following as i32,
-            min_periods as i32,
+            checked_i32(preceding)?,
+            checked_i32(following)?,
+            checked_i32(min_periods)?,
             agg as i32,
         )
         .map_err(CudfError::from_cxx)?;
@@ -134,7 +135,7 @@ impl Column {
             &self.inner,
             &preceding_col.inner,
             &following_col.inner,
-            min_periods as i32,
+            checked_i32(min_periods)?,
             agg as i32,
         )
         .map_err(CudfError::from_cxx)?;

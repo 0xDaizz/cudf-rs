@@ -5,9 +5,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "cxx-based FFI bridge between Rust and NVIDIA libcudf C++ API"
+readme = "README.md"
+keywords = ["gpu", "cuda", "ffi", "cxx", "rapids"]
+categories = ["api-bindings"]
 
 [dependencies]
-cudf-sys = { path = "../cudf-sys" }
+cudf-sys = { path = "../cudf-sys", version = "0.1.0" }
 cxx = { workspace = true }
 
 [build-dependencies]

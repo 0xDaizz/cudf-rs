@@ -288,47 +288,44 @@ mod data_type_tests {
 
     #[test]
     fn decimal32() {
-        let dt = DataType::decimal(TypeId::Decimal32, -5);
+        let dt = DataType::decimal(TypeId::Decimal32, -5).unwrap();
         assert_eq!(dt.id(), TypeId::Decimal32);
         assert_eq!(dt.scale(), -5);
     }
 
     #[test]
     fn decimal64() {
-        let dt = DataType::decimal(TypeId::Decimal64, -3);
+        let dt = DataType::decimal(TypeId::Decimal64, -3).unwrap();
         assert_eq!(dt.id(), TypeId::Decimal64);
         assert_eq!(dt.scale(), -3);
     }
 
     #[test]
     fn decimal128() {
-        let dt = DataType::decimal(TypeId::Decimal128, 2);
+        let dt = DataType::decimal(TypeId::Decimal128, 2).unwrap();
         assert_eq!(dt.id(), TypeId::Decimal128);
         assert_eq!(dt.scale(), 2);
     }
 
     #[test]
     fn decimal_zero_scale() {
-        let dt = DataType::decimal(TypeId::Decimal64, 0);
+        let dt = DataType::decimal(TypeId::Decimal64, 0).unwrap();
         assert_eq!(dt.scale(), 0);
     }
 
     #[test]
-    #[should_panic(expected = "decimal() requires a decimal TypeId")]
     fn decimal_non_decimal_int32() {
-        DataType::decimal(TypeId::Int32, 0);
+        assert!(DataType::decimal(TypeId::Int32, 0).is_err());
     }
 
     #[test]
-    #[should_panic(expected = "decimal() requires a decimal TypeId")]
     fn decimal_non_decimal_string() {
-        DataType::decimal(TypeId::String, 0);
+        assert!(DataType::decimal(TypeId::String, 0).is_err());
     }
 
     #[test]
-    #[should_panic(expected = "decimal() requires a decimal TypeId")]
     fn decimal_non_decimal_float() {
-        DataType::decimal(TypeId::Float64, -2);
+        assert!(DataType::decimal(TypeId::Float64, -2).is_err());
     }
 
     #[test]
@@ -354,11 +351,11 @@ mod data_type_tests {
     #[test]
     fn display_decimal_with_scale() {
         assert_eq!(
-            format!("{}", DataType::decimal(TypeId::Decimal64, -3)),
+            format!("{}", DataType::decimal(TypeId::Decimal64, -3).unwrap()),
             "Decimal64(scale=-3)"
         );
         assert_eq!(
-            format!("{}", DataType::decimal(TypeId::Decimal128, 5)),
+            format!("{}", DataType::decimal(TypeId::Decimal128, 5).unwrap()),
             "Decimal128(scale=5)"
         );
     }
@@ -367,7 +364,7 @@ mod data_type_tests {
     fn display_decimal_zero_scale() {
         // scale == 0 uses the non-decimal display path
         assert_eq!(
-            format!("{}", DataType::decimal(TypeId::Decimal64, 0)),
+            format!("{}", DataType::decimal(TypeId::Decimal64, 0).unwrap()),
             "Decimal64"
         );
     }
@@ -381,15 +378,15 @@ mod data_type_tests {
 
     #[test]
     fn eq_decimal_different_scale() {
-        let a = DataType::decimal(TypeId::Decimal64, -3);
-        let b = DataType::decimal(TypeId::Decimal64, -5);
+        let a = DataType::decimal(TypeId::Decimal64, -3).unwrap();
+        let b = DataType::decimal(TypeId::Decimal64, -5).unwrap();
         assert_ne!(a, b);
     }
 
     #[test]
     fn eq_decimal_same() {
-        let a = DataType::decimal(TypeId::Decimal64, -3);
-        let b = DataType::decimal(TypeId::Decimal64, -3);
+        let a = DataType::decimal(TypeId::Decimal64, -3).unwrap();
+        let b = DataType::decimal(TypeId::Decimal64, -3).unwrap();
         assert_eq!(a, b);
     }
 

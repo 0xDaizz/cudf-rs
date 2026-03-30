@@ -15,6 +15,8 @@
 //! | `column.rs` | `column_shim.h/cpp` | `cudf/column/` |
 //! | `table.rs` | `table_shim.h/cpp` | `cudf/table/` |
 
+#![doc(hidden)]
+
 pub mod aggregation;
 pub mod binaryop;
 pub mod column;

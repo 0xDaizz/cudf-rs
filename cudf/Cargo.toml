@@ -5,11 +5,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "Safe Rust bindings for NVIDIA libcudf -- GPU-accelerated DataFrame operations"
+readme = "README.md"
 keywords = ["gpu", "cuda", "dataframe", "arrow", "rapids"]
 categories = ["science", "api-bindings"]
 
 [dependencies]
-cudf-cxx = { path = "../cudf-cxx" }
+cudf-cxx = { path = "../cudf-cxx", version = "0.1.0" }
 thiserror = { workspace = true }
 arrow = { workspace = true, optional = true }
 arrow-schema = { workspace = true, optional = true }

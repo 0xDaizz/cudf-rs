@@ -16,6 +16,7 @@
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
+use crate::types::checked_i32;
 
 /// State for creating null masks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,8 +32,8 @@ pub enum MaskState {
 }
 
 /// Compute the number of bytes needed to store a bitmask for `num_bits` elements.
-pub fn bitmask_allocation_size(num_bits: usize) -> usize {
-    cudf_cxx::null_mask::ffi::bitmask_allocation_size(num_bits as i32) as usize
+pub fn bitmask_allocation_size(num_bits: usize) -> Result<usize> {
+    Ok(cudf_cxx::null_mask::ffi::bitmask_allocation_size(checked_i32(num_bits)?) as usize)
 }
 
 /// Copy a column's null mask to a host byte vector.
@@ -40,7 +41,7 @@ pub fn bitmask_allocation_size(num_bits: usize) -> usize {
 /// Each bit indicates whether the corresponding element is valid (1) or null (0).
 /// If the column has no null mask, returns a vector with all bits set to 1.
 pub fn null_mask_to_host(col: &Column) -> Result<Vec<u8>> {
-    let num_bytes = bitmask_allocation_size(col.len());
+    let num_bytes = bitmask_allocation_size(col.len())?;
     if num_bytes == 0 {
         return Ok(Vec::new());
     }
@@ -67,7 +68,7 @@ impl Column {
     /// Returns an error if the mask is too small or a GPU error occurs.
     pub fn with_null_mask(&self, mask: &[u8], null_count: usize) -> Result<Column> {
         let raw =
-            cudf_cxx::null_mask::ffi::set_null_mask_from_host(&self.inner, mask, null_count as i32)
+            cudf_cxx::null_mask::ffi::set_null_mask_from_host(&self.inner, mask, checked_i32(null_count)?)
                 .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
@@ -80,8 +81,8 @@ impl Column {
     pub fn set_null_mask_range(&self, begin: usize, end: usize, valid: bool) -> Result<Column> {
         let raw = cudf_cxx::null_mask::ffi::set_null_mask_range(
             &self.inner,
-            begin as i32,
-            end as i32,
+            checked_i32(begin)?,
+            checked_i32(end)?,
             valid,
         )
         .map_err(CudfError::from_cxx)?;
@@ -124,7 +125,7 @@ pub fn bitmask_and(columns: &[&Column]) -> Result<BitmaskResult> {
 ///
 /// For example, `state_null_count(MaskState::AllNull, 100)` returns 100.
 pub fn state_null_count(state: MaskState, size: usize) -> Result<usize> {
-    let count = cudf_cxx::null_mask::ffi::state_null_count(state as i32, size as i32)
+    let count = cudf_cxx::null_mask::ffi::state_null_count(state as i32, checked_i32(size)?)
         .map_err(CudfError::from_cxx)?;
     Ok(count as usize)
 }
@@ -132,8 +133,8 @@ pub fn state_null_count(state: MaskState, size: usize) -> Result<usize> {
 /// Compute the number of `bitmask_type` words needed for the given number of bits.
 ///
 /// This is the actual number of words, not the padded allocation size.
-pub fn num_bitmask_words(num_bits: usize) -> usize {
-    cudf_cxx::null_mask::ffi::num_bitmask_words(num_bits as i32) as usize
+pub fn num_bitmask_words(num_bits: usize) -> Result<usize> {
+    Ok(cudf_cxx::null_mask::ffi::num_bitmask_words(checked_i32(num_bits)?) as usize)
 }
 
 /// Compute bitwise OR of null masks from multiple columns.

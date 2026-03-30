@@ -220,35 +220,6 @@ std::unique_ptr<OwnedTable> table_from_arrow_ipc(rust::Slice<const uint8_t> data
 
 // ── Arrow C Data Interface ────────────────────────────────────
 
-uint64_t column_to_arrow_schema_ptr(const OwnedColumn& col) {
-    ArrowSchema* schema = nullptr;
-    ArrowArray* array = nullptr;
-    export_column_cdata(col.view(), &schema, &array);
-    // We export both but only return schema here; the array is leaked
-    // intentionally — the caller must also call column_to_arrow_array_ptr.
-    // To avoid double-export we cache the pair.
-    // Actually, cleaner: export once, return both via two calls with a shared export.
-    // But cxx doesn't support tuples. So we export twice (cheap for host data).
-    // Free the array from this call since it won't be used.
-    if (array->release) {
-        array->release(array);
-    }
-    delete array;
-    return reinterpret_cast<uint64_t>(schema);
-}
-
-uint64_t column_to_arrow_array_ptr(const OwnedColumn& col) {
-    ArrowSchema* schema = nullptr;
-    ArrowArray* array = nullptr;
-    export_column_cdata(col.view(), &schema, &array);
-    // Free the schema from this call.
-    if (schema->release) {
-        schema->release(schema);
-    }
-    delete schema;
-    return reinterpret_cast<uint64_t>(array);
-}
-
 std::unique_ptr<OwnedColumn> column_from_arrow_cdata(uint64_t schema_ptr, uint64_t array_ptr) {
     if (schema_ptr == 0 || array_ptr == 0) {
         throw std::runtime_error("null Arrow schema or array pointer");
@@ -313,28 +284,6 @@ std::unique_ptr<OwnedColumn> column_from_arrow_cdata(uint64_t schema_ptr, uint64
     }
     auto columns = table->release();
     return std::make_unique<OwnedColumn>(std::move(columns[0]));
-}
-
-uint64_t table_to_arrow_schema_ptr(const OwnedTable& table) {
-    ArrowSchema* schema = nullptr;
-    ArrowArray* array = nullptr;
-    export_table_cdata(table.view(), &schema, &array);
-    if (array->release) {
-        array->release(array);
-    }
-    delete array;
-    return reinterpret_cast<uint64_t>(schema);
-}
-
-uint64_t table_to_arrow_array_ptr(const OwnedTable& table) {
-    ArrowSchema* schema = nullptr;
-    ArrowArray* array = nullptr;
-    export_table_cdata(table.view(), &schema, &array);
-    if (schema->release) {
-        schema->release(schema);
-    }
-    delete schema;
-    return reinterpret_cast<uint64_t>(array);
 }
 
 std::unique_ptr<OwnedTable> table_from_arrow_cdata(uint64_t schema_ptr, uint64_t array_ptr) {

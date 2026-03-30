@@ -23,6 +23,7 @@
 use crate::error::{CudfError, Result};
 use crate::sorting::{NullOrder, SortOrder};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 impl Table {
     /// Merge this pre-sorted table with another pre-sorted table.
@@ -43,7 +44,7 @@ impl Table {
         orders: &[SortOrder],
         null_orders: &[NullOrder],
     ) -> Result<Table> {
-        let keys: Vec<i32> = key_cols.iter().map(|&k| k as i32).collect();
+        let keys: Vec<i32> = key_cols.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();
 

@@ -11,17 +11,6 @@
 
 namespace cudf_shims {
 
-/// Partition a table by hashing the specified columns.
-std::unique_ptr<OwnedTable> hash_partition(
-    const OwnedTable& table,
-    rust::Slice<const int32_t> columns_to_hash,
-    int32_t num_partitions);
-
-/// Partition a table using round-robin assignment.
-std::unique_ptr<OwnedTable> round_robin_partition(
-    const OwnedTable& table,
-    int32_t num_partitions);
-
 /// Result of a partition operation: table + offsets.
 struct PartitionResult {
     std::unique_ptr<OwnedTable> table;
@@ -35,6 +24,17 @@ struct PartitionResult {
         return offsets.at(index);
     }
 };
+
+/// Partition a table by hashing the specified columns.
+std::unique_ptr<PartitionResult> hash_partition(
+    const OwnedTable& table,
+    rust::Slice<const int32_t> columns_to_hash,
+    int32_t num_partitions);
+
+/// Partition a table using round-robin assignment.
+std::unique_ptr<PartitionResult> round_robin_partition(
+    const OwnedTable& table,
+    int32_t num_partitions);
 
 /// Partition a table using a partition map column.
 /// Returns a PartitionResult with the reordered table and offsets.

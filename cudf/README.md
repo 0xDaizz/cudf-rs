@@ -4,7 +4,7 @@ Safe Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf) -- G
 
 ## Features
 
-- **100% safe public API** -- all `unsafe` is confined to the internal FFI layer
+- **Near-zero unsafe public API** -- all `unsafe` is confined to the internal FFI layer, with the sole exception of `DLPackTensor::from_raw_ptr`
 - **Zero-cost ownership** -- `Column` and `Table` map directly to libcudf's RAII types
 - **Compile-time safety** -- Rust's borrow checker prevents use-after-free on GPU memory
 - **Arrow interop** -- zero-copy conversion to/from `arrow-rs` arrays
@@ -65,18 +65,22 @@ cudf-rs/
 ### Re-exports
 
 ```rust
-pub use Column, Table, Scalar;
-pub use DataType, TypeId;
+pub use Column, CudfType, Table, TableWithMetadata, Scalar;
+pub use DataType, TypeId, NullHandling;
 pub use CudfError, Result;
 pub use SortOrder, NullOrder;
 pub use OutOfBoundsPolicy;
 pub use UnaryOp, BinaryOp;
 pub use DuplicateKeepOption;
-pub use AggregationKind, GroupBy;
-pub use ReduceOp, ScanOp;
+pub use AggregationKind, GroupBy, GroupByGroups, GroupByReplacePolicy, GroupByScan, GroupByScanOp;
+pub use ReduceOp, ScanOp, MinMaxResult;
 pub use Interpolation;
 pub use RollingAgg;
-pub use JoinResult;
+pub use JoinResult, HashJoin, SemiJoinResult;
+pub use JsonObjectOptions;
+pub use PartitionResult;
+pub use NullReplacePolicy;
+pub use DLPackTensor, PackedTable, SplitResult;
 ```
 
 ### Compute Operations
@@ -146,15 +150,32 @@ All string operations are methods on `Column` (for string-typed columns):
 | `col.str_cat(separator)` | `strings::combine` | Concatenation |
 | `col.str_to_integers(dtype)` / `col.integers_to_str()` | `strings::convert` | Type conversion |
 | `col.str_extract(pattern)` | `strings::extract` | Regex capture groups |
+| `col.str_findall(pattern)` | `strings::findall` | All regex matches |
+| `col.str_like(pattern, escape)` | `strings::like` | SQL LIKE matching |
+| `col.str_pad(width, side, fill)` | `strings::padding` | Pad strings to width |
+| `col.str_partition(delimiter)` | `strings::partition` | Split at first delimiter |
+| `col.str_repeat(count)` | `strings::repeat` | Repeat each string N times |
+| `col.str_reverse()` | `strings::reverse` | Reverse strings |
+| `col.str_split_re(pattern)` | `strings::split_re` | Regex split |
+| `col.str_count_characters()` | `strings::attributes` | Character/byte counts |
+| `col.str_all_characters_of_type(type)` | `strings::char_types` | Character type checks |
+| `col.str_translate(...)` | `strings::translate` | Character translation |
+| `col.str_wrap(width)` | `strings::wrap` | Word-wrap strings |
 
 ### Arrow Interop
 
 | Method | Module | Description |
 |--------|--------|-------------|
-| `col.to_arrow_ipc()` | `interop` | Export column to Arrow IPC bytes |
-| `Column::from_arrow_ipc(data)` | `interop` | Import column from Arrow IPC bytes |
-| `table.to_arrow_ipc()` | `interop` | Export table to Arrow IPC bytes |
-| `Table::from_arrow_ipc(data)` | `interop` | Import table from Arrow IPC bytes |
+| `col.to_arrow_array()` | `interop` | Export column to `arrow::ArrayRef` (C Data Interface, preferred) |
+| `Column::from_arrow_array(array)` | `interop` | Import column from `arrow::ArrayRef` (C Data Interface) |
+| `table.to_arrow_batch()` | `interop` | Export table to `arrow::RecordBatch` (C Data Interface, preferred) |
+| `Table::from_arrow_batch(batch)` | `interop` | Import table from `arrow::RecordBatch` (C Data Interface) |
+| `col.to_arrow_ipc()` | `interop` | Export column to Arrow IPC bytes (legacy) |
+| `Column::from_arrow_ipc(data)` | `interop` | Import column from Arrow IPC bytes (legacy) |
+| `table.to_arrow_ipc()` | `interop` | Export table to Arrow IPC bytes (legacy) |
+| `Table::from_arrow_ipc(data)` | `interop` | Import table from Arrow IPC bytes (legacy) |
+| `table.to_record_batch()` | `interop` | Export to `RecordBatch` via IPC (legacy) |
+| `Table::from_record_batch(batch)` | `interop` | Import from `RecordBatch` via IPC (legacy) |
 
 ## Feature Flags
 

@@ -146,6 +146,12 @@ impl Scalar {
     /// assert!(!s.is_valid());
     /// ```
     pub fn null(dtype: DataType) -> Result<Self> {
+        if !dtype.id().is_numeric() && dtype.id() != TypeId::Bool8 {
+            return Err(CudfError::InvalidArgument(format!(
+                "Scalar::null() only supports numeric and boolean types, got {:?}",
+                dtype.id()
+            )));
+        }
         let inner = cudf_cxx::scalar::ffi::make_numeric_scalar(dtype.id() as i32)
             .map_err(CudfError::from_cxx)?;
         // Scalar is already invalid (null) by default from make_numeric_scalar

@@ -20,6 +20,7 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 pub use crate::types::NullHandling;
 
 /// Sort direction for a column.
@@ -214,6 +215,8 @@ impl Table {
         column_order: &[SortOrder],
         null_order: &[NullOrder],
     ) -> Result<Table> {
+        keys.validate_order_slices(column_order.len(), null_order.len())?;
+
         let co = sort_orders_to_i32(column_order);
         let no = null_orders_to_i32(null_order);
 
@@ -237,6 +240,8 @@ impl Table {
         column_order: &[SortOrder],
         null_order: &[NullOrder],
     ) -> Result<Table> {
+        keys.validate_order_slices(column_order.len(), null_order.len())?;
+
         let co = sort_orders_to_i32(column_order);
         let no = null_orders_to_i32(null_order);
 
@@ -285,7 +290,7 @@ impl Column {
     ///
     /// Returns an error if `k` exceeds the column length or a GPU error occurs.
     pub fn top_k(&self, k: usize, order: SortOrder) -> Result<Column> {
-        let raw = cudf_cxx::sorting::ffi::top_k(&self.inner, k as i32, order as i32)
+        let raw = cudf_cxx::sorting::ffi::top_k(&self.inner, checked_i32(k)?, order as i32)
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }

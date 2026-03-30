@@ -502,10 +502,9 @@ rust::Vec<rust::String> column_to_strings(const OwnedColumn& col) {
     }
 
     // Get chars from device.
-    auto chars_size = host_offsets.back() - host_offsets.front();
-    // Synchronize here to ensure offsets are available before computing chars_size
+    // Synchronize to ensure offsets are available before computing chars_size.
     stream.synchronize();
-    chars_size = host_offsets.back() - host_offsets.front();
+    auto chars_size = host_offsets.back() - host_offsets.front();
 
     std::vector<char> host_chars(chars_size);
     if (chars_size > 0) {

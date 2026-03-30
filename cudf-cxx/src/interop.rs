@@ -31,27 +31,11 @@ pub mod ffi {
 
         // ── Arrow C Data Interface ────────────────────────────────
 
-        /// Export column schema as heap-allocated ArrowSchema (returns pointer as u64).
-        /// DEPRECATED: Use column_to_arrow_pair() to avoid double GPU→host copy.
-        fn column_to_arrow_schema_ptr(col: &OwnedColumn) -> Result<u64>;
-
-        /// Export column data as heap-allocated ArrowArray (returns pointer as u64).
-        /// DEPRECATED: Use column_to_arrow_pair() to avoid double GPU→host copy.
-        fn column_to_arrow_array_ptr(col: &OwnedColumn) -> Result<u64>;
-
         /// Import a column from ArrowSchema + ArrowArray pointers.
         fn column_from_arrow_cdata(
             schema_ptr: u64,
             array_ptr: u64,
         ) -> Result<UniquePtr<OwnedColumn>>;
-
-        /// Export table schema as heap-allocated ArrowSchema (returns pointer as u64).
-        /// DEPRECATED: Use table_to_arrow_pair() to avoid double GPU→host copy.
-        fn table_to_arrow_schema_ptr(table: &OwnedTable) -> Result<u64>;
-
-        /// Export table data as heap-allocated ArrowArray (returns pointer as u64).
-        /// DEPRECATED: Use table_to_arrow_pair() to avoid double GPU→host copy.
-        fn table_to_arrow_array_ptr(table: &OwnedTable) -> Result<u64>;
 
         /// Import a table from ArrowSchema + ArrowArray pointers.
         fn table_from_arrow_cdata(schema_ptr: u64, array_ptr: u64)

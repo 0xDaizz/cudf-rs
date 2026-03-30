@@ -16,6 +16,7 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 /// Generate an i32 sequence: init, init+step, init+2*step, ...
 ///
@@ -28,28 +29,28 @@ use crate::table::Table;
 /// // col contains: [10, 12, 14, 16, 18]
 /// ```
 pub fn sequence_i32(size: usize, init: i32, step: i32) -> Result<Column> {
-    let raw = cudf_cxx::filling::ffi::sequence_i32(size as i32, init, step)
+    let raw = cudf_cxx::filling::ffi::sequence_i32(checked_i32(size)?, init, step)
         .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
 }
 
 /// Generate an i64 sequence: init, init+step, init+2*step, ...
 pub fn sequence_i64(size: usize, init: i64, step: i64) -> Result<Column> {
-    let raw = cudf_cxx::filling::ffi::sequence_i64(size as i32, init, step)
+    let raw = cudf_cxx::filling::ffi::sequence_i64(checked_i32(size)?, init, step)
         .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
 }
 
 /// Generate an f32 sequence: init, init+step, init+2*step, ...
 pub fn sequence_f32(size: usize, init: f32, step: f32) -> Result<Column> {
-    let raw = cudf_cxx::filling::ffi::sequence_f32(size as i32, init, step)
+    let raw = cudf_cxx::filling::ffi::sequence_f32(checked_i32(size)?, init, step)
         .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
 }
 
 /// Generate an f64 sequence: init, init+step, init+2*step, ...
 pub fn sequence_f64(size: usize, init: f64, step: f64) -> Result<Column> {
-    let raw = cudf_cxx::filling::ffi::sequence_f64(size as i32, init, step)
+    let raw = cudf_cxx::filling::ffi::sequence_f64(checked_i32(size)?, init, step)
         .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
 }
@@ -68,7 +69,7 @@ impl Table {
     /// assert_eq!(repeated.num_rows(), 9);
     /// ```
     pub fn repeat(&self, count: usize) -> Result<Table> {
-        let raw = cudf_cxx::filling::ffi::repeat_table(&self.inner, count as i32)
+        let raw = cudf_cxx::filling::ffi::repeat_table(&self.inner, checked_i32(count)?)
             .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
@@ -94,7 +95,7 @@ pub fn calendrical_month_sequence(
     init: &crate::scalar::Scalar,
     months: i32,
 ) -> Result<Column> {
-    let raw = cudf_cxx::filling::ffi::calendrical_month_sequence(size as i32, &init.inner, months)
+    let raw = cudf_cxx::filling::ffi::calendrical_month_sequence(checked_i32(size)?, &init.inner, months)
         .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
 }

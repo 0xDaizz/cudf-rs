@@ -134,7 +134,7 @@ impl Table {
         let mut result = Vec::with_capacity(n);
         // Release in reverse order to avoid index shifting
         for i in (0..n).rev() {
-            let col = cudf_cxx::table::ffi::table_release_column(self.inner.pin_mut(), i as i32)
+            let col = cudf_cxx::table::ffi::table_release_column(self.inner.pin_mut(), checked_i32(i)?)
                 .map_err(CudfError::from_cxx)?;
             result.push(Column { inner: col });
         }

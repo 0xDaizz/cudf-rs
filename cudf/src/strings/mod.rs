@@ -3,7 +3,9 @@
 //! This module provides GPU-accelerated string manipulation functions
 //! including case conversion, search, pattern matching, replacement,
 //! splitting, stripping, type conversion, concatenation, slicing,
-//! and regex extraction.
+//! regex extraction, padding, repetition, reversal, character type
+//! checking, SQL LIKE matching, translation, word wrapping, and
+//! string attribute queries.
 //!
 //! All operations work on string-type [`Column`](crate::Column)s and
 //! return new columns (or tables) without modifying the input.

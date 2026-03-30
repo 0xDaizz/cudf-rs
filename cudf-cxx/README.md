@@ -14,7 +14,7 @@ cudf-cxx/
 │   ├── table.rs   # table, table_view
 │   ├── io/        # parquet, csv, json, orc, avro
 │   ├── strings/   # case, combine, contains, convert, extract, find, replace, slice, split, strip
-│   └── ...        # 30 top-level modules total
+│   └── ...        # 37 top-level modules total
 └── cpp/           # C++ shim layer
     ├── include/   # Header files (.h)
     └── src/       # Implementation files (.cpp)
@@ -37,7 +37,7 @@ Each libcudf module has three corresponding files:
 | `column.rs` | `column_shim` | `cudf/column/` |
 | `table.rs` | `table_shim` | `cudf/table/` |
 
-### Compute (14)
+### Compute (15)
 
 | Bridge | C++ Shim | libcudf Module |
 |--------|----------|----------------|
@@ -55,8 +55,9 @@ Each libcudf module has three corresponding files:
 | `hashing.rs` | `hashing_shim` | `cudf/hashing/` |
 | `datetime.rs` | `datetime_shim` | `cudf/datetime/` |
 | `scalar.rs` | `scalar_shim` | `cudf/scalar/` |
+| `label_bins.rs` | `label_bins_shim` | `cudf/labeling/` |
 
-### Data Manipulation (10)
+### Data Manipulation (16)
 
 | Bridge | C++ Shim | libcudf Module |
 |--------|----------|----------------|
@@ -70,6 +71,12 @@ Each libcudf module has three corresponding files:
 | `reshape.rs` | `reshape_shim` | `cudf/reshape.hpp` |
 | `transpose.rs` | `transpose_shim` | `cudf/transpose.hpp` |
 | `partitioning.rs` | `partitioning_shim` | `cudf/partitioning.hpp` |
+| `replace.rs` | `replace_shim` | `cudf/replace.hpp` |
+| `dictionary.rs` | `dictionary_shim` | `cudf/dictionary/` |
+| `json.rs` | `json_shim` | `cudf/json/` |
+| `lists/ops.rs` | `lists/lists_shim` | `cudf/lists/` |
+| `structs.rs` | `structs_shim` | `cudf/structs/` |
+| `timezone.rs` | `timezone_shim` | `cudf/io/timezone.hpp` |
 
 ### I/O (5)
 
@@ -81,7 +88,7 @@ Each libcudf module has three corresponding files:
 | `io/orc.rs` | `io/orc_shim` | `cudf/io/orc.hpp` |
 | `io/avro.rs` | `io/avro_shim` | `cudf/io/avro.hpp` |
 
-### String Operations (10)
+### String Operations (21)
 
 | Bridge | C++ Shim | libcudf Module |
 |--------|----------|----------------|
@@ -95,6 +102,17 @@ Each libcudf module has three corresponding files:
 | `strings/slice.rs` | `strings/slice_shim` | `cudf/strings/substring.hpp` |
 | `strings/split.rs` | `strings/split_shim` | `cudf/strings/split/` |
 | `strings/strip.rs` | `strings/strip_shim` | `cudf/strings/strip.hpp` |
+| `strings/split_re.rs` | `strings/split_re_shim` | `cudf/strings/split/` |
+| `strings/partition.rs` | `strings/partition_shim` | `cudf/strings/split/partition.hpp` |
+| `strings/padding.rs` | `strings/padding_shim` | `cudf/strings/padding.hpp` |
+| `strings/repeat.rs` | `strings/repeat_shim` | `cudf/strings/repeat_strings.hpp` |
+| `strings/findall.rs` | `strings/findall_shim` | `cudf/strings/findall.hpp` |
+| `strings/attributes.rs` | `strings/attributes_shim` | `cudf/strings/attributes.hpp` |
+| `strings/translate.rs` | `strings/translate_shim` | `cudf/strings/translate.hpp` |
+| `strings/reverse.rs` | `strings/reverse_shim` | `cudf/strings/reverse.hpp` |
+| `strings/wrap.rs` | `strings/wrap_shim` | `cudf/strings/wrap.hpp` |
+| `strings/char_types.rs` | `strings/char_types_shim` | `cudf/strings/char_types.hpp` |
+| `strings/like.rs` | `strings/like_shim` | `cudf/strings/like.hpp` |
 
 ### Interop (1)
 
@@ -102,7 +120,7 @@ Each libcudf module has three corresponding files:
 |--------|----------|----------------|
 | `interop.rs` | `interop_shim` | `cudf/interop.hpp` |
 
-**Total: 43 modules** (3 core + 14 compute + 10 data manipulation + 5 I/O + 10 strings + 1 interop)
+**Total: 61 modules** (3 core + 15 compute + 16 data manipulation + 5 I/O + 21 strings + 1 interop)
 
 ## Adding a New Binding
 

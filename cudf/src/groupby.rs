@@ -30,6 +30,7 @@ use crate::aggregation::{Aggregation, AggregationKind};
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 /// A groupby operation builder.
 ///
@@ -89,7 +90,7 @@ impl<'a> GroupBy<'a> {
         for (col_idx, agg) in self.requests {
             cudf_cxx::groupby::ffi::groupby_add_request(
                 builder.pin_mut(),
-                col_idx as i32,
+                checked_i32(col_idx)?,
                 agg.inner,
             );
         }
@@ -115,7 +116,7 @@ impl<'a> GroupBy<'a> {
         for (col_idx, agg) in self.requests {
             cudf_cxx::groupby::ffi::groupby_add_request(
                 builder.pin_mut(),
-                col_idx as i32,
+                checked_i32(col_idx)?,
                 agg.inner,
             );
         }
@@ -139,7 +140,7 @@ impl<'a> GroupBy<'a> {
         for (col_idx, agg) in self.requests {
             cudf_cxx::groupby::ffi::groupby_add_request(
                 builder.pin_mut(),
-                col_idx as i32,
+                checked_i32(col_idx)?,
                 agg.inner,
             );
         }
@@ -225,7 +226,7 @@ impl<'a> GroupByScan<'a> {
         for (col_idx, op) in self.requests {
             cudf_cxx::groupby::ffi::groupby_scan_add_request(
                 builder.pin_mut(),
-                col_idx as i32,
+                checked_i32(col_idx)?,
                 op as i32,
             );
         }

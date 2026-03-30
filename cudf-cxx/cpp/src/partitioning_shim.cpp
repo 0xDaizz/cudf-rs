@@ -5,7 +5,7 @@
 
 namespace cudf_shims {
 
-std::unique_ptr<OwnedTable> hash_partition(
+std::unique_ptr<PartitionResult> hash_partition(
     const OwnedTable& table,
     rust::Slice<const int32_t> columns_to_hash,
     int32_t num_partitions)
@@ -15,17 +15,25 @@ std::unique_ptr<OwnedTable> hash_partition(
         table.view(),
         cols,
         num_partitions);
-    return std::make_unique<OwnedTable>(std::move(result));
+    auto pr = std::make_unique<PartitionResult>();
+    pr->table = std::make_unique<OwnedTable>(std::move(result));
+    std::vector<int32_t> offsets_i32(offsets.begin(), offsets.end());
+    pr->offsets = std::move(offsets_i32);
+    return pr;
 }
 
-std::unique_ptr<OwnedTable> round_robin_partition(
+std::unique_ptr<PartitionResult> round_robin_partition(
     const OwnedTable& table,
     int32_t num_partitions)
 {
     auto [result, offsets] = cudf::round_robin_partition(
         table.view(),
         num_partitions);
-    return std::make_unique<OwnedTable>(std::move(result));
+    auto pr = std::make_unique<PartitionResult>();
+    pr->table = std::make_unique<OwnedTable>(std::move(result));
+    std::vector<int32_t> offsets_i32(offsets.begin(), offsets.end());
+    pr->offsets = std::move(offsets_i32);
+    return pr;
 }
 
 std::unique_ptr<PartitionResult> partition(

@@ -25,7 +25,9 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
+#[cfg(feature = "arrow-interop")]
 use arrow_array::Array as _;
 
 // ── Arrow IPC (legacy) ────────────────────────────────────────
@@ -97,8 +99,15 @@ impl Column {
         let schema_ptr = Box::into_raw(Box::new(ffi_schema)) as u64;
         let array_ptr = Box::into_raw(Box::new(ffi_array)) as u64;
 
-        let raw = cudf_cxx::interop::ffi::column_from_arrow_cdata(schema_ptr, array_ptr)
-            .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::interop::ffi::column_from_arrow_cdata(schema_ptr, array_ptr);
+        if result.is_err() {
+            // C++ threw before taking ownership — reclaim and drop to prevent leak.
+            unsafe {
+                drop(Box::from_raw(schema_ptr as *mut arrow::ffi::FFI_ArrowSchema));
+                drop(Box::from_raw(array_ptr as *mut arrow::ffi::FFI_ArrowArray));
+            }
+        }
+        let raw = result.map_err(CudfError::from_cxx)?;
         Ok(Self { inner: raw })
     }
 }
@@ -143,8 +152,15 @@ impl Table {
         let schema_ptr = Box::into_raw(Box::new(ffi_schema)) as u64;
         let array_ptr = Box::into_raw(Box::new(ffi_array)) as u64;
 
-        let raw = cudf_cxx::interop::ffi::table_from_arrow_cdata(schema_ptr, array_ptr)
-            .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::interop::ffi::table_from_arrow_cdata(schema_ptr, array_ptr);
+        if result.is_err() {
+            // C++ threw before taking ownership — reclaim and drop to prevent leak.
+            unsafe {
+                drop(Box::from_raw(schema_ptr as *mut arrow::ffi::FFI_ArrowSchema));
+                drop(Box::from_raw(array_ptr as *mut arrow::ffi::FFI_ArrowArray));
+            }
+        }
+        let raw = result.map_err(CudfError::from_cxx)?;
         Ok(Self { inner: raw })
     }
 }
@@ -222,11 +238,20 @@ impl DLPackTensor {
 
     /// Import a table from this DLPack tensor, consuming the tensor.
     pub fn to_table(self) -> Result<Table> {
-        let raw =
-            cudf_cxx::interop::ffi::table_from_dlpack(self.ptr).map_err(CudfError::from_cxx)?;
-        // Prevent Drop from double-freeing.
-        std::mem::forget(self);
-        Ok(Table { inner: raw })
+        // Wrap in ManuallyDrop immediately to prevent Drop from running
+        // regardless of how this function exits (success, error, or panic).
+        let this = std::mem::ManuallyDrop::new(self);
+        match cudf_cxx::interop::ffi::table_from_dlpack(this.ptr) {
+            Ok(raw) => {
+                // Success: C++ consumed the tensor, don't run our Drop.
+                Ok(Table { inner: raw })
+            }
+            Err(e) => {
+                // C++ did not consume the tensor — free it manually.
+                cudf_cxx::interop::ffi::free_dlpack(this.ptr);
+                Err(CudfError::from_cxx(e))
+            }
+        }
     }
 
     /// Get the raw `DLManagedTensor*` pointer as `usize`.
@@ -344,7 +369,7 @@ impl SplitResult {
                 size: self.num_parts,
             });
         }
-        let raw = cudf_cxx::interop::ffi::contiguous_split_get(self.handle, index as i32)
+        let raw = cudf_cxx::interop::ffi::contiguous_split_get(self.handle, checked_i32(index)?)
             .map_err(CudfError::from_cxx)?;
         Ok(PackedTable { inner: raw })
     }

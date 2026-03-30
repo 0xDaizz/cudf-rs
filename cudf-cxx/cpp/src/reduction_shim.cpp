@@ -161,8 +161,10 @@ std::unique_ptr<OwnedScalar> reduce_with_init(
 bool is_valid_reduction_aggregation(int32_t source_type_id, int32_t agg_kind)
 {
     auto src_type = cudf::data_type{static_cast<cudf::type_id>(source_type_id)};
-    auto kind = static_cast<cudf::aggregation::Kind>(agg_kind);
-    return cudf::reduction::is_valid_aggregation(src_type, kind);
+    // Use make_reduce_agg to get the correct aggregation (same mapping as reduce()),
+    // then extract its Kind — avoids assuming ReduceOp numbering == aggregation::Kind.
+    auto agg = make_reduce_agg(agg_kind);
+    return cudf::reduction::is_valid_aggregation(src_type, agg->kind);
 }
 
 } // namespace cudf_shims

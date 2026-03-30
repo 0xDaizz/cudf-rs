@@ -237,6 +237,7 @@ impl ChunkedParquetReader {
 /// ```
 pub struct ChunkedParquetWriter {
     inner: cxx::UniquePtr<cudf_cxx::io::parquet::ffi::OwnedChunkedParquetWriter>,
+    closed: bool,
 }
 
 // SAFETY: GPU memory is process-global.
@@ -254,7 +255,7 @@ impl ChunkedParquetWriter {
         let inner =
             cudf_cxx::io::parquet::ffi::chunked_parquet_writer_create(&path, compression as i32)
                 .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner })
+        Ok(Self { inner, closed: false })
     }
 
     /// Write a table chunk to the Parquet file.
@@ -268,6 +269,19 @@ impl ChunkedParquetWriter {
     /// This must be called to ensure all data is flushed.
     pub fn close(&mut self) -> Result<()> {
         cudf_cxx::io::parquet::ffi::chunked_parquet_writer_close(self.inner.pin_mut())
-            .map_err(CudfError::from_cxx)
+            .map_err(CudfError::from_cxx)?;
+        self.closed = true;
+        Ok(())
+    }
+}
+
+impl Drop for ChunkedParquetWriter {
+    fn drop(&mut self) {
+        if !self.closed {
+            // Best-effort close to prevent corrupt files.
+            // Errors are silently ignored since Drop cannot return Result.
+            let _ =
+                cudf_cxx::io::parquet::ffi::chunked_parquet_writer_close(self.inner.pin_mut());
+        }
     }
 }

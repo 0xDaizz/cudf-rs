@@ -18,6 +18,17 @@ All operations are implemented as methods on `Column` and return new columns (or
 | `combine` | Concatenation | `str_cat(separator)` |
 | `convert` | Type conversion | `str_to_integers(dtype)`, `integers_to_str()` |
 | `extract` | Regex extraction | `str_extract(pattern)` |
+| `findall` | Regex match extraction | `str_findall(pattern)` |
+| `like` | SQL LIKE pattern matching | `str_like(pattern, escape_char)` |
+| `padding` | String padding | `str_pad(width, side, fill_char)` |
+| `partition` | Split at first delimiter | `str_partition(delimiter)`, `str_rpartition(delimiter)` |
+| `repeat` | String repetition | `str_repeat(count)` |
+| `reverse` | String reversal | `str_reverse()` |
+| `split_re` | Regex-based splitting | `str_split_re(pattern, maxsplit)` |
+| `attributes` | String attributes | `str_count_characters()`, `str_count_bytes()` |
+| `char_types` | Character type checking | `str_all_characters_of_type(type)` |
+| `translate` | Character translation | `str_translate(table)` |
+| `wrap` | Word wrapping | `str_wrap(width)` |
 
 ## Examples
 

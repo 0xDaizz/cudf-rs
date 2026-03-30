@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "Native build script for linking against NVIDIA libcudf"
+readme = "README.md"
+keywords = ["gpu", "cuda", "ffi", "rapids"]
+categories = ["api-bindings"]
 links = "cudf"
 
 [build-dependencies]

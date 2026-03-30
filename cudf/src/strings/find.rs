@@ -3,13 +3,14 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 impl Column {
     /// Find first occurrence of `target` in each string, starting at `start`.
     ///
     /// Returns an INT32 column of positions (-1 if not found).
     pub fn str_find(&self, target: &str, start: usize) -> Result<Column> {
-        let result = cudf_cxx::strings::find::ffi::str_find(&self.inner, target, start as i32)
+        let result = cudf_cxx::strings::find::ffi::str_find(&self.inner, target, checked_i32(start)?)
             .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }
@@ -68,7 +69,7 @@ impl Column {
         let result = cudf_cxx::strings::find::ffi::str_find_column(
             &self.inner,
             &targets.inner,
-            start as i32,
+            checked_i32(start)?,
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
@@ -79,7 +80,7 @@ impl Column {
     /// Returns an INT32 column of positions (-1 if not found).
     pub fn str_find_instance(&self, target: &str, instance: usize) -> Result<Column> {
         let result =
-            cudf_cxx::strings::find::ffi::str_find_instance(&self.inner, target, instance as i32)
+            cudf_cxx::strings::find::ffi::str_find_instance(&self.inner, target, checked_i32(instance)?)
                 .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: result })
     }

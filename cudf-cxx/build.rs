@@ -12,7 +12,19 @@ fn main() {
         // Fallback: try CONDA_PREFIX
         env::var("CONDA_PREFIX")
             .map(|p| format!("{}/include", p))
-            .unwrap_or_else(|_| "/usr/local/include".to_string())
+            .unwrap_or_else(|_| {
+            // Check if /usr/local/include/cudf exists as a last resort
+            let fallback = "/usr/local/include";
+            let cudf_header = std::path::Path::new(fallback).join("cudf").join("types.hpp");
+            if !cudf_header.exists() {
+                panic!(
+                    "Cannot find cudf headers. Set CUDF_ROOT, CONDA_PREFIX, \
+                     or ensure cudf headers are in /usr/local/include"
+                );
+            }
+            eprintln!("cargo:warning=Using fallback cudf headers from /usr/local/include");
+            fallback.to_string()
+        })
     });
 
     let cudf_include_path = PathBuf::from(&cudf_include);
@@ -215,6 +227,42 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=cudart");
     println!("cargo:rustc-link-lib=dylib=rmm");
 
-    println!("cargo:rerun-if-changed=cpp/");
-    println!("cargo:rerun-if-changed=src/");
+    // Emit rerun-if-changed for each source file individually,
+    // because cargo only checks directory mtime, not contents.
+    for dir in &["cpp/include", "cpp/src"] {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    println!("cargo:rerun-if-changed={}", path.display());
+                } else if path.is_dir() {
+                    // Handle subdirectories (e.g., cpp/include/io/, cpp/src/strings/)
+                    if let Ok(sub) = std::fs::read_dir(&path) {
+                        for sub_entry in sub.flatten() {
+                            if sub_entry.path().is_file() {
+                                println!("cargo:rerun-if-changed={}", sub_entry.path().display());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Also watch Rust bridge sources
+    if let Ok(entries) = std::fs::read_dir("src") {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            } else if path.is_dir() {
+                if let Ok(sub) = std::fs::read_dir(&path) {
+                    for sub_entry in sub.flatten() {
+                        if sub_entry.path().is_file() {
+                            println!("cargo:rerun-if-changed={}", sub_entry.path().display());
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

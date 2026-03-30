@@ -10,12 +10,15 @@
 //! let col = Column::from_slice(&[1i32, 2, 3, 4, 5, 6]).unwrap();
 //! let table = Table::new(vec![col]).unwrap();
 //!
-//! let partitioned = table.hash_partition(&[0], 3).unwrap();
+//! let result = table.hash_partition(&[0], 3).unwrap();
+//! let _table = result.table;
+//! let _offsets = result.offsets;
 //! ```
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
+use crate::types::checked_i32;
 
 /// Result of a partition operation.
 pub struct PartitionResult {
@@ -39,22 +42,38 @@ impl Table {
         &self,
         columns_to_hash: &[usize],
         num_partitions: usize,
-    ) -> Result<Table> {
-        let cols: Vec<i32> = columns_to_hash.iter().map(|&c| c as i32).collect();
-        let raw =
-            cudf_cxx::partitioning::ffi::hash_partition(&self.inner, &cols, num_partitions as i32)
+    ) -> Result<PartitionResult> {
+        let cols: Vec<i32> = columns_to_hash.iter().map(|&c| checked_i32(c)).collect::<Result<Vec<i32>>>()?;
+        let result =
+            cudf_cxx::partitioning::ffi::hash_partition(&self.inner, &cols, checked_i32(num_partitions)?)
                 .map_err(CudfError::from_cxx)?;
-        Ok(Table { inner: raw })
+
+        let offsets = cudf_cxx::partitioning::ffi::partition_result_offsets(&result);
+        let table_raw = cudf_cxx::partitioning::ffi::partition_result_table(result)
+            .map_err(CudfError::from_cxx)?;
+
+        Ok(PartitionResult {
+            table: Table { inner: table_raw },
+            offsets,
+        })
     }
 
     /// Partition this table using round-robin assignment.
     ///
     /// Rows are distributed evenly across partitions in order.
-    pub fn round_robin_partition(&self, num_partitions: usize) -> Result<Table> {
-        let raw =
-            cudf_cxx::partitioning::ffi::round_robin_partition(&self.inner, num_partitions as i32)
+    pub fn round_robin_partition(&self, num_partitions: usize) -> Result<PartitionResult> {
+        let result =
+            cudf_cxx::partitioning::ffi::round_robin_partition(&self.inner, checked_i32(num_partitions)?)
                 .map_err(CudfError::from_cxx)?;
-        Ok(Table { inner: raw })
+
+        let offsets = cudf_cxx::partitioning::ffi::partition_result_offsets(&result);
+        let table_raw = cudf_cxx::partitioning::ffi::partition_result_table(result)
+            .map_err(CudfError::from_cxx)?;
+
+        Ok(PartitionResult {
+            table: Table { inner: table_raw },
+            offsets,
+        })
     }
 
     /// Partition this table using a partition map column.
@@ -75,7 +94,7 @@ impl Table {
         let result = cudf_cxx::partitioning::ffi::partition(
             &self.inner,
             &partition_map.inner,
-            num_partitions as i32,
+            checked_i32(num_partitions)?,
         )
         .map_err(CudfError::from_cxx)?;
 
