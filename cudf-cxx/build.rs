@@ -13,18 +13,20 @@ fn main() {
         env::var("CONDA_PREFIX")
             .map(|p| format!("{}/include", p))
             .unwrap_or_else(|_| {
-            // Check if /usr/local/include/cudf exists as a last resort
-            let fallback = "/usr/local/include";
-            let cudf_header = std::path::Path::new(fallback).join("cudf").join("types.hpp");
-            if !cudf_header.exists() {
-                panic!(
-                    "Cannot find cudf headers. Set CUDF_ROOT, CONDA_PREFIX, \
+                // Check if /usr/local/include/cudf exists as a last resort
+                let fallback = "/usr/local/include";
+                let cudf_header = std::path::Path::new(fallback)
+                    .join("cudf")
+                    .join("types.hpp");
+                if !cudf_header.exists() {
+                    panic!(
+                        "Cannot find cudf headers. Set CUDF_ROOT, CONDA_PREFIX, \
                      or ensure cudf headers are in /usr/local/include"
-                );
-            }
-            eprintln!("cargo:warning=Using fallback cudf headers from /usr/local/include");
-            fallback.to_string()
-        })
+                    );
+                }
+                eprintln!("cargo:warning=Using fallback cudf headers from /usr/local/include");
+                fallback.to_string()
+            })
     });
 
     let cudf_include_path = PathBuf::from(&cudf_include);
@@ -63,6 +65,12 @@ fn main() {
             println!("cargo:rustc-link-search=native={}", pyarrow_lib.display());
             println!("cargo:rustc-link-lib=dylib=arrow");
         }
+    }
+
+    // For conda environments, CCCL headers are at $CONDA_PREFIX/include/rapids/
+    let rapids_conda = cudf_include_path.join("rapids");
+    if rapids_conda.exists() {
+        extra_includes.push(rapids_conda);
     }
 
     // Also check CUDA include path
@@ -226,6 +234,15 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=cudf");
     println!("cargo:rustc-link-lib=dylib=cudart");
     println!("cargo:rustc-link-lib=dylib=rmm");
+
+    // For conda environments, link Arrow from CONDA_PREFIX/lib
+    if let Ok(conda_prefix) = env::var("CONDA_PREFIX") {
+        let conda_lib = PathBuf::from(&conda_prefix).join("lib");
+        if conda_lib.join("libarrow.so").exists() || conda_lib.join("libarrow.dylib").exists() {
+            println!("cargo:rustc-link-search=native={}", conda_lib.display());
+            println!("cargo:rustc-link-lib=dylib=arrow");
+        }
+    }
 
     // Emit rerun-if-changed for each source file individually,
     // because cargo only checks directory mtime, not contents.

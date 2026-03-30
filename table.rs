@@ -22,7 +22,6 @@ use cxx::UniquePtr;
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
-use crate::types::checked_i32;
 
 /// An owning, GPU-resident table (ordered collection of columns).
 ///
@@ -48,9 +47,6 @@ impl Table {
     }
 
     /// Number of rows in this table.
-    ///
-    /// Returns 0 if the table's columns have been released (e.g., after
-    /// `table_release_column` has consumed all columns on the C++ side).
     pub fn num_rows(&self) -> usize {
         self.inner.num_rows() as usize
     }
@@ -118,8 +114,7 @@ impl Table {
             });
         }
 
-        let index_i32 = checked_i32(index)?;
-        let raw = cudf_cxx::table::ffi::table_get_column(&self.inner, index_i32)
+        let raw = cudf_cxx::table::ffi::table_get_column(&self.inner, index as i32)
             .map_err(CudfError::from_cxx)?;
 
         Ok(Column { inner: raw })
@@ -134,69 +129,15 @@ impl Table {
         let mut result = Vec::with_capacity(n);
         // Release in reverse order to avoid index shifting
         for i in (0..n).rev() {
-            let col =
-                cudf_cxx::table::ffi::table_release_column(self.inner.pin_mut(), checked_i32(i)?)
-                    .map_err(CudfError::from_cxx)?;
+            let col = cudf_cxx::table::ffi::table_release_column(
+                self.inner.pin_mut(),
+                i as i32,
+            )
+            .map_err(CudfError::from_cxx)?;
             result.push(Column { inner: col });
         }
         result.reverse();
         Ok(result)
-    }
-}
-
-/// A table together with column names, as returned by IO readers.
-///
-/// This wraps a [`Table`] with the column names extracted from the
-/// file metadata (e.g., Parquet schema, CSV header, JSON keys).
-pub struct TableWithMetadata {
-    /// The GPU-resident table data.
-    pub table: Table,
-    /// Column names corresponding to each column in `table`.
-    pub column_names: Vec<String>,
-}
-
-impl TableWithMetadata {
-    /// Build from the raw FFI metadata wrapper.
-    pub(crate) fn from_raw(
-        raw: cxx::UniquePtr<cudf_cxx::table::ffi::OwnedTableWithMetadata>,
-    ) -> Result<Self> {
-        let ncols = cudf_cxx::table::ffi::table_meta_num_columns(&raw);
-        let mut names = Vec::with_capacity(ncols as usize);
-        for i in 0..ncols {
-            let name = cudf_cxx::table::ffi::table_meta_column_name(&raw, i)
-                .map_err(CudfError::from_cxx)?;
-            names.push(name);
-        }
-        let inner =
-            cudf_cxx::table::ffi::table_meta_into_table(raw).map_err(CudfError::from_cxx)?;
-        Ok(Self {
-            table: Table { inner },
-            column_names: names,
-        })
-    }
-}
-
-impl fmt::Debug for TableWithMetadata {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "TableWithMetadata(columns={}, rows={}, names={:?})",
-            self.table.num_columns(),
-            self.table.num_rows(),
-            self.column_names
-        )
-    }
-}
-
-impl fmt::Display for TableWithMetadata {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "TableWithMetadata(columns={}, rows={}, names={:?})",
-            self.table.num_columns(),
-            self.table.num_rows(),
-            self.column_names
-        )
     }
 }
 

@@ -43,10 +43,16 @@ impl Table {
         columns_to_hash: &[usize],
         num_partitions: usize,
     ) -> Result<PartitionResult> {
-        let cols: Vec<i32> = columns_to_hash.iter().map(|&c| checked_i32(c)).collect::<Result<Vec<i32>>>()?;
-        let result =
-            cudf_cxx::partitioning::ffi::hash_partition(&self.inner, &cols, checked_i32(num_partitions)?)
-                .map_err(CudfError::from_cxx)?;
+        let cols: Vec<i32> = columns_to_hash
+            .iter()
+            .map(|&c| checked_i32(c))
+            .collect::<Result<Vec<i32>>>()?;
+        let result = cudf_cxx::partitioning::ffi::hash_partition(
+            &self.inner,
+            &cols,
+            checked_i32(num_partitions)?,
+        )
+        .map_err(CudfError::from_cxx)?;
 
         let offsets = cudf_cxx::partitioning::ffi::partition_result_offsets(&result);
         let table_raw = cudf_cxx::partitioning::ffi::partition_result_table(result)
@@ -62,9 +68,11 @@ impl Table {
     ///
     /// Rows are distributed evenly across partitions in order.
     pub fn round_robin_partition(&self, num_partitions: usize) -> Result<PartitionResult> {
-        let result =
-            cudf_cxx::partitioning::ffi::round_robin_partition(&self.inner, checked_i32(num_partitions)?)
-                .map_err(CudfError::from_cxx)?;
+        let result = cudf_cxx::partitioning::ffi::round_robin_partition(
+            &self.inner,
+            checked_i32(num_partitions)?,
+        )
+        .map_err(CudfError::from_cxx)?;
 
         let offsets = cudf_cxx::partitioning::ffi::partition_result_offsets(&result);
         let table_raw = cudf_cxx::partitioning::ffi::partition_result_table(result)

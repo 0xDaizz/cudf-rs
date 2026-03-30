@@ -95,7 +95,8 @@ pub fn calendrical_month_sequence(
     init: &crate::scalar::Scalar,
     months: i32,
 ) -> Result<Column> {
-    let raw = cudf_cxx::filling::ffi::calendrical_month_sequence(checked_i32(size)?, &init.inner, months)
-        .map_err(CudfError::from_cxx)?;
+    let raw =
+        cudf_cxx::filling::ffi::calendrical_month_sequence(checked_i32(size)?, &init.inner, months)
+            .map_err(CudfError::from_cxx)?;
     Ok(Column { inner: raw })
 }

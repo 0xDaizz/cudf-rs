@@ -67,9 +67,12 @@ impl Column {
     ///
     /// Returns an error if the mask is too small or a GPU error occurs.
     pub fn with_null_mask(&self, mask: &[u8], null_count: usize) -> Result<Column> {
-        let raw =
-            cudf_cxx::null_mask::ffi::set_null_mask_from_host(&self.inner, mask, checked_i32(null_count)?)
-                .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::null_mask::ffi::set_null_mask_from_host(
+            &self.inner,
+            mask,
+            checked_i32(null_count)?,
+        )
+        .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
 

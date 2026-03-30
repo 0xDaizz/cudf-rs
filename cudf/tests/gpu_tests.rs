@@ -498,7 +498,11 @@ fn table_unique() {
     let col = Column::from_slice(&[1i32, 2, 2, 3, 3, 3]).unwrap();
     let table = Table::new(vec![col]).unwrap();
     let unique = table
-        .unique(&[0], stream_compaction::DuplicateKeepOption::First)
+        .unique(
+            &[0],
+            stream_compaction::DuplicateKeepOption::First,
+            stream_compaction::NullEquality::Equal,
+        )
         .unwrap();
     assert_eq!(unique.num_rows(), 3);
 }

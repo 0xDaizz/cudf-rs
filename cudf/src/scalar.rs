@@ -36,6 +36,40 @@ pub struct Scalar {
 // SAFETY: GPU memory is process-global; a Scalar can be safely moved to another thread.
 unsafe impl Send for Scalar {}
 
+macro_rules! scalar_set_dispatch {
+    ($type_id:expr, $value:expr, $inner:expr, $($variant:ident => $ty:ty, $set_fn:path);+ $(;)?) => {
+        match $type_id {
+            $(TypeId::$variant => {
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<$ty>());
+                let v: $ty = unsafe { std::mem::transmute_copy(&$value) };
+                $set_fn($inner.pin_mut(), v).map_err(CudfError::from_cxx)?;
+            })+
+            _ => {
+                return Err(CudfError::InvalidArgument(format!(
+                    "Scalar::new does not support {:?}",
+                    $type_id
+                )));
+            }
+        }
+    };
+}
+
+macro_rules! scalar_get_dispatch {
+    ($self_:expr, $($variant:ident => $ty:ty, $get_fn:path);+ $(;)?) => {
+        match T::TYPE_ID {
+            $(TypeId::$variant => {
+                let v = $get_fn(&$self_.inner).map_err(CudfError::from_cxx)?;
+                debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<$ty>());
+                Ok(unsafe { std::mem::transmute_copy(&v) })
+            })+
+            _ => Err(CudfError::InvalidArgument(format!(
+                "Scalar::value does not yet support {:?}",
+                T::TYPE_ID
+            ))),
+        }
+    };
+}
+
 impl Scalar {
     /// Create a scalar with the given value.
     ///
@@ -57,25 +91,8 @@ impl Scalar {
         // Set the value via the appropriate typed setter.
         // SAFETY for each arm: CudfType guarantees T matches TYPE_ID,
         // so T IS the exact type we transmute to (same size, same repr).
-        macro_rules! scalar_set_dispatch {
-            ($($variant:ident => $ty:ty, $set_fn:path);+ $(;)?) => {
-                match type_id {
-                    $(TypeId::$variant => {
-                        debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<$ty>());
-                        let v: $ty = unsafe { std::mem::transmute_copy(&value) };
-                        $set_fn(inner.pin_mut(), v).map_err(CudfError::from_cxx)?;
-                    })+
-                    _ => {
-                        return Err(CudfError::InvalidArgument(format!(
-                            "Scalar::new does not support {:?}",
-                            type_id
-                        )));
-                    }
-                }
-            };
-        }
-
         scalar_set_dispatch! {
+            type_id, value, inner,
             Int8 => i8, cudf_cxx::scalar::ffi::scalar_set_i8;
             Int16 => i16, cudf_cxx::scalar::ffi::scalar_set_i16;
             Int32 => i32, cudf_cxx::scalar::ffi::scalar_set_i32;
@@ -141,23 +158,8 @@ impl Scalar {
 
         // SAFETY for each arm: T is guaranteed to match TYPE_ID by the
         // CudfType trait, so transmute_copy is between identical types.
-        macro_rules! scalar_get_dispatch {
-            ($($variant:ident => $ty:ty, $get_fn:path);+ $(;)?) => {
-                match T::TYPE_ID {
-                    $(TypeId::$variant => {
-                        let v = $get_fn(&self.inner).map_err(CudfError::from_cxx)?;
-                        debug_assert_eq!(std::mem::size_of::<T>(), std::mem::size_of::<$ty>());
-                        Ok(unsafe { std::mem::transmute_copy(&v) })
-                    })+
-                    _ => Err(CudfError::InvalidArgument(format!(
-                        "Scalar::value does not yet support {:?}",
-                        T::TYPE_ID
-                    ))),
-                }
-            };
-        }
-
         scalar_get_dispatch! {
+            self,
             Int8 => i8, cudf_cxx::scalar::ffi::scalar_get_i8;
             Int16 => i16, cudf_cxx::scalar::ffi::scalar_get_i16;
             Int32 => i32, cudf_cxx::scalar::ffi::scalar_get_i32;

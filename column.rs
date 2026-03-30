@@ -1,0 +1,325 @@
+//! GPU-resident column type.
+//!
+//! A [`Column`] owns GPU memory containing a single array of typed data,
+//! optionally with a null bitmask. It is the fundamental building block
+//! for GPU-accelerated DataFrame operations.
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! use cudf::Column;
+//!
+//! // Create from a Rust slice (copies data to GPU)
+//! let col = Column::from_slice(&[1i32, 2, 3, 4, 5]).unwrap();
+//! assert_eq!(col.len(), 5);
+//!
+//! // Read back to host
+//! let data: Vec<i32> = col.to_vec().unwrap();
+//! assert_eq!(data, vec![1, 2, 3, 4, 5]);
+//! ```
+
+use std::fmt;
+
+use cxx::UniquePtr;
+
+use crate::error::{CudfError, Result};
+use crate::types::{DataType, TypeId};
+
+/// An owning, GPU-resident column of typed data.
+///
+/// `Column` wraps a `std::unique_ptr<cudf::column>` on the C++ side.
+/// Dropping a `Column` frees the associated GPU memory.
+///
+/// # Thread Safety
+///
+/// `Column` implements [`Send`] (can be moved between threads) but not
+/// [`Sync`] (cannot be shared between threads without synchronization).
+/// Use `Arc<Mutex<Column>>` if shared access is needed.
+pub struct Column {
+    pub(crate) inner: UniquePtr<cudf_cxx::column::ffi::OwnedColumn>,
+}
+
+// SAFETY: GPU memory is process-global; a Column can be safely moved to another thread.
+// CUDA operations must still be serialized per-stream, but Column ownership transfer is safe.
+unsafe impl Send for Column {}
+
+impl Column {
+    // -- Accessors --
+
+    /// Number of elements in this column.
+    pub fn len(&self) -> usize {
+        self.inner.size() as usize
+    }
+
+    /// Whether this column has zero elements.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// The data type of this column.
+    pub fn data_type(&self) -> DataType {
+        let id = TypeId::from_raw(self.inner.type_id())
+            .unwrap_or(TypeId::Empty);
+        let scale = self.inner.type_scale();
+        if scale != 0 {
+            DataType::decimal(id, scale)
+        } else {
+            DataType::new(id)
+        }
+    }
+
+    /// Number of null elements. Returns 0 if the column is not nullable.
+    pub fn null_count(&self) -> usize {
+        self.inner.null_count() as usize
+    }
+
+    /// Whether this column can contain null values (has a validity bitmask).
+    pub fn is_nullable(&self) -> bool {
+        self.inner.is_nullable()
+    }
+
+    /// Whether this column actually contains any null values.
+    pub fn has_nulls(&self) -> bool {
+        self.inner.has_nulls()
+    }
+
+    /// Number of child columns (non-zero for nested types like LIST, STRUCT).
+    pub fn num_children(&self) -> usize {
+        self.inner.num_children() as usize
+    }
+
+    // -- Construction --
+
+    /// Create an empty column with all nulls.
+    ///
+    /// Currently only numeric types are supported (the underlying C++ uses
+    /// `cudf::make_numeric_column`). Non-numeric types will return an error.
+    pub fn empty(dtype: DataType, size: usize) -> Result<Self> {
+        if !dtype.id().is_numeric() {
+            return Err(CudfError::InvalidArgument(format!(
+                "Column::empty currently supports only numeric types, got {:?}",
+                dtype.id()
+            )));
+        }
+        let raw = cudf_cxx::column::ffi::column_empty(
+            dtype.id() as i32,
+            size as i32,
+        ).map_err(CudfError::from_cxx)?;
+        Ok(Self { inner: raw })
+    }
+
+    // -- Data Transfer --
+
+    /// Copy the null bitmask to a host byte vector.
+    /// Each bit indicates whether the corresponding element is valid (1) or null (0).
+    pub fn null_mask_to_host(&self) -> Result<Vec<u8>> {
+        let num_bytes = (self.len() + 7) / 8;
+        let mut buf = vec![0u8; num_bytes];
+        cudf_cxx::column::ffi::column_null_mask(&self.inner, &mut buf)
+            .map_err(CudfError::from_cxx)?;
+        Ok(buf)
+    }
+}
+
+// -- Type-specific construction and transfer --
+
+/// Trait for types that can be stored in a GPU column.
+///
+/// This is implemented for all primitive numeric types supported by libcudf.
+/// It enables generic `Column::from_slice` and `Column::to_vec` operations.
+pub trait CudfType: Copy + Send + 'static {
+    /// The corresponding libcudf type ID.
+    const TYPE_ID: TypeId;
+}
+
+// Register all supported types
+impl CudfType for i8 { const TYPE_ID: TypeId = TypeId::Int8; }
+impl CudfType for i16 { const TYPE_ID: TypeId = TypeId::Int16; }
+impl CudfType for i32 { const TYPE_ID: TypeId = TypeId::Int32; }
+impl CudfType for i64 { const TYPE_ID: TypeId = TypeId::Int64; }
+impl CudfType for u8 { const TYPE_ID: TypeId = TypeId::Uint8; }
+impl CudfType for u16 { const TYPE_ID: TypeId = TypeId::Uint16; }
+impl CudfType for u32 { const TYPE_ID: TypeId = TypeId::Uint32; }
+impl CudfType for u64 { const TYPE_ID: TypeId = TypeId::Uint64; }
+impl CudfType for f32 { const TYPE_ID: TypeId = TypeId::Float32; }
+impl CudfType for f64 { const TYPE_ID: TypeId = TypeId::Float64; }
+
+impl Column {
+    /// Create a column from a host slice, copying data to GPU.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cudf::Column;
+    ///
+    /// let ints = Column::from_slice(&[1i32, 2, 3]).unwrap();
+    /// let floats = Column::from_slice(&[1.0f64, 2.0, 3.0]).unwrap();
+    /// ```
+    pub fn from_slice<T: CudfType>(data: &[T]) -> Result<Self> {
+        let inner = match T::TYPE_ID {
+            TypeId::Int8 => {
+                // SAFETY: T is i8 when TYPE_ID is Int8; same size and repr.
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i8, data.len()) };
+                cudf_cxx::column::ffi::column_from_i8(data)
+            }
+            TypeId::Int16 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i16, data.len()) };
+                cudf_cxx::column::ffi::column_from_i16(data)
+            }
+            TypeId::Int32 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i32, data.len()) };
+                cudf_cxx::column::ffi::column_from_i32(data)
+            }
+            TypeId::Int64 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i64, data.len()) };
+                cudf_cxx::column::ffi::column_from_i64(data)
+            }
+            TypeId::Uint8 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len()) };
+                cudf_cxx::column::ffi::column_from_u8(data)
+            }
+            TypeId::Uint16 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u16, data.len()) };
+                cudf_cxx::column::ffi::column_from_u16(data)
+            }
+            TypeId::Uint32 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u32, data.len()) };
+                cudf_cxx::column::ffi::column_from_u32(data)
+            }
+            TypeId::Uint64 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u64, data.len()) };
+                cudf_cxx::column::ffi::column_from_u64(data)
+            }
+            TypeId::Float32 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f32, data.len()) };
+                cudf_cxx::column::ffi::column_from_f32(data)
+            }
+            TypeId::Float64 => {
+                let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f64, data.len()) };
+                cudf_cxx::column::ffi::column_from_f64(data)
+            }
+            _ => return Err(CudfError::InvalidArgument(
+                format!("from_slice does not support {:?}", T::TYPE_ID)
+            )),
+        }.map_err(CudfError::from_cxx)?;
+
+        Ok(Self { inner })
+    }
+
+    /// Copy column data back to host as a Vec.
+    ///
+    /// # Type Safety
+    ///
+    /// The type parameter `T` must match the column's actual data type.
+    /// Returns `Err(CudfError::TypeMismatch)` if they don't match.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cudf::Column;
+    ///
+    /// let col = Column::from_slice(&[1i32, 2, 3]).unwrap();
+    /// let data: Vec<i32> = col.to_vec().unwrap();
+    /// assert_eq!(data, vec![1, 2, 3]);
+    /// ```
+    pub fn to_vec<T: CudfType>(&self) -> Result<Vec<T>> {
+        // Type check
+        let actual = self.data_type().id();
+        if actual != T::TYPE_ID {
+            return Err(CudfError::TypeMismatch {
+                expected: format!("{:?}", T::TYPE_ID),
+                actual: format!("{:?}", actual),
+            });
+        }
+
+        let len = self.len();
+        if len == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Allocate output buffer. We write into spare capacity via raw pointer,
+        // only calling set_len AFTER the C++ side successfully fills the data.
+        let mut result: Vec<T> = Vec::with_capacity(len);
+        let ptr = result.as_mut_ptr();
+
+        // Dispatch to the appropriate cudf-cxx transfer function.
+        match T::TYPE_ID {
+            TypeId::Int8 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i8, len) };
+                cudf_cxx::column::ffi::column_to_i8(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Int16 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i16, len) };
+                cudf_cxx::column::ffi::column_to_i16(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Int32 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i32, len) };
+                cudf_cxx::column::ffi::column_to_i32(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Int64 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i64, len) };
+                cudf_cxx::column::ffi::column_to_i64(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Uint8 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u8, len) };
+                cudf_cxx::column::ffi::column_to_u8(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Uint16 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u16, len) };
+                cudf_cxx::column::ffi::column_to_u16(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Uint32 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u32, len) };
+                cudf_cxx::column::ffi::column_to_u32(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Uint64 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u64, len) };
+                cudf_cxx::column::ffi::column_to_u64(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Float32 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut f32, len) };
+                cudf_cxx::column::ffi::column_to_f32(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            TypeId::Float64 => {
+                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut f64, len) };
+                cudf_cxx::column::ffi::column_to_f64(&self.inner, out)
+                    .map_err(CudfError::from_cxx)?;
+            }
+            _ => return Err(CudfError::InvalidArgument(
+                format!("to_vec does not yet support {:?}", T::TYPE_ID)
+            )),
+        }
+
+        // SAFETY: The C++ side has successfully filled exactly `len` elements
+        // via cudaMemcpy. The type size is guaranteed correct by the type check above.
+        unsafe { result.set_len(len); }
+        Ok(result)
+    }
+}
+
+impl fmt::Debug for Column {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+impl fmt::Display for Column {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Column({}, len={}, nulls={})",
+            self.data_type(),
+            self.len(),
+            self.null_count()
+        )
+    }
+}

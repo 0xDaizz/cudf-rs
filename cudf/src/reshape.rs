@@ -35,8 +35,8 @@ impl Table {
     ///
     /// Returns a new table with `num_rows * count` rows.
     pub fn tile(&self, count: usize) -> Result<Table> {
-        let raw =
-            cudf_cxx::reshape::ffi::tile(&self.inner, checked_i32(count)?).map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::reshape::ffi::tile(&self.inner, checked_i32(count)?)
+            .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }

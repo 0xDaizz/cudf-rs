@@ -211,7 +211,10 @@ impl<'a> HashJoin<'a> {
     pub fn new(build: &'a Table) -> Result<Self> {
         let inner =
             cudf_cxx::join::ffi::hash_join_create(&build.inner).map_err(CudfError::from_cxx)?;
-        Ok(Self { _build: std::marker::PhantomData, inner })
+        Ok(Self {
+            _build: std::marker::PhantomData,
+            inner,
+        })
     }
 
     /// Perform an inner join by probing with the given table.

@@ -33,8 +33,9 @@ impl Table {
     /// Returns an error if the column index is out of bounds, the column is
     /// not a list type, or a GPU error occurs.
     pub fn lists_explode(&self, explode_col_idx: usize) -> Result<Table> {
-        let raw = cudf_cxx::lists::ops::ffi::lists_explode(&self.inner, checked_i32(explode_col_idx)?)
-            .map_err(CudfError::from_cxx)?;
+        let raw =
+            cudf_cxx::lists::ops::ffi::lists_explode(&self.inner, checked_i32(explode_col_idx)?)
+                .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 
@@ -43,9 +44,11 @@ impl Table {
     /// Like [`lists_explode`](Self::lists_explode) but null and empty lists
     /// produce a null row instead of being dropped.
     pub fn lists_explode_outer(&self, explode_col_idx: usize) -> Result<Table> {
-        let raw =
-            cudf_cxx::lists::ops::ffi::lists_explode_outer(&self.inner, checked_i32(explode_col_idx)?)
-                .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::lists::ops::ffi::lists_explode_outer(
+            &self.inner,
+            checked_i32(explode_col_idx)?,
+        )
+        .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 }
@@ -229,9 +232,11 @@ impl Table {
     /// Like [`lists_explode`](Self::lists_explode) but includes an additional
     /// column with the position of each element within its original list.
     pub fn lists_explode_position(&self, explode_col_idx: usize) -> Result<Table> {
-        let raw =
-            cudf_cxx::lists::ops::ffi::lists_explode_position(&self.inner, checked_i32(explode_col_idx)?)
-                .map_err(CudfError::from_cxx)?;
+        let raw = cudf_cxx::lists::ops::ffi::lists_explode_position(
+            &self.inner,
+            checked_i32(explode_col_idx)?,
+        )
+        .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
     }
 

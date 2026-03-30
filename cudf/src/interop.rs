@@ -103,7 +103,9 @@ impl Column {
         if result.is_err() {
             // C++ threw before taking ownership — reclaim and drop to prevent leak.
             unsafe {
-                drop(Box::from_raw(schema_ptr as *mut arrow::ffi::FFI_ArrowSchema));
+                drop(Box::from_raw(
+                    schema_ptr as *mut arrow::ffi::FFI_ArrowSchema,
+                ));
                 drop(Box::from_raw(array_ptr as *mut arrow::ffi::FFI_ArrowArray));
             }
         }
@@ -156,7 +158,9 @@ impl Table {
         if result.is_err() {
             // C++ threw before taking ownership — reclaim and drop to prevent leak.
             unsafe {
-                drop(Box::from_raw(schema_ptr as *mut arrow::ffi::FFI_ArrowSchema));
+                drop(Box::from_raw(
+                    schema_ptr as *mut arrow::ffi::FFI_ArrowSchema,
+                ));
                 drop(Box::from_raw(array_ptr as *mut arrow::ffi::FFI_ArrowArray));
             }
         }

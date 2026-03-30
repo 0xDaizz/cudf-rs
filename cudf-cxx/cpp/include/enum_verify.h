@@ -3,7 +3,7 @@
 #include <cudf/sorting.hpp>
 #include <cudf/io/types.hpp>
 #include <cudf/binaryop.hpp>
-#include <cudf/unaryop.hpp>
+#include <cudf/unary.hpp>
 
 // ── TypeId sync verification ─────────────────────────────────
 static_assert(static_cast<int>(cudf::type_id::EMPTY) == 0);

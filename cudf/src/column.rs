@@ -43,6 +43,78 @@ pub struct Column {
 // CUDA operations must still be serialized per-stream, but Column ownership transfer is safe.
 unsafe impl Send for Column {}
 
+macro_rules! impl_from_optional {
+    ($fn_name:ident, $ty:ty, $default:expr, $ffi_fn:path) => {
+        /// Create a nullable column from optional values.
+        ///
+        /// `None` values become null entries in the GPU column.
+        pub fn $fn_name(data: &[Option<$ty>]) -> Result<Self> {
+            let _size = checked_i32(data.len())?;
+            let values: Vec<$ty> = data.iter().map(|o| o.unwrap_or($default)).collect();
+            let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+            let raw = $ffi_fn(&values, &validity).map_err(CudfError::from_cxx)?;
+            Ok(Self { inner: raw })
+        }
+    };
+}
+
+macro_rules! dispatch_from_slice {
+    ($data:expr, $($variant:ident => $ty:ty, $ffi_fn:path);+ $(;)?) => {
+        match T::TYPE_ID {
+            $(TypeId::$variant => {
+                // SAFETY: T matches TYPE_ID by sealed CudfType trait; same size and repr.
+                let typed = unsafe {
+                    std::slice::from_raw_parts($data.as_ptr() as *const $ty, $data.len())
+                };
+                $ffi_fn(typed).map_err(CudfError::from_cxx)?
+            })+
+            _ => {
+                return Err(CudfError::InvalidArgument(format!(
+                    "from_slice does not support {:?}", T::TYPE_ID
+                )));
+            }
+        }
+    };
+}
+
+macro_rules! dispatch_to_vec {
+    ($self_:expr, $ptr:expr, $len:expr, $($variant:ident => $ty:ty, $ffi_fn:path);+ $(;)?) => {
+        match T::TYPE_ID {
+            $(TypeId::$variant => {
+                let out = unsafe { std::slice::from_raw_parts_mut($ptr as *mut $ty, $len) };
+                $ffi_fn(&$self_.inner, out).map_err(CudfError::from_cxx)?;
+            })+
+            TypeId::Bool8 => {
+                // Read into a temporary u8 buffer, then convert to bool safely.
+                // Direct write to Vec<bool> memory is UB if GPU data contains values != 0/1.
+                let mut u8_buf = vec![0u8; $len];
+                cudf_cxx::column::ffi::column_to_u8(&$self_.inner, &mut u8_buf)
+                    .map_err(CudfError::from_cxx)?;
+                let bools: Vec<bool> = u8_buf.into_iter().map(|v| v != 0).collect();
+                // SAFETY: T is guaranteed to be bool by the sealed CudfType trait
+                // (Bool8 maps only to bool). Vec<bool> and Vec<T=bool> have
+                // identical layout. We use manual deconstruction to avoid
+                // relying on transmute's layout guarantees for Vec.
+                let mut bools = std::mem::ManuallyDrop::new(bools);
+                let result = unsafe {
+                    Vec::from_raw_parts(
+                        bools.as_mut_ptr() as *mut T,
+                        bools.len(),
+                        bools.capacity(),
+                    )
+                };
+                return Ok(result);
+            }
+            _ => {
+                return Err(CudfError::InvalidArgument(format!(
+                    "to_vec does not yet support {:?}",
+                    T::TYPE_ID
+                )));
+            }
+        }
+    };
+}
+
 impl Column {
     // -- Accessors --
 
@@ -124,34 +196,66 @@ impl Column {
         Ok(Self { inner: raw })
     }
 
-    /// Create a nullable numeric column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    macro_rules! impl_from_optional {
-        ($fn_name:ident, $ty:ty, $default:expr, $ffi_fn:path) => {
-            /// Create a nullable column from optional values.
-            ///
-            /// `None` values become null entries in the GPU column.
-            pub fn $fn_name(data: &[Option<$ty>]) -> Result<Self> {
-                let _size = checked_i32(data.len())?;
-                let values: Vec<$ty> = data.iter().map(|o| o.unwrap_or($default)).collect();
-                let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-                let raw = $ffi_fn(&values, &validity).map_err(CudfError::from_cxx)?;
-                Ok(Self { inner: raw })
-            }
-        };
-    }
-
-    impl_from_optional!(from_optional_i8, i8, 0, cudf_cxx::column::ffi::column_from_i8_nullable);
-    impl_from_optional!(from_optional_i16, i16, 0, cudf_cxx::column::ffi::column_from_i16_nullable);
-    impl_from_optional!(from_optional_i32, i32, 0, cudf_cxx::column::ffi::column_from_i32_nullable);
-    impl_from_optional!(from_optional_i64, i64, 0, cudf_cxx::column::ffi::column_from_i64_nullable);
-    impl_from_optional!(from_optional_u8, u8, 0, cudf_cxx::column::ffi::column_from_u8_nullable);
-    impl_from_optional!(from_optional_u16, u16, 0, cudf_cxx::column::ffi::column_from_u16_nullable);
-    impl_from_optional!(from_optional_u32, u32, 0, cudf_cxx::column::ffi::column_from_u32_nullable);
-    impl_from_optional!(from_optional_u64, u64, 0, cudf_cxx::column::ffi::column_from_u64_nullable);
-    impl_from_optional!(from_optional_f32, f32, 0.0, cudf_cxx::column::ffi::column_from_f32_nullable);
-    impl_from_optional!(from_optional_f64, f64, 0.0, cudf_cxx::column::ffi::column_from_f64_nullable);
+    impl_from_optional!(
+        from_optional_i8,
+        i8,
+        0,
+        cudf_cxx::column::ffi::column_from_i8_nullable
+    );
+    impl_from_optional!(
+        from_optional_i16,
+        i16,
+        0,
+        cudf_cxx::column::ffi::column_from_i16_nullable
+    );
+    impl_from_optional!(
+        from_optional_i32,
+        i32,
+        0,
+        cudf_cxx::column::ffi::column_from_i32_nullable
+    );
+    impl_from_optional!(
+        from_optional_i64,
+        i64,
+        0,
+        cudf_cxx::column::ffi::column_from_i64_nullable
+    );
+    impl_from_optional!(
+        from_optional_u8,
+        u8,
+        0,
+        cudf_cxx::column::ffi::column_from_u8_nullable
+    );
+    impl_from_optional!(
+        from_optional_u16,
+        u16,
+        0,
+        cudf_cxx::column::ffi::column_from_u16_nullable
+    );
+    impl_from_optional!(
+        from_optional_u32,
+        u32,
+        0,
+        cudf_cxx::column::ffi::column_from_u32_nullable
+    );
+    impl_from_optional!(
+        from_optional_u64,
+        u64,
+        0,
+        cudf_cxx::column::ffi::column_from_u64_nullable
+    );
+    impl_from_optional!(
+        from_optional_f32,
+        f32,
+        0.0,
+        cudf_cxx::column::ffi::column_from_f32_nullable
+    );
+    impl_from_optional!(
+        from_optional_f64,
+        f64,
+        0.0,
+        cudf_cxx::column::ffi::column_from_f64_nullable
+    );
 
     /// Create a nullable string column from optional values.
     ///
@@ -321,26 +425,8 @@ impl Column {
     pub fn from_slice<T: CudfType>(data: &[T]) -> Result<Self> {
         let _size = checked_i32(data.len())?;
 
-        macro_rules! dispatch_from_slice {
-            ($($variant:ident => $ty:ty, $ffi_fn:path);+ $(;)?) => {
-                match T::TYPE_ID {
-                    $(TypeId::$variant => {
-                        // SAFETY: T matches TYPE_ID by sealed CudfType trait; same size and repr.
-                        let typed = unsafe {
-                            std::slice::from_raw_parts(data.as_ptr() as *const $ty, data.len())
-                        };
-                        $ffi_fn(typed).map_err(CudfError::from_cxx)?
-                    })+
-                    _ => {
-                        return Err(CudfError::InvalidArgument(format!(
-                            "from_slice does not support {:?}", T::TYPE_ID
-                        )));
-                    }
-                }
-            };
-        }
-
         let inner = dispatch_from_slice! {
+            data,
             Int8 => i8, cudf_cxx::column::ffi::column_from_i8;
             Int16 => i16, cudf_cxx::column::ffi::column_from_i16;
             Int32 => i32, cudf_cxx::column::ffi::column_from_i32;
@@ -454,45 +540,8 @@ impl Column {
         let ptr = result.as_mut_ptr();
 
         // Dispatch to the appropriate cudf-cxx transfer function.
-        macro_rules! dispatch_to_vec {
-            ($($variant:ident => $ty:ty, $ffi_fn:path);+ $(;)?) => {
-                match T::TYPE_ID {
-                    $(TypeId::$variant => {
-                        let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut $ty, len) };
-                        $ffi_fn(&self.inner, out).map_err(CudfError::from_cxx)?;
-                    })+
-                    TypeId::Bool8 => {
-                        // Read into a temporary u8 buffer, then convert to bool safely.
-                        // Direct write to Vec<bool> memory is UB if GPU data contains values != 0/1.
-                        let mut u8_buf = vec![0u8; len];
-                        cudf_cxx::column::ffi::column_to_u8(&self.inner, &mut u8_buf)
-                            .map_err(CudfError::from_cxx)?;
-                        let bools: Vec<bool> = u8_buf.into_iter().map(|v| v != 0).collect();
-                        // SAFETY: T is guaranteed to be bool by the sealed CudfType trait
-                        // (Bool8 maps only to bool). Vec<bool> and Vec<T=bool> have
-                        // identical layout. We use manual deconstruction to avoid
-                        // relying on transmute's layout guarantees for Vec.
-                        let mut bools = std::mem::ManuallyDrop::new(bools);
-                        let result = unsafe {
-                            Vec::from_raw_parts(
-                                bools.as_mut_ptr() as *mut T,
-                                bools.len(),
-                                bools.capacity(),
-                            )
-                        };
-                        return Ok(result);
-                    }
-                    _ => {
-                        return Err(CudfError::InvalidArgument(format!(
-                            "to_vec does not yet support {:?}",
-                            T::TYPE_ID
-                        )));
-                    }
-                }
-            };
-        }
-
         dispatch_to_vec! {
+            self, ptr, len,
             Int8 => i8, cudf_cxx::column::ffi::column_to_i8;
             Int16 => i16, cudf_cxx::column::ffi::column_to_i16;
             Int32 => i32, cudf_cxx::column::ffi::column_to_i32;

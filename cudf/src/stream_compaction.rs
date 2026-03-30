@@ -31,13 +31,14 @@ pub enum NullEquality {
 
 /// Controls which duplicate row to keep.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
 pub enum DuplicateKeepOption {
-    /// Keep the first occurrence of each duplicate.
-    First = 0,
-    /// Keep the last occurrence of each duplicate.
-    Last = 1,
     /// Keep any single occurrence of each duplicate.
-    Any = 2,
+    Any = 0,
+    /// Keep the first occurrence of each duplicate.
+    First = 1,
+    /// Keep the last occurrence of each duplicate.
+    Last = 2,
     /// Remove all duplicates entirely.
     None = 3,
 }
@@ -59,7 +60,10 @@ impl Table {
     ///
     /// Returns an error if any key column index is out of bounds.
     pub fn drop_nulls(&self, key_columns: &[usize], threshold: usize) -> Result<Table> {
-        let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
+        let keys: Vec<i32> = key_columns
+            .iter()
+            .map(|&k| checked_i32(k))
+            .collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::drop_nulls_table(
             &self.inner,
             &keys,
@@ -97,7 +101,10 @@ impl Table {
         keep: DuplicateKeepOption,
         null_equality: NullEquality,
     ) -> Result<Table> {
-        let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
+        let keys: Vec<i32> = key_columns
+            .iter()
+            .map(|&k| checked_i32(k))
+            .collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::unique(
             &self.inner,
             &keys,
@@ -122,7 +129,10 @@ impl Table {
         keep: DuplicateKeepOption,
         null_equality: NullEquality,
     ) -> Result<Table> {
-        let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
+        let keys: Vec<i32> = key_columns
+            .iter()
+            .map(|&k| checked_i32(k))
+            .collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::distinct(
             &self.inner,
             &keys,
@@ -140,7 +150,10 @@ impl Table {
     /// Returns an error if any key column index is out of bounds or
     /// if a key column is not a floating-point type.
     pub fn drop_nans(&self, key_columns: &[usize]) -> Result<Table> {
-        let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
+        let keys: Vec<i32> = key_columns
+            .iter()
+            .map(|&k| checked_i32(k))
+            .collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::drop_nans(&self.inner, &keys)
             .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
@@ -151,7 +164,10 @@ impl Table {
     /// Keeps rows that have at least `threshold` non-NaN values in the
     /// specified key columns.
     pub fn drop_nans_threshold(&self, key_columns: &[usize], threshold: usize) -> Result<Table> {
-        let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
+        let keys: Vec<i32> = key_columns
+            .iter()
+            .map(|&k| checked_i32(k))
+            .collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::drop_nans_threshold(
             &self.inner,
             &keys,
@@ -237,7 +253,10 @@ impl Table {
         keep: DuplicateKeepOption,
         null_equality: NullEquality,
     ) -> Result<Table> {
-        let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
+        let keys: Vec<i32> = key_columns
+            .iter()
+            .map(|&k| checked_i32(k))
+            .collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::stable_distinct(
             &self.inner,
             &keys,

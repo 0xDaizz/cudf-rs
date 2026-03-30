@@ -20,8 +20,8 @@
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
-use crate::types::checked_i32;
 pub use crate::types::NullHandling;
+use crate::types::checked_i32;
 
 /// Sort direction for a column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

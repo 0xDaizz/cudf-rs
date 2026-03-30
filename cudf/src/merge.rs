@@ -63,7 +63,10 @@ impl Table {
                 key_cols.len()
             )));
         }
-        let keys: Vec<i32> = key_cols.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
+        let keys: Vec<i32> = key_cols
+            .iter()
+            .map(|&k| checked_i32(k))
+            .collect::<Result<Vec<i32>>>()?;
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();
 

@@ -256,13 +256,18 @@ impl ChunkedParquetWriter {
         let inner =
             cudf_cxx::io::parquet::ffi::chunked_parquet_writer_create(&path, compression as i32)
                 .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner, closed: false })
+        Ok(Self {
+            inner,
+            closed: false,
+        })
     }
 
     /// Write a table chunk to the Parquet file.
     pub fn write(&mut self, table: &Table) -> Result<()> {
         if self.closed {
-            return Err(CudfError::InvalidArgument("writer is already closed".into()));
+            return Err(CudfError::InvalidArgument(
+                "writer is already closed".into(),
+            ));
         }
         cudf_cxx::io::parquet::ffi::chunked_parquet_writer_write(self.inner.pin_mut(), &table.inner)
             .map_err(CudfError::from_cxx)
@@ -288,8 +293,7 @@ impl Drop for ChunkedParquetWriter {
         if !self.closed {
             // Best-effort close to prevent corrupt files.
             // Errors are silently ignored since Drop cannot return Result.
-            let _ =
-                cudf_cxx::io::parquet::ffi::chunked_parquet_writer_close(self.inner.pin_mut());
+            let _ = cudf_cxx::io::parquet::ffi::chunked_parquet_writer_close(self.inner.pin_mut());
         }
     }
 }

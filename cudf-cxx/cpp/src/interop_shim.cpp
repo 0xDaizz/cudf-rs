@@ -15,7 +15,7 @@
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
 
-#include <arrow/c/dlpack_abi.h>
+#include <dlpack/dlpack.h>
 
 #include <stdexcept>
 #include <cstring>
