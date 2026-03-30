@@ -33,12 +33,12 @@ pub enum NullEquality {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum DuplicateKeepOption {
-    /// Keep any single occurrence of each duplicate.
-    Any = 0,
     /// Keep the first occurrence of each duplicate.
-    First = 1,
+    First = 0,
     /// Keep the last occurrence of each duplicate.
-    Last = 2,
+    Last = 1,
+    /// Keep any single occurrence of each duplicate.
+    Any = 2,
     /// Remove all duplicates entirely.
     None = 3,
 }
