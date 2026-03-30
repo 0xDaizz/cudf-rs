@@ -8,8 +8,10 @@
 //! ```rust,no_run
 //! use cudf::Column;
 //!
-//! let struct_col: Column = todo!("create a struct column");
-//! let child = struct_col.structs_extract(0).unwrap();
+//! // Struct columns are created via I/O readers (Parquet, JSON)
+//! // or the Arrow interop interface.
+//! // let struct_col: Column = /* from parquet/json/arrow */;
+//! // let child = struct_col.structs_extract(0).unwrap();
 //! ```
 
 use crate::column::Column;

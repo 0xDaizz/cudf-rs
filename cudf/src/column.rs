@@ -124,125 +124,34 @@ impl Column {
         Ok(Self { inner: raw })
     }
 
-    /// Create a nullable i32 column from optional values.
+    /// Create a nullable numeric column from optional values.
     ///
     /// `None` values become null entries in the GPU column.
-    pub fn from_optional_i32(data: &[Option<i32>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<i32> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_i32_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
+    macro_rules! impl_from_optional {
+        ($fn_name:ident, $ty:ty, $default:expr, $ffi_fn:path) => {
+            /// Create a nullable column from optional values.
+            ///
+            /// `None` values become null entries in the GPU column.
+            pub fn $fn_name(data: &[Option<$ty>]) -> Result<Self> {
+                let _size = checked_i32(data.len())?;
+                let values: Vec<$ty> = data.iter().map(|o| o.unwrap_or($default)).collect();
+                let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
+                let raw = $ffi_fn(&values, &validity).map_err(CudfError::from_cxx)?;
+                Ok(Self { inner: raw })
+            }
+        };
     }
 
-    /// Create a nullable i64 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_i64(data: &[Option<i64>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<i64> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_i64_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable f32 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_f32(data: &[Option<f32>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<f32> = data.iter().map(|o| o.unwrap_or(0.0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_f32_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable f64 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_f64(data: &[Option<f64>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<f64> = data.iter().map(|o| o.unwrap_or(0.0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_f64_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable i8 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_i8(data: &[Option<i8>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<i8> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_i8_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable i16 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_i16(data: &[Option<i16>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<i16> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_i16_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable u8 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_u8(data: &[Option<u8>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<u8> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_u8_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable u16 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_u16(data: &[Option<u16>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<u16> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_u16_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable u32 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_u32(data: &[Option<u32>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<u32> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_u32_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
-
-    /// Create a nullable u64 column from optional values.
-    ///
-    /// `None` values become null entries in the GPU column.
-    pub fn from_optional_u64(data: &[Option<u64>]) -> Result<Self> {
-        let _size = checked_i32(data.len())?;
-        let values: Vec<u64> = data.iter().map(|o| o.unwrap_or(0)).collect();
-        let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
-        let raw = cudf_cxx::column::ffi::column_from_u64_nullable(&values, &validity)
-            .map_err(CudfError::from_cxx)?;
-        Ok(Self { inner: raw })
-    }
+    impl_from_optional!(from_optional_i8, i8, 0, cudf_cxx::column::ffi::column_from_i8_nullable);
+    impl_from_optional!(from_optional_i16, i16, 0, cudf_cxx::column::ffi::column_from_i16_nullable);
+    impl_from_optional!(from_optional_i32, i32, 0, cudf_cxx::column::ffi::column_from_i32_nullable);
+    impl_from_optional!(from_optional_i64, i64, 0, cudf_cxx::column::ffi::column_from_i64_nullable);
+    impl_from_optional!(from_optional_u8, u8, 0, cudf_cxx::column::ffi::column_from_u8_nullable);
+    impl_from_optional!(from_optional_u16, u16, 0, cudf_cxx::column::ffi::column_from_u16_nullable);
+    impl_from_optional!(from_optional_u32, u32, 0, cudf_cxx::column::ffi::column_from_u32_nullable);
+    impl_from_optional!(from_optional_u64, u64, 0, cudf_cxx::column::ffi::column_from_u64_nullable);
+    impl_from_optional!(from_optional_f32, f32, 0.0, cudf_cxx::column::ffi::column_from_f32_nullable);
+    impl_from_optional!(from_optional_f64, f64, 0.0, cudf_cxx::column::ffi::column_from_f64_nullable);
 
     /// Create a nullable string column from optional values.
     ///
@@ -370,18 +279,6 @@ mod private {
     pub trait Sealed {}
 }
 
-impl private::Sealed for i8 {}
-impl private::Sealed for i16 {}
-impl private::Sealed for i32 {}
-impl private::Sealed for i64 {}
-impl private::Sealed for u8 {}
-impl private::Sealed for u16 {}
-impl private::Sealed for u32 {}
-impl private::Sealed for u64 {}
-impl private::Sealed for f32 {}
-impl private::Sealed for f64 {}
-impl private::Sealed for bool {}
-
 /// Trait for types that can be stored in a GPU column.
 ///
 /// This is implemented for all primitive numeric types supported by libcudf.
@@ -393,39 +290,21 @@ pub trait CudfType: Copy + Send + 'static + private::Sealed {
     const TYPE_ID: TypeId;
 }
 
-// Register all supported types
-impl CudfType for i8 {
-    const TYPE_ID: TypeId = TypeId::Int8;
+macro_rules! impl_cudf_type {
+    ($($ty:ty => $id:ident),+ $(,)?) => {
+        $(
+            impl private::Sealed for $ty {}
+            impl CudfType for $ty {
+                const TYPE_ID: TypeId = TypeId::$id;
+            }
+        )+
+    };
 }
-impl CudfType for i16 {
-    const TYPE_ID: TypeId = TypeId::Int16;
-}
-impl CudfType for i32 {
-    const TYPE_ID: TypeId = TypeId::Int32;
-}
-impl CudfType for i64 {
-    const TYPE_ID: TypeId = TypeId::Int64;
-}
-impl CudfType for u8 {
-    const TYPE_ID: TypeId = TypeId::Uint8;
-}
-impl CudfType for u16 {
-    const TYPE_ID: TypeId = TypeId::Uint16;
-}
-impl CudfType for u32 {
-    const TYPE_ID: TypeId = TypeId::Uint32;
-}
-impl CudfType for u64 {
-    const TYPE_ID: TypeId = TypeId::Uint64;
-}
-impl CudfType for f32 {
-    const TYPE_ID: TypeId = TypeId::Float32;
-}
-impl CudfType for f64 {
-    const TYPE_ID: TypeId = TypeId::Float64;
-}
-impl CudfType for bool {
-    const TYPE_ID: TypeId = TypeId::Bool8;
+
+impl_cudf_type! {
+    i8 => Int8, i16 => Int16, i32 => Int32, i64 => Int64,
+    u8 => Uint8, u16 => Uint16, u32 => Uint32, u64 => Uint64,
+    f32 => Float32, f64 => Float64, bool => Bool8,
 }
 
 impl Column {
@@ -441,71 +320,39 @@ impl Column {
     /// ```
     pub fn from_slice<T: CudfType>(data: &[T]) -> Result<Self> {
         let _size = checked_i32(data.len())?;
-        let inner = match T::TYPE_ID {
-            TypeId::Int8 => {
-                // SAFETY: T is i8 when TYPE_ID is Int8; same size and repr.
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i8, data.len()) };
-                cudf_cxx::column::ffi::column_from_i8(data)
-            }
-            TypeId::Int16 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i16, data.len()) };
-                cudf_cxx::column::ffi::column_from_i16(data)
-            }
-            TypeId::Int32 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i32, data.len()) };
-                cudf_cxx::column::ffi::column_from_i32(data)
-            }
-            TypeId::Int64 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i64, data.len()) };
-                cudf_cxx::column::ffi::column_from_i64(data)
-            }
-            TypeId::Uint8 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len()) };
-                cudf_cxx::column::ffi::column_from_u8(data)
-            }
-            TypeId::Uint16 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u16, data.len()) };
-                cudf_cxx::column::ffi::column_from_u16(data)
-            }
-            TypeId::Uint32 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u32, data.len()) };
-                cudf_cxx::column::ffi::column_from_u32(data)
-            }
-            TypeId::Uint64 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u64, data.len()) };
-                cudf_cxx::column::ffi::column_from_u64(data)
-            }
-            TypeId::Float32 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f32, data.len()) };
-                cudf_cxx::column::ffi::column_from_f32(data)
-            }
-            TypeId::Float64 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f64, data.len()) };
-                cudf_cxx::column::ffi::column_from_f64(data)
-            }
-            TypeId::Bool8 => {
-                let data =
-                    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const bool, data.len()) };
-                cudf_cxx::column::ffi::column_from_bool(data)
-            }
-            _ => {
-                return Err(CudfError::InvalidArgument(format!(
-                    "from_slice does not support {:?}",
-                    T::TYPE_ID
-                )));
-            }
+
+        macro_rules! dispatch_from_slice {
+            ($($variant:ident => $ty:ty, $ffi_fn:path);+ $(;)?) => {
+                match T::TYPE_ID {
+                    $(TypeId::$variant => {
+                        // SAFETY: T matches TYPE_ID by sealed CudfType trait; same size and repr.
+                        let typed = unsafe {
+                            std::slice::from_raw_parts(data.as_ptr() as *const $ty, data.len())
+                        };
+                        $ffi_fn(typed).map_err(CudfError::from_cxx)?
+                    })+
+                    _ => {
+                        return Err(CudfError::InvalidArgument(format!(
+                            "from_slice does not support {:?}", T::TYPE_ID
+                        )));
+                    }
+                }
+            };
         }
-        .map_err(CudfError::from_cxx)?;
+
+        let inner = dispatch_from_slice! {
+            Int8 => i8, cudf_cxx::column::ffi::column_from_i8;
+            Int16 => i16, cudf_cxx::column::ffi::column_from_i16;
+            Int32 => i32, cudf_cxx::column::ffi::column_from_i32;
+            Int64 => i64, cudf_cxx::column::ffi::column_from_i64;
+            Uint8 => u8, cudf_cxx::column::ffi::column_from_u8;
+            Uint16 => u16, cudf_cxx::column::ffi::column_from_u16;
+            Uint32 => u32, cudf_cxx::column::ffi::column_from_u32;
+            Uint64 => u64, cudf_cxx::column::ffi::column_from_u64;
+            Float32 => f32, cudf_cxx::column::ffi::column_from_f32;
+            Float64 => f64, cudf_cxx::column::ffi::column_from_f64;
+            Bool8 => bool, cudf_cxx::column::ffi::column_from_bool;
+        };
 
         Ok(Self { inner })
     }
@@ -607,84 +454,55 @@ impl Column {
         let ptr = result.as_mut_ptr();
 
         // Dispatch to the appropriate cudf-cxx transfer function.
-        match T::TYPE_ID {
-            TypeId::Int8 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i8, len) };
-                cudf_cxx::column::ffi::column_to_i8(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Int16 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i16, len) };
-                cudf_cxx::column::ffi::column_to_i16(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Int32 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i32, len) };
-                cudf_cxx::column::ffi::column_to_i32(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Int64 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut i64, len) };
-                cudf_cxx::column::ffi::column_to_i64(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Uint8 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u8, len) };
-                cudf_cxx::column::ffi::column_to_u8(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Uint16 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u16, len) };
-                cudf_cxx::column::ffi::column_to_u16(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Uint32 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u32, len) };
-                cudf_cxx::column::ffi::column_to_u32(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Uint64 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u64, len) };
-                cudf_cxx::column::ffi::column_to_u64(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Float32 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut f32, len) };
-                cudf_cxx::column::ffi::column_to_f32(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Float64 => {
-                let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut f64, len) };
-                cudf_cxx::column::ffi::column_to_f64(&self.inner, out)
-                    .map_err(CudfError::from_cxx)?;
-            }
-            TypeId::Bool8 => {
-                // Read into a temporary u8 buffer, then convert to bool safely.
-                // Direct write to Vec<bool> memory is UB if GPU data contains values != 0/1.
-                let mut u8_buf = vec![0u8; len];
-                cudf_cxx::column::ffi::column_to_u8(&self.inner, &mut u8_buf)
-                    .map_err(CudfError::from_cxx)?;
-                let bools: Vec<bool> = u8_buf.into_iter().map(|v| v != 0).collect();
-                // SAFETY: T is guaranteed to be bool by the sealed CudfType trait
-                // (Bool8 maps only to bool). Vec<bool> and Vec<T=bool> have
-                // identical layout. We use manual deconstruction to avoid
-                // relying on transmute's layout guarantees for Vec.
-                let mut bools = std::mem::ManuallyDrop::new(bools);
-                let result = unsafe {
-                    Vec::from_raw_parts(
-                        bools.as_mut_ptr() as *mut T,
-                        bools.len(),
-                        bools.capacity(),
-                    )
-                };
-                return Ok(result);
-            }
-            _ => {
-                return Err(CudfError::InvalidArgument(format!(
-                    "to_vec does not yet support {:?}",
-                    T::TYPE_ID
-                )));
-            }
+        macro_rules! dispatch_to_vec {
+            ($($variant:ident => $ty:ty, $ffi_fn:path);+ $(;)?) => {
+                match T::TYPE_ID {
+                    $(TypeId::$variant => {
+                        let out = unsafe { std::slice::from_raw_parts_mut(ptr as *mut $ty, len) };
+                        $ffi_fn(&self.inner, out).map_err(CudfError::from_cxx)?;
+                    })+
+                    TypeId::Bool8 => {
+                        // Read into a temporary u8 buffer, then convert to bool safely.
+                        // Direct write to Vec<bool> memory is UB if GPU data contains values != 0/1.
+                        let mut u8_buf = vec![0u8; len];
+                        cudf_cxx::column::ffi::column_to_u8(&self.inner, &mut u8_buf)
+                            .map_err(CudfError::from_cxx)?;
+                        let bools: Vec<bool> = u8_buf.into_iter().map(|v| v != 0).collect();
+                        // SAFETY: T is guaranteed to be bool by the sealed CudfType trait
+                        // (Bool8 maps only to bool). Vec<bool> and Vec<T=bool> have
+                        // identical layout. We use manual deconstruction to avoid
+                        // relying on transmute's layout guarantees for Vec.
+                        let mut bools = std::mem::ManuallyDrop::new(bools);
+                        let result = unsafe {
+                            Vec::from_raw_parts(
+                                bools.as_mut_ptr() as *mut T,
+                                bools.len(),
+                                bools.capacity(),
+                            )
+                        };
+                        return Ok(result);
+                    }
+                    _ => {
+                        return Err(CudfError::InvalidArgument(format!(
+                            "to_vec does not yet support {:?}",
+                            T::TYPE_ID
+                        )));
+                    }
+                }
+            };
+        }
+
+        dispatch_to_vec! {
+            Int8 => i8, cudf_cxx::column::ffi::column_to_i8;
+            Int16 => i16, cudf_cxx::column::ffi::column_to_i16;
+            Int32 => i32, cudf_cxx::column::ffi::column_to_i32;
+            Int64 => i64, cudf_cxx::column::ffi::column_to_i64;
+            Uint8 => u8, cudf_cxx::column::ffi::column_to_u8;
+            Uint16 => u16, cudf_cxx::column::ffi::column_to_u16;
+            Uint32 => u32, cudf_cxx::column::ffi::column_to_u32;
+            Uint64 => u64, cudf_cxx::column::ffi::column_to_u64;
+            Float32 => f32, cudf_cxx::column::ffi::column_to_f32;
+            Float64 => f64, cudf_cxx::column::ffi::column_to_f64;
         }
 
         // SAFETY: The C++ side has successfully filled exactly `len` elements

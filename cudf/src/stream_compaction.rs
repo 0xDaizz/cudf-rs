@@ -7,17 +7,27 @@
 //!
 //! ```rust,no_run
 //! use cudf::{Column, Table};
-//! use cudf::stream_compaction::DuplicateKeepOption;
+//! use cudf::stream_compaction::{DuplicateKeepOption, NullEquality};
 //!
 //! let col = Column::from_slice(&[1i32, 2, 2, 3, 3, 3]).unwrap();
 //! let table = Table::new(vec![col]).unwrap();
-//! let unique_table = table.unique(&[0], DuplicateKeepOption::First).unwrap();
+//! let unique_table = table.unique(&[0], DuplicateKeepOption::First, NullEquality::Equal).unwrap();
 //! ```
 
 use crate::column::Column;
 use crate::error::{CudfError, Result};
 use crate::table::Table;
 use crate::types::checked_i32;
+
+/// Controls how null values are compared for equality in deduplication.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum NullEquality {
+    /// Nulls are considered equal to each other.
+    Equal = 0,
+    /// Nulls are considered unequal to each other.
+    Unequal = 1,
+}
 
 /// Controls which duplicate row to keep.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,13 +91,18 @@ impl Table {
     /// # Errors
     ///
     /// Returns an error if any key column index is out of bounds.
-    pub fn unique(&self, key_columns: &[usize], keep: DuplicateKeepOption) -> Result<Table> {
+    pub fn unique(
+        &self,
+        key_columns: &[usize],
+        keep: DuplicateKeepOption,
+        null_equality: NullEquality,
+    ) -> Result<Table> {
         let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::unique(
             &self.inner,
             &keys,
             keep.as_i32(),
-            0, // null_equality: EQUAL
+            null_equality as i32,
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
@@ -101,13 +116,18 @@ impl Table {
     /// # Errors
     ///
     /// Returns an error if any key column index is out of bounds.
-    pub fn distinct(&self, key_columns: &[usize], keep: DuplicateKeepOption) -> Result<Table> {
+    pub fn distinct(
+        &self,
+        key_columns: &[usize],
+        keep: DuplicateKeepOption,
+        null_equality: NullEquality,
+    ) -> Result<Table> {
         let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::distinct(
             &self.inner,
             &keys,
             keep.as_i32(),
-            0, // null_equality: EQUAL
+            null_equality as i32,
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })
@@ -193,11 +213,15 @@ impl Table {
     ///
     /// All columns are used as keys for determining distinctness.
     /// The result is an integer column of row indices.
-    pub fn distinct_indices(&self, keep: DuplicateKeepOption) -> Result<Column> {
+    pub fn distinct_indices(
+        &self,
+        keep: DuplicateKeepOption,
+        null_equality: NullEquality,
+    ) -> Result<Column> {
         let raw = cudf_cxx::stream_compaction::ffi::distinct_indices(
             &self.inner,
             keep.as_i32(),
-            0, // null_equality: EQUAL
+            null_equality as i32,
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
@@ -211,13 +235,14 @@ impl Table {
         &self,
         key_columns: &[usize],
         keep: DuplicateKeepOption,
+        null_equality: NullEquality,
     ) -> Result<Table> {
         let keys: Vec<i32> = key_columns.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
         let raw = cudf_cxx::stream_compaction::ffi::stable_distinct(
             &self.inner,
             &keys,
             keep.as_i32(),
-            0, // null_equality: EQUAL
+            null_equality as i32,
         )
         .map_err(CudfError::from_cxx)?;
         Ok(Table { inner: raw })

@@ -1,4 +1,5 @@
 #include "types_shim.h"
+#include "enum_verify.h"
 
 namespace cudf_shims {
 

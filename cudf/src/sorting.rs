@@ -257,6 +257,52 @@ impl Table {
         Ok(Table { inner: raw })
     }
 
+    /// Sort this table's rows by the rows of a separate `keys` table.
+    ///
+    /// `column_order` and `null_order` must have one entry per column in `keys`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the slice lengths don't match the number of key columns,
+    /// or if a GPU error occurs.
+    pub fn sort_by_key(
+        &self,
+        keys: &Table,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Table> {
+        keys.validate_order_slices(column_order.len(), null_order.len())?;
+
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::sort_by_key(&self.inner, &keys.inner, &co, &no)
+            .map_err(CudfError::from_cxx)?;
+
+        Ok(Table { inner: raw })
+    }
+
+    /// Stable sort this table's rows by the rows of a separate `keys` table.
+    ///
+    /// Like [`sort_by_key`](Self::sort_by_key) but preserves the relative order
+    /// of equal elements.
+    pub fn stable_sort_by_key(
+        &self,
+        keys: &Table,
+        column_order: &[SortOrder],
+        null_order: &[NullOrder],
+    ) -> Result<Table> {
+        keys.validate_order_slices(column_order.len(), null_order.len())?;
+
+        let co = sort_orders_to_i32(column_order);
+        let no = null_orders_to_i32(null_order);
+
+        let raw = cudf_cxx::sorting::ffi::stable_sort_by_key(&self.inner, &keys.inner, &co, &no)
+            .map_err(CudfError::from_cxx)?;
+
+        Ok(Table { inner: raw })
+    }
+
     /// Validate that order slices match the number of columns.
     pub(crate) fn validate_order_slices(&self, co_len: usize, no_len: usize) -> Result<()> {
         let ncols = self.num_columns();
@@ -299,11 +345,15 @@ impl Column {
     ///
     /// Returns a column of rank values. Type is `f64` for `Average` method
     /// or when `percentage=true`, `i32` (size_type) for all other methods.
+    ///
+    /// When `percentage` is `true`, the rank values are divided by the count
+    /// of elements, producing values in (0, 1].
     pub fn rank(
         &self,
         method: RankMethod,
         order: SortOrder,
         null_order: NullOrder,
+        percentage: bool,
     ) -> Result<Column> {
         let raw = cudf_cxx::sorting::ffi::rank(
             &self.inner,
@@ -311,7 +361,7 @@ impl Column {
             order as i32,
             null_order as i32,
             NullHandling::Include as i32,
-            false,
+            percentage,
         )
         .map_err(CudfError::from_cxx)?;
 

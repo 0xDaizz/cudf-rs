@@ -5,7 +5,7 @@
 //! ```rust,no_run
 //! use cudf::Column;
 //!
-//! // Assuming `col` is a STRING column
+//! let col = Column::from_strings(&["hello", "WORLD"]).unwrap();
 //! let upper = col.str_to_upper().unwrap();
 //! let lower = col.str_to_lower().unwrap();
 //! ```

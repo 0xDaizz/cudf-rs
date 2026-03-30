@@ -1,33 +1,10 @@
 #include "sorting_shim.h"
+#include "order_utils.h"
 #include <cudf/sorting.hpp>
 #include <cudf/utilities/default_stream.hpp>
 #include <stdexcept>
 
 namespace cudf_shims {
-
-namespace {
-
-/// Convert a flat i32 slice to a vector of cudf::order.
-std::vector<cudf::order> to_column_order(rust::Slice<const int32_t> order) {
-    std::vector<cudf::order> result;
-    result.reserve(order.size());
-    for (auto v : order) {
-        result.push_back(v == 0 ? cudf::order::ASCENDING : cudf::order::DESCENDING);
-    }
-    return result;
-}
-
-/// Convert a flat i32 slice to a vector of cudf::null_order.
-std::vector<cudf::null_order> to_null_order(rust::Slice<const int32_t> order) {
-    std::vector<cudf::null_order> result;
-    result.reserve(order.size());
-    for (auto v : order) {
-        result.push_back(v == 0 ? cudf::null_order::AFTER : cudf::null_order::BEFORE);
-    }
-    return result;
-}
-
-} // anonymous namespace
 
 std::unique_ptr<OwnedColumn> sorted_order(
     const OwnedTable& table,

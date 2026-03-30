@@ -8,9 +8,10 @@
 //! ```rust,no_run
 //! use cudf::Column;
 //!
-//! // Extract the first element from each list row
-//! let list_col: Column = todo!("create a list column");
-//! let first_elements = list_col.lists_extract(0).unwrap();
+//! // List columns are created via I/O readers (Parquet, JSON)
+//! // or the Arrow interop interface.
+//! // let list_col: Column = /* from parquet/json/arrow */;
+//! // let first_elements = list_col.lists_extract(0).unwrap();
 //! ```
 
 use crate::column::Column;

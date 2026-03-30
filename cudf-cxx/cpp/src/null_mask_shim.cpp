@@ -1,6 +1,5 @@
 #include "null_mask_shim.h"
 #include <cudf/null_mask.hpp>
-#include <cudf/detail/null_mask.hpp>
 #include <cudf/copying.hpp>
 #include <cudf/column/column.hpp>
 #include <cudf/column/column_factories.hpp>
@@ -137,8 +136,8 @@ std::unique_ptr<OwnedColumn> set_null_mask_range(
 
     // Recount nulls: count unset bits in the mask range [0, size).
     auto view = new_col->view();
-    auto null_cnt = cudf::detail::count_unset_bits(
-        view.null_mask(), 0, view.size(), stream);
+    auto null_cnt = cudf::null_count(
+        view.null_mask(), 0, view.size());
     new_col->set_null_count(static_cast<cudf::size_type>(null_cnt));
 
     return std::make_unique<OwnedColumn>(std::move(new_col));

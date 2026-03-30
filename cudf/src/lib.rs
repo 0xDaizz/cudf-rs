@@ -104,7 +104,7 @@ pub use replace::NullReplacePolicy;
 pub use rolling::RollingAgg;
 pub use scalar::Scalar;
 pub use sorting::{NullOrder, SortOrder};
-pub use stream_compaction::DuplicateKeepOption;
+pub use stream_compaction::{DuplicateKeepOption, NullEquality};
 pub use table::{Table, TableWithMetadata};
 pub use types::{DataType, NullHandling, TypeId};
 pub use unary::UnaryOp;
