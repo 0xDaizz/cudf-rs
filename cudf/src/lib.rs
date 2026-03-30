@@ -46,6 +46,9 @@
 //! |---------|---------|-------------|
 //! | `arrow-interop` | Yes | Zero-copy conversion to/from `arrow` arrays |
 
+#[cfg(not(target_pointer_width = "64"))]
+compile_error!("cudf-rs requires a 64-bit target (CUDA is 64-bit only)");
+
 pub mod aggregation;
 pub mod binaryop;
 pub mod column;

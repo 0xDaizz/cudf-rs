@@ -137,6 +137,9 @@ impl Scalar {
 
     /// Create a null scalar of the given data type.
     ///
+    /// Note: temporal types (Timestamp*, Duration*) are not supported;
+    /// use the C++ API directly for temporal null scalars.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run

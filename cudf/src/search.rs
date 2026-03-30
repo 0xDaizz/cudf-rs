@@ -34,6 +34,7 @@ impl Table {
         orders: &[SortOrder],
         null_orders: &[NullOrder],
     ) -> Result<Column> {
+        self.validate_order_slices(orders.len(), null_orders.len())?;
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();
 
@@ -52,6 +53,7 @@ impl Table {
         orders: &[SortOrder],
         null_orders: &[NullOrder],
     ) -> Result<Column> {
+        self.validate_order_slices(orders.len(), null_orders.len())?;
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();
 

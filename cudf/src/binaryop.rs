@@ -22,6 +22,7 @@ use crate::types::DataType;
 /// Binary operations supported by libcudf.
 ///
 /// These map to `cudf::binary_operator` enum values in libcudf 26.x.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum BinaryOp {

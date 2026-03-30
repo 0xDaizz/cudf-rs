@@ -110,6 +110,11 @@ pub struct BitmaskResult {
 /// A bit is set in the output only if it is set in ALL input columns.
 /// Use this to find rows that are valid across all columns.
 pub fn bitmask_and(columns: &[&Column]) -> Result<BitmaskResult> {
+    if columns.is_empty() {
+        return Err(CudfError::InvalidArgument(
+            "bitmask_and requires at least one column".to_string(),
+        ));
+    }
     let mut builder = cudf_cxx::null_mask::ffi::bitmask_builder_new();
     for col in columns {
         builder.pin_mut().add_column(&col.inner);
@@ -142,6 +147,11 @@ pub fn num_bitmask_words(num_bits: usize) -> Result<usize> {
 /// A bit is set in the output if it is set in ANY input column.
 /// Use this to find rows that are valid in at least one column.
 pub fn bitmask_or(columns: &[&Column]) -> Result<BitmaskResult> {
+    if columns.is_empty() {
+        return Err(CudfError::InvalidArgument(
+            "bitmask_or requires at least one column".to_string(),
+        ));
+    }
     let mut builder = cudf_cxx::null_mask::ffi::bitmask_builder_new();
     for col in columns {
         builder.pin_mut().add_column(&col.inner);

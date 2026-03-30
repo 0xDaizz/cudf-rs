@@ -258,7 +258,7 @@ impl Table {
     }
 
     /// Validate that order slices match the number of columns.
-    fn validate_order_slices(&self, co_len: usize, no_len: usize) -> Result<()> {
+    pub(crate) fn validate_order_slices(&self, co_len: usize, no_len: usize) -> Result<()> {
         let ncols = self.num_columns();
         if co_len != ncols {
             return Err(CudfError::InvalidArgument(format!(

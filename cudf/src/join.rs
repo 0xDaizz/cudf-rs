@@ -190,25 +190,28 @@ fn extract_join_result(
 ///
 /// let result = hj.inner_join(&probe_keys).unwrap();
 /// ```
-pub struct HashJoin {
+pub struct HashJoin<'a> {
+    _build: std::marker::PhantomData<&'a Table>,
     inner: cxx::UniquePtr<cudf_cxx::join::ffi::OwnedHashJoin>,
 }
 
 // SAFETY: GPU memory is process-global; HashJoin can be safely moved to another thread.
-unsafe impl Send for HashJoin {}
+unsafe impl Send for HashJoin<'_> {}
 
-impl HashJoin {
+impl<'a> HashJoin<'a> {
     /// Create a hash join from the build (right) table's key columns.
     ///
-    /// The build table is hashed once at construction time.
+    /// The build table is hashed once at construction time. The returned
+    /// `HashJoin` borrows the build table to prevent use-after-free of
+    /// the underlying GPU memory.
     ///
     /// # Errors
     ///
     /// Returns an error if a GPU error occurs.
-    pub fn new(build: &Table) -> Result<Self> {
+    pub fn new(build: &'a Table) -> Result<Self> {
         let inner =
             cudf_cxx::join::ffi::hash_join_create(&build.inner).map_err(CudfError::from_cxx)?;
-        Ok(Self { inner })
+        Ok(Self { _build: std::marker::PhantomData, inner })
     }
 
     /// Perform an inner join by probing with the given table.

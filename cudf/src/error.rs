@@ -5,6 +5,7 @@
 //! converted to `CudfError::Cxx` variants.
 
 /// Errors that can occur during cudf operations.
+#[non_exhaustive]
 #[derive(Debug, thiserror::Error)]
 pub enum CudfError {
     /// An error originating from the libcudf C++ library.

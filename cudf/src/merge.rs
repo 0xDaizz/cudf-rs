@@ -44,6 +44,25 @@ impl Table {
         orders: &[SortOrder],
         null_orders: &[NullOrder],
     ) -> Result<Table> {
+        if key_cols.is_empty() {
+            return Err(CudfError::InvalidArgument(
+                "merge requires at least one key column".to_string(),
+            ));
+        }
+        if orders.len() != key_cols.len() {
+            return Err(CudfError::InvalidArgument(format!(
+                "column_order length ({}) must match key_cols length ({})",
+                orders.len(),
+                key_cols.len()
+            )));
+        }
+        if null_orders.len() != key_cols.len() {
+            return Err(CudfError::InvalidArgument(format!(
+                "null_order length ({}) must match key_cols length ({})",
+                null_orders.len(),
+                key_cols.len()
+            )));
+        }
         let keys: Vec<i32> = key_cols.iter().map(|&k| checked_i32(k)).collect::<Result<Vec<i32>>>()?;
         let ord: Vec<i32> = orders.iter().map(|o| *o as i32).collect();
         let nul: Vec<i32> = null_orders.iter().map(|o| *o as i32).collect();

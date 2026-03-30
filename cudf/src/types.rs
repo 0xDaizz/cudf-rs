@@ -15,6 +15,7 @@ use std::fmt;
 /// type IDs as `i32`, so this enum's `#[repr(i32)]` values are the source of
 /// truth on the Rust side. If you add or reorder variants, update both the
 /// C++ `cudf::type_id` mapping and this enum.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum TypeId {

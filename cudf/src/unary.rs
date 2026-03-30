@@ -23,6 +23,7 @@ use crate::types::DataType;
 /// Unary operations supported by libcudf.
 ///
 /// These map to `cudf::unary_operator` enum values in libcudf 26.x.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum UnaryOp {

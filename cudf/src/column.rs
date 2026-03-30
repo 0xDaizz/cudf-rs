@@ -117,6 +117,7 @@ impl Column {
     /// assert_eq!(col.len(), 3);
     /// ```
     pub fn from_strings(data: &[impl AsRef<str>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let strings: Vec<String> = data.iter().map(|s| s.as_ref().to_string()).collect();
         let raw =
             cudf_cxx::column::ffi::column_from_strings(&strings).map_err(CudfError::from_cxx)?;
@@ -127,6 +128,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_i32(data: &[Option<i32>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<i32> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_i32_nullable(&values, &validity)
@@ -138,6 +140,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_i64(data: &[Option<i64>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<i64> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_i64_nullable(&values, &validity)
@@ -149,6 +152,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_f32(data: &[Option<f32>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<f32> = data.iter().map(|o| o.unwrap_or(0.0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_f32_nullable(&values, &validity)
@@ -160,6 +164,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_f64(data: &[Option<f64>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<f64> = data.iter().map(|o| o.unwrap_or(0.0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_f64_nullable(&values, &validity)
@@ -171,6 +176,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_i8(data: &[Option<i8>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<i8> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_i8_nullable(&values, &validity)
@@ -182,6 +188,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_i16(data: &[Option<i16>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<i16> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_i16_nullable(&values, &validity)
@@ -193,6 +200,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_u8(data: &[Option<u8>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<u8> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_u8_nullable(&values, &validity)
@@ -204,6 +212,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_u16(data: &[Option<u16>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<u16> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_u16_nullable(&values, &validity)
@@ -215,6 +224,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_u32(data: &[Option<u32>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<u32> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_u32_nullable(&values, &validity)
@@ -226,6 +236,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_u64(data: &[Option<u64>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<u64> = data.iter().map(|o| o.unwrap_or(0)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_u64_nullable(&values, &validity)
@@ -249,6 +260,7 @@ impl Column {
     /// assert_eq!(col.null_count(), 1);
     /// ```
     pub fn from_optional_strings(data: &[Option<impl AsRef<str>>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let strings: Vec<String> = data
             .iter()
             .map(|o| match o {
@@ -266,6 +278,7 @@ impl Column {
     ///
     /// `None` values become null entries in the GPU column.
     pub fn from_optional_bool(data: &[Option<bool>]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let values: Vec<bool> = data.iter().map(|o| o.unwrap_or(false)).collect();
         let validity: Vec<bool> = data.iter().map(|o| o.is_some()).collect();
         let raw = cudf_cxx::column::ffi::column_from_bool_nullable(&values, &validity)
@@ -427,6 +440,7 @@ impl Column {
     /// let floats = Column::from_slice(&[1.0f64, 2.0, 3.0]).unwrap();
     /// ```
     pub fn from_slice<T: CudfType>(data: &[T]) -> Result<Self> {
+        let _size = checked_i32(data.len())?;
         let inner = match T::TYPE_ID {
             TypeId::Int8 => {
                 // SAFETY: T is i8 when TYPE_ID is Int8; same size and repr.

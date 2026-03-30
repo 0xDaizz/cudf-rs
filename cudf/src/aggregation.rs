@@ -19,6 +19,7 @@ use cxx::UniquePtr;
 use crate::types::NullHandling;
 
 /// The kind of aggregation to perform.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub enum AggregationKind {
     /// Sum of non-null values.

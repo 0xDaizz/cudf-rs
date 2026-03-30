@@ -3,6 +3,7 @@
 use crate::error::{CudfError, Result};
 use crate::table::{Table, TableWithMetadata};
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Compression {
@@ -260,6 +261,9 @@ impl ChunkedParquetWriter {
 
     /// Write a table chunk to the Parquet file.
     pub fn write(&mut self, table: &Table) -> Result<()> {
+        if self.closed {
+            return Err(CudfError::InvalidArgument("writer is already closed".into()));
+        }
         cudf_cxx::io::parquet::ffi::chunked_parquet_writer_write(self.inner.pin_mut(), &table.inner)
             .map_err(CudfError::from_cxx)
     }
@@ -267,7 +271,11 @@ impl ChunkedParquetWriter {
     /// Finalize and close the Parquet file.
     ///
     /// This must be called to ensure all data is flushed.
+    /// Calling `close()` on an already-closed writer is a safe no-op.
     pub fn close(&mut self) -> Result<()> {
+        if self.closed {
+            return Ok(());
+        }
         cudf_cxx::io::parquet::ffi::chunked_parquet_writer_close(self.inner.pin_mut())
             .map_err(CudfError::from_cxx)?;
         self.closed = true;
