@@ -160,15 +160,28 @@ fn eval_agg_expr(
             reduce_and_broadcast(*input, ReduceOp::Median, expr_arena, df, height)
         }
         IRAggExpr::Std(input, _ddof) => {
+            // TODO: ReduceOp::Std does not accept a ddof parameter.
+            // cudf reduction always uses ddof=1. If _ddof != 1, results will be incorrect.
             reduce_and_broadcast(*input, ReduceOp::Std, expr_arena, df, height)
         }
         IRAggExpr::Var(input, _ddof) => {
+            // TODO: ReduceOp::Variance does not accept a ddof parameter.
+            // cudf reduction always uses ddof=1. If _ddof != 1, results will be incorrect.
             reduce_and_broadcast(*input, ReduceOp::Variance, expr_arena, df, height)
         }
-        IRAggExpr::Count(_input, _include_nulls) => {
-            let count = height as u32;
-            let data = vec![count; height];
-            gpu_result(GpuColumn::from_slice(&data))
+        IRAggExpr::Count(input, include_nulls) => {
+            if *include_nulls {
+                // Count all rows including nulls
+                let count = height as u32;
+                let data = vec![count; height];
+                gpu_result(GpuColumn::from_slice(&data))
+            } else {
+                // Count only non-null rows: height - null_count
+                let col = eval_expr(*input, expr_arena, df)?;
+                let valid_count = (height - col.null_count()) as u32;
+                let data = vec![valid_count; height];
+                gpu_result(GpuColumn::from_slice(&data))
+            }
         }
         IRAggExpr::NUnique(input) => {
             let col = eval_expr(*input, expr_arena, df)?;
@@ -214,10 +227,34 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
     let dtype = scalar.data_type();
     let tid = dtype.id();
 
-    // If the scalar is not valid (null), create a null column
+    // If the scalar is not valid (null), create a null column of the correct type
     if !scalar.is_valid() {
-        let opts: Vec<Option<i32>> = vec![None; height];
-        return gpu_result(GpuColumn::from_optional_i32(&opts));
+        return match tid {
+            GpuTypeId::Float64 => {
+                let opts: Vec<Option<f64>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_f64(&opts))
+            }
+            GpuTypeId::Float32 => {
+                let opts: Vec<Option<f32>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_f32(&opts))
+            }
+            GpuTypeId::Int64 => {
+                let opts: Vec<Option<i64>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_i64(&opts))
+            }
+            GpuTypeId::Uint32 => {
+                let opts: Vec<Option<u32>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_u32(&opts))
+            }
+            GpuTypeId::Uint64 => {
+                let opts: Vec<Option<u64>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_u64(&opts))
+            }
+            _ => {
+                let opts: Vec<Option<i32>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_i32(&opts))
+            }
+        };
     }
 
     match tid {

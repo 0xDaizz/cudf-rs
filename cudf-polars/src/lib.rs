@@ -378,12 +378,19 @@ mod engine_tests {
                 vec![val_col],
                 vec![(0, AggregationKind::Sum)],
                 vec!["val_sum".to_string()],
+                true, // maintain_order
             )
             .unwrap();
 
         assert_eq!(result.height(), 3); // 3 groups
         let back = result.to_polars().unwrap();
         assert_eq!(back.width(), 2); // cat + val_sum
+
+        // Verify actual sum values (sorted by key)
+        let cats: Vec<i32> = back.column("cat").unwrap().i32().unwrap().into_no_null_iter().collect();
+        let sums: Vec<f64> = back.column("val_sum").unwrap().f64().unwrap().into_no_null_iter().collect();
+        assert_eq!(cats, vec![1, 2, 3]);
+        assert_eq!(sums, vec![30.0, 70.0, 50.0]);
     }
 
     #[test]
@@ -413,6 +420,7 @@ mod engine_tests {
                     (1, AggregationKind::Count),
                 ],
                 vec!["a_mean".to_string(), "b_count".to_string()],
+                false, // maintain_order
             )
             .unwrap();
 
@@ -438,6 +446,21 @@ mod engine_tests {
             .distinct(None, DuplicateKeepOption::First, false)
             .unwrap();
         assert_eq!(result.height(), 3); // 3 unique rows
+
+        // Verify actual distinct values (sort by x to handle non-deterministic order)
+        let x_col = result.column_by_name("x").unwrap();
+        let sorted = result
+            .sort_by_key(
+                vec![x_col],
+                &[cudf::sorting::SortOrder::Ascending],
+                &[cudf::sorting::NullOrder::After],
+            )
+            .unwrap();
+        let back = sorted.to_polars().unwrap();
+        let xs: Vec<i32> = back.column("x").unwrap().i32().unwrap().into_no_null_iter().collect();
+        let ys: Vec<i32> = back.column("y").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(xs, vec![1, 2, 3]);
+        assert_eq!(ys, vec![10, 20, 30]);
     }
 
     #[test]

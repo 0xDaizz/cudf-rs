@@ -134,6 +134,7 @@ impl GpuDataFrame {
         value_columns: Vec<GpuColumn>,
         agg_requests: Vec<(usize, AggregationKind)>,
         agg_names: Vec<String>,
+        maintain_order: bool,
     ) -> PolarsResult<Self> {
         let keys_table = gpu_result(GpuTable::new(key_columns))?;
         let values_table = gpu_result(GpuTable::new(value_columns))?;
@@ -146,13 +147,27 @@ impl GpuDataFrame {
         let result = gpu_result(gb.execute(&values_table))?;
 
         // Result has key columns first, then aggregation columns
-        let mut all_names = key_names;
+        let mut all_names = key_names.clone();
         all_names.extend(agg_names);
 
-        Ok(Self {
+        let result_df = Self {
             table: result,
             names: all_names,
-        })
+        };
+
+        // If maintain_order is requested, sort by key columns to ensure deterministic output
+        if maintain_order {
+            let num_keys = key_names.len();
+            let mut sort_keys = Vec::with_capacity(num_keys);
+            for i in 0..num_keys {
+                sort_keys.push(result_df.column(i)?);
+            }
+            let orders = vec![SortOrder::Ascending; num_keys];
+            let null_orders = vec![NullOrder::After; num_keys];
+            result_df.sort_by_key(sort_keys, &orders, &null_orders)
+        } else {
+            Ok(result_df)
+        }
     }
 
     /// Remove duplicate rows based on the given subset of columns.

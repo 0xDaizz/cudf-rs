@@ -216,6 +216,7 @@ pub fn execute_node(
             aggs,
             schema,
             apply,
+            maintain_order,
             ..
         } => {
             if apply.is_some() {
@@ -259,7 +260,7 @@ pub fn execute_node(
             }
 
             let result =
-                table.groupby(key_columns, key_names, value_columns, agg_requests, agg_names)?;
+                table.groupby(key_columns, key_names, value_columns, agg_requests, agg_names, *maintain_order)?;
 
             // Reorder to match output schema if needed
             let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
@@ -406,7 +407,13 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::Max { input, .. } => Ok((*input, AggregationKind::Max)),
         IRAggExpr::Mean(input) => Ok((*input, AggregationKind::Mean)),
         IRAggExpr::Median(input) => Ok((*input, AggregationKind::Median)),
-        IRAggExpr::Count(input, _) => Ok((*input, AggregationKind::Count)),
+        IRAggExpr::Count(input, include_nulls) => {
+            // TODO: cudf-rs AggregationKind has no CountValid variant.
+            // Count always includes nulls at the libcudf level.
+            // The exclude-nulls logic is handled in eval_agg_expr instead.
+            let _ = include_nulls;
+            Ok((*input, AggregationKind::Count))
+        }
         IRAggExpr::NUnique(input) => Ok((*input, AggregationKind::Nunique)),
         IRAggExpr::First(input) => Ok((*input, AggregationKind::NthElement { n: 0 })),
         IRAggExpr::Last(input) => Ok((*input, AggregationKind::NthElement { n: -1 })),
