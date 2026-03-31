@@ -24,6 +24,10 @@ impl GpuDataFrame {
 
     /// Create from individual columns and names.
     pub fn from_columns(columns: Vec<GpuColumn>, names: Vec<String>) -> PolarsResult<Self> {
+        if columns.len() != names.len() {
+            return Err(polars_err!(ComputeError:
+                "GpuDataFrame: {} columns but {} names", columns.len(), names.len()));
+        }
         let table = gpu_result(GpuTable::new(columns))?;
         Ok(Self { table, names })
     }

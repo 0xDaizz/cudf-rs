@@ -301,6 +301,6 @@ mod engine_tests {
 
         let result = gpu_expr::eval_expr(len_node, &arena, &gpu_df).unwrap();
         let vals: Vec<u32> = gpu_error::gpu_result(result.to_vec()).unwrap();
-        assert_eq!(vals, vec![5u32]);
+        assert_eq!(vals, vec![5u32; 5]);
     }
 }

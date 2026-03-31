@@ -4,7 +4,7 @@
 
 use cudf::Column as GpuColumn;
 use cudf::types::{DataType as GpuDataType, TypeId as GpuTypeId};
-use polars_error::{PolarsResult, polars_bail};
+use polars_error::{PolarsResult, polars_bail, polars_err};
 use polars_plan::plans::AExpr;
 use polars_plan::plans::LiteralValue;
 use polars_utils::arena::{Arena, Node};
@@ -12,6 +12,22 @@ use polars_utils::arena::{Arena, Node};
 use crate::error::gpu_result;
 use crate::gpu_frame::GpuDataFrame;
 use crate::types::{is_comparison, map_dtype, map_operator};
+
+/// Compute the output type for arithmetic operations (supertype promotion).
+fn arithmetic_output_type(left_type: &GpuDataType, right_type: &GpuDataType) -> GpuDataType {
+    let l = left_type.id();
+    let r = right_type.id();
+
+    if l == GpuTypeId::Float64 || r == GpuTypeId::Float64 {
+        GpuDataType::new(GpuTypeId::Float64)
+    } else if l == GpuTypeId::Float32 || r == GpuTypeId::Float32 {
+        GpuDataType::new(GpuTypeId::Float32)
+    } else if l == GpuTypeId::Int64 || r == GpuTypeId::Int64 {
+        GpuDataType::new(GpuTypeId::Int64)
+    } else {
+        *left_type
+    }
+}
 
 /// Evaluate an expression node, producing a GPU column.
 pub fn eval_expr(
@@ -32,11 +48,12 @@ pub fn eval_expr(
             let right_col = eval_expr(right_node, expr_arena, df)?;
 
             let gpu_op = map_operator(op)?;
+            let l_type = left_col.data_type();
+            let r_type = right_col.data_type();
             let output_type = if is_comparison(op) {
                 GpuDataType::new(GpuTypeId::Bool8)
             } else {
-                // Use left operand's type for arithmetic
-                left_col.data_type()
+                arithmetic_output_type(&l_type, &r_type)
             };
             gpu_result(left_col.binary_op(&right_col, gpu_op, output_type))
         }
@@ -50,8 +67,9 @@ pub fn eval_expr(
         }
 
         AExpr::Len => {
-            let height = df.height() as u32;
-            gpu_result(GpuColumn::from_slice(&[height]))
+            let height = df.height();
+            let values: Vec<u32> = vec![height as u32; height];
+            gpu_result(GpuColumn::from_slice(&values))
         }
 
         AExpr::Alias(inner, _name) => {
@@ -65,6 +83,8 @@ pub fn eval_expr(
 /// Convert a Polars `LiteralValue` to a GPU column of the given height.
 fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuColumn> {
     match lit {
+        // TODO: Null type should match the context (e.g., the other operand's type in BinaryExpr).
+        // Currently always creates i32 nullable column. This may cause type mismatches.
         LiteralValue::Null => {
             let opts: Vec<Option<i32>> = vec![None; height];
             gpu_result(GpuColumn::from_optional_i32(&opts))
@@ -102,7 +122,9 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
             gpu_result(GpuColumn::from_strings(&strings))
         }
         LiteralValue::Int(v) => {
-            let data = vec![*v as i64; height];
+            let val = i64::try_from(*v)
+                .map_err(|_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v))?;
+            let data = vec![val; height];
             gpu_result(GpuColumn::from_slice(&data))
         }
         LiteralValue::Float(v) => {
