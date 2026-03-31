@@ -1,5 +1,5 @@
 [workspace]
-members = ["cudf-sys", "cudf-cxx", "cudf"]
+members = ["cudf-sys", "cudf-cxx", "cudf", "cudf-polars"]
 resolver = "2"
 
 [workspace.package]
