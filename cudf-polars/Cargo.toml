@@ -6,6 +6,9 @@ rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
 description = "GPU execution engine for Polars using NVIDIA libcudf"
 
+[package.metadata.docs.rs]
+default-target = "x86_64-unknown-linux-gnu"
+
 [dependencies]
 cudf = { path = "../cudf", features = ["arrow-interop"] }
 polars-core = { version = "=0.46.0", default-features = false }

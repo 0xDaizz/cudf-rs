@@ -9,6 +9,9 @@ readme = "README.md"
 keywords = ["gpu", "cuda", "dataframe", "arrow", "rapids"]
 categories = ["science", "api-bindings"]
 
+[package.metadata.docs.rs]
+default-target = "x86_64-unknown-linux-gnu"
+
 [dependencies]
 cudf-cxx = { path = "../cudf-cxx", version = "0.1.0" }
 thiserror = { workspace = true }

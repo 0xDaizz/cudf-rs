@@ -342,10 +342,13 @@ pub fn execute_node(
 
                     // Apply row limit/skip from slice
                     if let Some((offset, len)) = file_options.slice {
-                        if offset > 0 {
-                            reader = reader.skip_rows(offset as usize);
+                        if offset >= 0 {
+                            if offset > 0 {
+                                reader = reader.skip_rows(offset as usize);
+                            }
+                            reader = reader.num_rows(len);
                         }
-                        reader = reader.num_rows(len);
+                        // Negative offset (tail): read all, then slice at the end
                     }
 
                     let gpu_table = gpu_result(reader.read_with_metadata())?;

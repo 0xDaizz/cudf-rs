@@ -15,6 +15,11 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    // docs.rs doesn't have libcudf/CUDA installed; skip native linking
+    if std::env::var("DOCS_RS").is_ok() {
+        return;
+    }
+
     println!("cargo:rerun-if-env-changed=CUDF_ROOT");
     println!("cargo:rerun-if-env-changed=CONDA_PREFIX");
     println!("cargo:rerun-if-env-changed=CUDA_PATH");

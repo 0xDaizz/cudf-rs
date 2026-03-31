@@ -7,6 +7,11 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    // docs.rs doesn't have libcudf/CUDA installed; skip C++ compilation
+    if std::env::var("DOCS_RS").is_ok() {
+        return;
+    }
+
     // Get include path from cudf-sys
     let cudf_include = env::var("DEP_CUDF_INCLUDE").unwrap_or_else(|_| {
         // Fallback: try CONDA_PREFIX
