@@ -180,6 +180,33 @@ impl Column {
         .map_err(CudfError::from_cxx)?;
         Ok(Scalar { inner: raw })
     }
+    /// Reduce variance with a specific degrees of freedom correction (ddof).
+    ///
+    /// Unlike the generic  which uses ddof=1,
+    /// this allows specifying any ddof value.
+    pub fn reduce_var_with_ddof(&self, ddof: i32, output_type: DataType) -> Result<Scalar> {
+        let raw = cudf_cxx::reduction::ffi::reduce_var_with_ddof(
+            &self.inner,
+            ddof,
+            output_type.id() as i32,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Scalar { inner: raw })
+    }
+
+    /// Reduce standard deviation with a specific degrees of freedom correction (ddof).
+    ///
+    /// Unlike the generic  which uses ddof=1,
+    /// this allows specifying any ddof value.
+    pub fn reduce_std_with_ddof(&self, ddof: i32, output_type: DataType) -> Result<Scalar> {
+        let raw = cudf_cxx::reduction::ffi::reduce_std_with_ddof(
+            &self.inner,
+            ddof,
+            output_type.id() as i32,
+        )
+        .map_err(CudfError::from_cxx)?;
+        Ok(Scalar { inner: raw })
+    }
 }
 
 /// Check if a reduction aggregation is valid for a given source data type.

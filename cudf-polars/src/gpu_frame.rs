@@ -155,7 +155,9 @@ impl GpuDataFrame {
             names: all_names,
         };
 
-        // If maintain_order is requested, sort by key columns to ensure deterministic output
+        // LIMITATION: maintain_order is approximated by sorting result by key columns.
+        // This does NOT match Polars semantics (preserve first-appearance order).
+        // True maintain_order would require tracking input row indices before groupby.
         if maintain_order {
             let num_keys = key_names.len();
             let mut sort_keys = Vec::with_capacity(num_keys);

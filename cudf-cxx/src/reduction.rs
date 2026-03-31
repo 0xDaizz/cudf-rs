@@ -64,5 +64,19 @@ pub mod ffi {
 
         /// Check if a reduction aggregation is valid for a given source data type.
         fn is_valid_reduction_aggregation(source_type_id: i32, agg_kind: i32) -> Result<bool>;
+
+        /// Reduce: variance with custom ddof.
+        fn reduce_var_with_ddof(
+            col: &OwnedColumn,
+            ddof: i32,
+            output_type_id: i32,
+        ) -> Result<UniquePtr<OwnedScalar>>;
+
+        /// Reduce: standard deviation with custom ddof.
+        fn reduce_std_with_ddof(
+            col: &OwnedColumn,
+            ddof: i32,
+            output_type_id: i32,
+        ) -> Result<UniquePtr<OwnedScalar>>;
     }
 }

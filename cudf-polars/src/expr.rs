@@ -48,16 +48,47 @@ pub fn eval_expr(
             let left_node = *left;
             let right_node = *right;
             let op = *op;
+            let gpu_op = map_operator(op)?;
+
+            // Scalar optimization: avoid broadcasting a literal to a full column.
+            // Use binary_op_scalar (or binaryop::binary_op for scalar-column order)
+            // to let libcudf handle the broadcast internally on GPU.
+            let left_is_literal = matches!(expr_arena.get(left_node), AExpr::Literal(_));
+            let right_is_literal = matches!(expr_arena.get(right_node), AExpr::Literal(_));
+
+            if left_is_literal && !right_is_literal {
+                let scalar = literal_to_scalar(expr_arena.get(left_node))?;
+                let right_col = eval_expr(right_node, expr_arena, df)?;
+                let output_type = if is_comparison(op) {
+                    GpuDataType::new(GpuTypeId::Bool8)
+                } else {
+                    arithmetic_output_type(&scalar.data_type(), &right_col.data_type())
+                };
+                return gpu_result(cudf::binaryop::binary_op(
+                    &scalar,
+                    &right_col,
+                    gpu_op,
+                    output_type,
+                ));
+            }
+            if right_is_literal && !left_is_literal {
+                let left_col = eval_expr(left_node, expr_arena, df)?;
+                let scalar = literal_to_scalar(expr_arena.get(right_node))?;
+                let output_type = if is_comparison(op) {
+                    GpuDataType::new(GpuTypeId::Bool8)
+                } else {
+                    arithmetic_output_type(&left_col.data_type(), &scalar.data_type())
+                };
+                return gpu_result(left_col.binary_op_scalar(&scalar, gpu_op, output_type));
+            }
+
+            // Both are columns (or both literals) — fall back to column-column op
             let left_col = eval_expr(left_node, expr_arena, df)?;
             let right_col = eval_expr(right_node, expr_arena, df)?;
-
-            let gpu_op = map_operator(op)?;
-            let l_type = left_col.data_type();
-            let r_type = right_col.data_type();
             let output_type = if is_comparison(op) {
                 GpuDataType::new(GpuTypeId::Bool8)
             } else {
-                arithmetic_output_type(&l_type, &r_type)
+                arithmetic_output_type(&left_col.data_type(), &right_col.data_type())
             };
             gpu_result(left_col.binary_op(&right_col, gpu_op, output_type))
         }
@@ -163,6 +194,35 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
     }
 }
 
+/// Convert a Polars `LiteralValue` to a cudf `Scalar` (no GPU column allocation).
+///
+/// Used by the BinaryExpr scalar optimization path to avoid broadcasting
+/// a literal value into a full GPU column.
+fn literal_to_scalar(expr: &AExpr) -> PolarsResult<cudf::Scalar> {
+    match expr {
+        AExpr::Literal(lit) => match lit {
+            LiteralValue::Boolean(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::Int32(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::Int64(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::UInt32(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::UInt64(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::Float32(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::Float64(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::Int(v) => {
+                let val = i64::try_from(*v).map_err(
+                    |_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v),
+                )?;
+                gpu_result(cudf::Scalar::new(val))
+            }
+            LiteralValue::Float(v) => gpu_result(cudf::Scalar::new(*v)),
+            _ => {
+                polars_bail!(ComputeError: "GPU engine: literal type not supported for scalar optimization")
+            }
+        },
+        _ => polars_bail!(ComputeError: "GPU engine: expected literal expression"),
+    }
+}
+
 /// Evaluate a standalone aggregation expression (reduce column to scalar, broadcast to height).
 fn eval_agg_expr(
     agg: &IRAggExpr,
@@ -257,17 +317,33 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
     // If the scalar is not valid (null), create a null column of the correct type
     if !scalar.is_valid() {
         return match tid {
-            GpuTypeId::Float64 => {
-                let opts: Vec<Option<f64>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_f64(&opts))
+            GpuTypeId::Bool8 => {
+                let opts: Vec<Option<bool>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_bool(&opts))
             }
-            GpuTypeId::Float32 => {
-                let opts: Vec<Option<f32>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_f32(&opts))
+            GpuTypeId::Int8 => {
+                let opts: Vec<Option<i8>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_i8(&opts))
+            }
+            GpuTypeId::Int16 => {
+                let opts: Vec<Option<i16>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_i16(&opts))
+            }
+            GpuTypeId::Int32 => {
+                let opts: Vec<Option<i32>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_i32(&opts))
             }
             GpuTypeId::Int64 => {
                 let opts: Vec<Option<i64>> = vec![None; height];
                 gpu_result(GpuColumn::from_optional_i64(&opts))
+            }
+            GpuTypeId::Uint8 => {
+                let opts: Vec<Option<u8>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_u8(&opts))
+            }
+            GpuTypeId::Uint16 => {
+                let opts: Vec<Option<u16>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_u16(&opts))
             }
             GpuTypeId::Uint32 => {
                 let opts: Vec<Option<u32>> = vec![None; height];
@@ -276,6 +352,14 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
             GpuTypeId::Uint64 => {
                 let opts: Vec<Option<u64>> = vec![None; height];
                 gpu_result(GpuColumn::from_optional_u64(&opts))
+            }
+            GpuTypeId::Float32 => {
+                let opts: Vec<Option<f32>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_f32(&opts))
+            }
+            GpuTypeId::Float64 => {
+                let opts: Vec<Option<f64>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_f64(&opts))
             }
             _ => {
                 let opts: Vec<Option<i32>> = vec![None; height];

@@ -183,10 +183,7 @@ fn bench_parquet_native(n: usize) {
 
     // CPU path: read parquet via polars → pipeline
     let cpu_start = Instant::now();
-    let cpu_df = polars_core::frame::DataFrame::new(
-        df.get_columns().to_vec(),
-    )
-    .unwrap(); // use in-memory data since polars-core doesn't have parquet reader
+    let cpu_df = polars_core::frame::DataFrame::new(df.get_columns().to_vec()).unwrap(); // use in-memory data since polars-core doesn't have parquet reader
     let _cpu_result = cpu_pipeline(&cpu_df, threshold);
     let cpu_ms = cpu_start.elapsed().as_secs_f64() * 1000.0;
 
@@ -252,4 +249,7 @@ fn main() {
     println!("Note: GPU total = upload/read + compute + download.");
     println!("      GPU compute = all ops chained on GPU without intermediate transfers.");
     println!("      CPU pipeline runs the same filter→sort→groupby chain for fair comparison.");
+    println!(
+        "      Parquet benchmark: CPU uses in-memory data (no disk I/O); GPU reads from disk."
+    );
 }
