@@ -5,9 +5,12 @@
 use cudf::Column as GpuColumn;
 use cudf::reduction::ReduceOp;
 use cudf::types::{DataType as GpuDataType, TypeId as GpuTypeId};
+use cudf::unary::UnaryOp;
 use polars_error::{PolarsResult, polars_bail, polars_err};
 use polars_plan::plans::{AExpr, IRAggExpr};
 use polars_plan::plans::LiteralValue;
+use polars_plan::dsl::function_expr::FunctionExpr;
+use polars_plan::dsl::function_expr::BooleanFunction;
 use polars_utils::arena::{Arena, Node};
 
 use crate::error::gpu_result;
@@ -78,6 +81,31 @@ pub fn eval_expr(
         }
 
         AExpr::Agg(agg_expr) => eval_agg_expr(agg_expr, expr_arena, df),
+
+        AExpr::Ternary {
+            predicate,
+            truthy,
+            falsy,
+        } => {
+            let pred_node = *predicate;
+            let true_node = *truthy;
+            let false_node = *falsy;
+            let cond = eval_expr(pred_node, expr_arena, df)?;
+            let t = eval_expr(true_node, expr_arena, df)?;
+            let f = eval_expr(false_node, expr_arena, df)?;
+            // copy_if_else: where mask is true use self (truthy), else use other (falsy)
+            gpu_result(t.copy_if_else(&f, &cond))
+        }
+
+        AExpr::Function {
+            input,
+            function,
+            ..
+        } => {
+            let input = input.clone();
+            let function = function.clone();
+            eval_function(&input, &function, expr_arena, df)
+        }
 
         _ => polars_bail!(ComputeError: "GPU engine: unsupported expression node"),
     }
@@ -299,5 +327,131 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
             gpu_result(GpuColumn::from_slice(&vec![v; height]))
         }
         _ => polars_bail!(ComputeError: "GPU engine: cannot broadcast scalar of type {:?}", tid),
+    }
+}
+
+
+/// Evaluate a built-in function expression.
+fn eval_function(
+    inputs: &[polars_plan::prelude::expr_ir::ExprIR],
+    function: &FunctionExpr,
+    expr_arena: &Arena<AExpr>,
+    df: &GpuDataFrame,
+) -> PolarsResult<GpuColumn> {
+    match function {
+        FunctionExpr::Abs => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            gpu_result(col.unary_op(UnaryOp::Abs))
+        }
+        FunctionExpr::Negate => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            // Negate: multiply by -1 using the same type
+            let dtype = col.data_type();
+            let tid = dtype.id();
+            match tid {
+                GpuTypeId::Int8 | GpuTypeId::Int16 | GpuTypeId::Int32 | GpuTypeId::Int64 => {
+                    let neg_one = gpu_result(GpuColumn::from_slice(&vec![-1i64; col.len()]))?;
+                    let target_type = GpuDataType::new(tid);
+                    let neg_one_cast = gpu_result(neg_one.cast(target_type))?;
+                    gpu_result(col.binary_op(&neg_one_cast, cudf::BinaryOp::Mul, target_type))
+                }
+                GpuTypeId::Float32 => {
+                    let neg_one = gpu_result(GpuColumn::from_slice(&vec![-1.0f32; col.len()]))?;
+                    gpu_result(col.binary_op(&neg_one, cudf::BinaryOp::Mul, dtype))
+                }
+                GpuTypeId::Float64 => {
+                    let neg_one = gpu_result(GpuColumn::from_slice(&vec![-1.0f64; col.len()]))?;
+                    gpu_result(col.binary_op(&neg_one, cudf::BinaryOp::Mul, dtype))
+                }
+                _ => polars_bail!(ComputeError: "GPU engine: Negate not supported for type {:?}", tid),
+            }
+        }
+        FunctionExpr::Boolean(bf) => eval_boolean_function(bf, inputs, expr_arena, df),
+        FunctionExpr::FillNull => {
+            // FillNull: inputs[0] is the column, inputs[1] is the fill value
+            if inputs.len() != 2 {
+                polars_bail!(ComputeError: "GPU engine: FillNull expects 2 inputs");
+            }
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let fill = eval_expr(inputs[1].node(), expr_arena, df)?;
+            // Use copy_if_else: where NOT null, use original; where null, use fill
+            let is_valid = gpu_result(col.is_valid())?;
+            gpu_result(col.copy_if_else(&fill, &is_valid))
+        }
+        FunctionExpr::DropNulls => {
+            polars_bail!(ComputeError: "GPU engine: DropNulls not supported in expression context (use Filter)")
+        }
+        FunctionExpr::NullCount => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let nc = col.null_count() as u32;
+            let height = df.height();
+            gpu_result(GpuColumn::from_slice(&vec![nc; height]))
+        }
+        _ => polars_bail!(ComputeError: "GPU engine: unsupported function expression {:?}", function),
+    }
+}
+
+/// Evaluate a boolean function.
+fn eval_boolean_function(
+    bf: &BooleanFunction,
+    inputs: &[polars_plan::prelude::expr_ir::ExprIR],
+    expr_arena: &Arena<AExpr>,
+    df: &GpuDataFrame,
+) -> PolarsResult<GpuColumn> {
+    match bf {
+        BooleanFunction::IsNull => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            gpu_result(col.is_null())
+        }
+        BooleanFunction::IsNotNull => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            gpu_result(col.is_valid())
+        }
+        BooleanFunction::IsNan => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            gpu_result(col.is_nan())
+        }
+        BooleanFunction::IsNotNan => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            gpu_result(col.is_not_nan())
+        }
+        BooleanFunction::IsFinite => {
+            // IsFinite = NOT(IsNan) AND NOT(IsInfinite)
+            // Approximation: NOT(IsNan) since cudf doesn't have is_infinite directly
+            // Actually, is_finite = is_valid AND NOT(is_nan) for float types
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let is_nan = gpu_result(col.is_nan())?;
+            let not_nan = gpu_result(is_nan.unary_op(UnaryOp::Not))?;
+            let is_valid = gpu_result(col.is_valid())?;
+            gpu_result(not_nan.binary_op(
+                &is_valid,
+                cudf::BinaryOp::LogicalAnd,
+                GpuDataType::new(GpuTypeId::Bool8),
+            ))
+        }
+        BooleanFunction::IsInfinite => {
+            // IsInfinite: NOT(IsNan) AND NOT(IsFinite) ... complex without direct support
+            // We can compute: is_valid AND NOT(is_nan) AND NOT(is_finite)
+            // But cudf has no is_infinite. Use: (x != x is NaN), abs(x) == inf
+            // Simplest: NOT(is_nan) AND NOT(is_valid) ... no.
+            // Let's do: is_valid AND is_nan complement check
+            polars_bail!(ComputeError: "GPU engine: IsInfinite not yet supported")
+        }
+        BooleanFunction::Any { ignore_nulls } => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let _ = ignore_nulls;
+            // Reduce to check if any true
+            let scalar = gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
+            let height = df.height();
+            broadcast_scalar(&scalar, height)
+        }
+        BooleanFunction::All { ignore_nulls } => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let _ = ignore_nulls;
+            let scalar = gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
+            let height = df.height();
+            broadcast_scalar(&scalar, height)
+        }
+        _ => polars_bail!(ComputeError: "GPU engine: unsupported boolean function {:?}", bf),
     }
 }

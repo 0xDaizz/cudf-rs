@@ -482,3 +482,319 @@ mod engine_tests {
         assert_eq!(result.width(), 2); // both columns preserved
     }
 }
+
+
+#[cfg(test)]
+mod m4_tests {
+    use crate::gpu_frame::GpuDataFrame;
+    use crate::error as gpu_error;
+    use polars_core::prelude::*;
+
+    // ── Join tests ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_inner_join() {
+        // Left: id=[1,2,3,4], val=[10,20,30,40]
+        // Right: id=[2,3,5], score=[200,300,500]
+        // Inner join on id: expect matches at id=2,3
+        let left_df = df!(
+            "id" => [1i32, 2, 3, 4],
+            "val" => [10i32, 20, 30, 40]
+        ).unwrap();
+        let right_df = df!(
+            "id" => [2i32, 3, 5],
+            "score" => [200i32, 300, 500]
+        ).unwrap();
+
+        let left_gpu = GpuDataFrame::from_polars(&left_df).unwrap();
+        let right_gpu = GpuDataFrame::from_polars(&right_df).unwrap();
+
+        // Build key tables
+        let left_keys = vec![left_gpu.column_by_name("id").unwrap()];
+        let right_keys = vec![right_gpu.column_by_name("id").unwrap()];
+        let left_keys_table = gpu_error::gpu_result(cudf::Table::new(left_keys)).unwrap();
+        let right_keys_table = gpu_error::gpu_result(cudf::Table::new(right_keys)).unwrap();
+
+        let result = gpu_error::gpu_result(left_keys_table.inner_join(&right_keys_table)).unwrap();
+        let left_gathered = gpu_error::gpu_result(left_gpu.inner_table().gather(&result.left_indices)).unwrap();
+        let right_gathered = gpu_error::gpu_result(right_gpu.inner_table().gather(&result.right_indices)).unwrap();
+
+        // Build combined result
+        let mut cols = Vec::new();
+        let mut names = Vec::new();
+        for i in 0..left_gathered.num_columns() {
+            cols.push(gpu_error::gpu_result(left_gathered.column(i)).unwrap());
+            names.push(left_gpu.names()[i].clone());
+        }
+        for i in 0..right_gathered.num_columns() {
+            let rname = &right_gpu.names()[i];
+            if names.contains(rname) {
+                names.push(format!("{}_right", rname));
+            } else {
+                names.push(rname.clone());
+            }
+            cols.push(gpu_error::gpu_result(right_gathered.column(i)).unwrap());
+        }
+
+        let joined = GpuDataFrame::from_columns(cols, names).unwrap();
+        assert_eq!(joined.height(), 2); // 2 matching rows
+
+        let back = joined.to_polars().unwrap();
+        // Sort by id for deterministic check
+        let back = back.sort(["id"], Default::default()).unwrap();
+        let ids: Vec<i32> = back.column("id").unwrap().i32().unwrap().into_no_null_iter().collect();
+        let vals: Vec<i32> = back.column("val").unwrap().i32().unwrap().into_no_null_iter().collect();
+        let scores: Vec<i32> = back.column("score").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(ids, vec![2, 3]);
+        assert_eq!(vals, vec![20, 30]);
+        assert_eq!(scores, vec![200, 300]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_left_join() {
+        let left_df = df!(
+            "id" => [1i32, 2, 3, 4],
+            "val" => [10i32, 20, 30, 40]
+        ).unwrap();
+        let right_df = df!(
+            "id" => [2i32, 3, 5],
+            "score" => [200i32, 300, 500]
+        ).unwrap();
+
+        let left_gpu = GpuDataFrame::from_polars(&left_df).unwrap();
+        let right_gpu = GpuDataFrame::from_polars(&right_df).unwrap();
+
+        let left_keys = vec![left_gpu.column_by_name("id").unwrap()];
+        let right_keys = vec![right_gpu.column_by_name("id").unwrap()];
+        let left_keys_table = gpu_error::gpu_result(cudf::Table::new(left_keys)).unwrap();
+        let right_keys_table = gpu_error::gpu_result(cudf::Table::new(right_keys)).unwrap();
+
+        let result = gpu_error::gpu_result(left_keys_table.left_join(&right_keys_table)).unwrap();
+        let left_gathered = gpu_error::gpu_result(left_gpu.inner_table().gather(&result.left_indices)).unwrap();
+        let right_gathered = gpu_error::gpu_result(right_gpu.inner_table().gather(&result.right_indices)).unwrap();
+
+        // Left join: all 4 left rows preserved
+        assert_eq!(left_gathered.num_rows(), 4);
+        assert_eq!(right_gathered.num_rows(), 4);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_left_semi_join() {
+        let left_df = df!(
+            "id" => [1i32, 2, 3, 4],
+            "val" => [10i32, 20, 30, 40]
+        ).unwrap();
+        let right_df = df!(
+            "id" => [2i32, 3, 5]
+        ).unwrap();
+
+        let left_gpu = GpuDataFrame::from_polars(&left_df).unwrap();
+        let right_gpu = GpuDataFrame::from_polars(&right_df).unwrap();
+
+        let left_keys = vec![left_gpu.column_by_name("id").unwrap()];
+        let right_keys = vec![right_gpu.column_by_name("id").unwrap()];
+        let left_keys_table = gpu_error::gpu_result(cudf::Table::new(left_keys)).unwrap();
+        let right_keys_table = gpu_error::gpu_result(cudf::Table::new(right_keys)).unwrap();
+
+        let result = gpu_error::gpu_result(left_keys_table.left_semi_join(&right_keys_table)).unwrap();
+        let gathered = gpu_error::gpu_result(left_gpu.inner_table().gather(&result.left_indices)).unwrap();
+        let gathered_df = GpuDataFrame::from_table(gathered, left_gpu.names().to_vec());
+
+        // Sort for deterministic output
+        let id_col = gathered_df.column_by_name("id").unwrap();
+        let sorted = gathered_df.sort_by_key(
+            vec![id_col],
+            &[cudf::sorting::SortOrder::Ascending],
+            &[cudf::sorting::NullOrder::After],
+        ).unwrap();
+
+        assert_eq!(sorted.height(), 2); // only rows with id 2, 3
+        let back = sorted.to_polars().unwrap();
+        let ids: Vec<i32> = back.column("id").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(ids, vec![2, 3]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_left_anti_join() {
+        let left_df = df!(
+            "id" => [1i32, 2, 3, 4],
+            "val" => [10i32, 20, 30, 40]
+        ).unwrap();
+        let right_df = df!(
+            "id" => [2i32, 3, 5]
+        ).unwrap();
+
+        let left_gpu = GpuDataFrame::from_polars(&left_df).unwrap();
+        let right_gpu = GpuDataFrame::from_polars(&right_df).unwrap();
+
+        let left_keys = vec![left_gpu.column_by_name("id").unwrap()];
+        let right_keys = vec![right_gpu.column_by_name("id").unwrap()];
+        let left_keys_table = gpu_error::gpu_result(cudf::Table::new(left_keys)).unwrap();
+        let right_keys_table = gpu_error::gpu_result(cudf::Table::new(right_keys)).unwrap();
+
+        let result = gpu_error::gpu_result(left_keys_table.left_anti_join(&right_keys_table)).unwrap();
+        let gathered = gpu_error::gpu_result(left_gpu.inner_table().gather(&result.left_indices)).unwrap();
+        let gathered_df = GpuDataFrame::from_table(gathered, left_gpu.names().to_vec());
+
+        let id_col = gathered_df.column_by_name("id").unwrap();
+        let sorted = gathered_df.sort_by_key(
+            vec![id_col],
+            &[cudf::sorting::SortOrder::Ascending],
+            &[cudf::sorting::NullOrder::After],
+        ).unwrap();
+
+        assert_eq!(sorted.height(), 2); // rows with id 1, 4 (not in right)
+        let back = sorted.to_polars().unwrap();
+        let ids: Vec<i32> = back.column("id").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(ids, vec![1, 4]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_cross_join() {
+        let left_df = df!(
+            "a" => [1i32, 2]
+        ).unwrap();
+        let right_df = df!(
+            "b" => [10i32, 20, 30]
+        ).unwrap();
+
+        let left_gpu = GpuDataFrame::from_polars(&left_df).unwrap();
+        let right_gpu = GpuDataFrame::from_polars(&right_df).unwrap();
+
+        let cross = gpu_error::gpu_result(left_gpu.inner_table().cross_join(right_gpu.inner_table())).unwrap();
+        assert_eq!(cross.num_rows(), 6); // 2 * 3
+        assert_eq!(cross.num_columns(), 2); // a, b
+    }
+
+    // ── Union (vertical concat) test ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_union_concat() {
+        let df1 = df!(
+            "x" => [1i32, 2, 3],
+            "y" => [10i32, 20, 30]
+        ).unwrap();
+        let df2 = df!(
+            "x" => [4i32, 5],
+            "y" => [40i32, 50]
+        ).unwrap();
+
+        let gpu1 = GpuDataFrame::from_polars(&df1).unwrap();
+        let gpu2 = GpuDataFrame::from_polars(&df2).unwrap();
+
+        let table_refs = vec![gpu1.inner_table(), gpu2.inner_table()];
+        let concatenated = gpu_error::gpu_result(cudf::concatenate::concatenate_tables(&table_refs)).unwrap();
+        let result = GpuDataFrame::from_table(concatenated, gpu1.names().to_vec());
+
+        assert_eq!(result.height(), 5);
+        assert_eq!(result.width(), 2);
+
+        let back = result.to_polars().unwrap();
+        let xs: Vec<i32> = back.column("x").unwrap().i32().unwrap().into_no_null_iter().collect();
+        let ys: Vec<i32> = back.column("y").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(xs, vec![1, 2, 3, 4, 5]);
+        assert_eq!(ys, vec![10, 20, 30, 40, 50]);
+    }
+
+    // ── HConcat (horizontal concat) test ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_hconcat() {
+        let df1 = df!("a" => [1i32, 2, 3]).unwrap();
+        let df2 = df!("b" => [10i32, 20, 30]).unwrap();
+
+        let gpu1 = GpuDataFrame::from_polars(&df1).unwrap();
+        let gpu2 = GpuDataFrame::from_polars(&df2).unwrap();
+
+        // Combine columns
+        let mut all_cols = Vec::new();
+        let mut all_names = Vec::new();
+        for i in 0..gpu1.width() {
+            all_cols.push(gpu1.column(i).unwrap());
+            all_names.push(gpu1.names()[i].clone());
+        }
+        for i in 0..gpu2.width() {
+            all_cols.push(gpu2.column(i).unwrap());
+            all_names.push(gpu2.names()[i].clone());
+        }
+
+        let combined = GpuDataFrame::from_columns(all_cols, all_names).unwrap();
+        assert_eq!(combined.width(), 2);
+        assert_eq!(combined.height(), 3);
+
+        let back = combined.to_polars().unwrap();
+        let a_vals: Vec<i32> = back.column("a").unwrap().i32().unwrap().into_no_null_iter().collect();
+        let b_vals: Vec<i32> = back.column("b").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(a_vals, vec![1, 2, 3]);
+        assert_eq!(b_vals, vec![10, 20, 30]);
+    }
+
+    // ── Ternary (if-then-else / copy_if_else) test ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_ternary_copy_if_else() {
+        // mask = [true, false, true, false, true]
+        // truthy = [10, 20, 30, 40, 50]
+        // falsy = [100, 200, 300, 400, 500]
+        // result = [10, 200, 30, 400, 50]
+        let mask = gpu_error::gpu_result(cudf::Column::from_slice(&[true, false, true, false, true])).unwrap();
+        let truthy = gpu_error::gpu_result(cudf::Column::from_slice(&[10i32, 20, 30, 40, 50])).unwrap();
+        let falsy = gpu_error::gpu_result(cudf::Column::from_slice(&[100i32, 200, 300, 400, 500])).unwrap();
+
+        let result = gpu_error::gpu_result(truthy.copy_if_else(&falsy, &mask)).unwrap();
+        let vals: Vec<i32> = gpu_error::gpu_result(result.to_vec()).unwrap();
+        assert_eq!(vals, vec![10, 200, 30, 400, 50]);
+    }
+
+    // ── Function tests (IsNull, IsNotNull, IsNan, Abs) ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_is_null() {
+        let opts: Vec<Option<i32>> = vec![Some(1), None, Some(3), None, Some(5)];
+        let col = gpu_error::gpu_result(cudf::Column::from_optional_i32(&opts)).unwrap();
+        let result = gpu_error::gpu_result(col.is_null()).unwrap();
+        let vals: Vec<bool> = gpu_error::gpu_result(result.to_vec()).unwrap();
+        assert_eq!(vals, vec![false, true, false, true, false]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_is_valid() {
+        let opts: Vec<Option<i32>> = vec![Some(1), None, Some(3), None, Some(5)];
+        let col = gpu_error::gpu_result(cudf::Column::from_optional_i32(&opts)).unwrap();
+        let result = gpu_error::gpu_result(col.is_valid()).unwrap();
+        let vals: Vec<bool> = gpu_error::gpu_result(result.to_vec()).unwrap();
+        assert_eq!(vals, vec![true, false, true, false, true]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_abs() {
+        use cudf::unary::UnaryOp;
+
+        let col = gpu_error::gpu_result(cudf::Column::from_slice(&[-3i32, -1, 0, 2, 5])).unwrap();
+        let result = gpu_error::gpu_result(col.unary_op(UnaryOp::Abs)).unwrap();
+        let vals: Vec<i32> = gpu_error::gpu_result(result.to_vec()).unwrap();
+        assert_eq!(vals, vec![3, 1, 0, 2, 5]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn test_not() {
+        use cudf::unary::UnaryOp;
+
+        let col = gpu_error::gpu_result(cudf::Column::from_slice(&[true, false, true])).unwrap();
+        let result = gpu_error::gpu_result(col.unary_op(UnaryOp::Not)).unwrap();
+        let vals: Vec<bool> = gpu_error::gpu_result(result.to_vec()).unwrap();
+        assert_eq!(vals, vec![false, true, false]);
+    }
+}

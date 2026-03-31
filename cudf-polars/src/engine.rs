@@ -9,6 +9,8 @@ use cudf::aggregation::AggregationKind;
 use cudf::sorting::{SortOrder, NullOrder};
 use cudf::stream_compaction::DuplicateKeepOption;
 
+use polars_ops::prelude::JoinType;
+
 use crate::error::gpu_result;
 use crate::expr;
 use crate::gpu_frame::GpuDataFrame;
@@ -376,6 +378,175 @@ pub fn execute_node(
             }
         }
 
+
+        IR::Join {
+            input_left,
+            input_right,
+            schema,
+            left_on,
+            right_on,
+            options,
+        } => {
+            let input_left = *input_left;
+            let input_right = *input_right;
+            let schema = schema.clone();
+            let left_on = left_on.clone();
+            let right_on = right_on.clone();
+            let options = options.clone();
+
+            let left_table = execute_node(input_left, lp_arena, expr_arena)?;
+            let right_table = execute_node(input_right, lp_arena, expr_arena)?;
+
+            // Evaluate key expressions
+            let left_keys: Vec<cudf::Column> = left_on
+                .iter()
+                .map(|e| expr::eval_expr(e.node(), expr_arena, &left_table))
+                .collect::<PolarsResult<_>>()?;
+            let right_keys: Vec<cudf::Column> = right_on
+                .iter()
+                .map(|e| expr::eval_expr(e.node(), expr_arena, &right_table))
+                .collect::<PolarsResult<_>>()?;
+
+            let left_keys_table = gpu_result(cudf::Table::new(left_keys))?;
+            let right_keys_table = gpu_result(cudf::Table::new(right_keys))?;
+
+            let join_type = &options.args.how;
+            let suffix = options
+                .args
+                .suffix
+                .as_ref()
+                .map(|s| s.as_str().to_string())
+                .unwrap_or_else(|| "_right".to_string());
+
+            match join_type {
+                JoinType::Inner => {
+                    let result = gpu_result(left_keys_table.inner_join(&right_keys_table))?;
+                    build_joined_table(
+                        &left_table,
+                        &right_table,
+                        &result.left_indices,
+                        &result.right_indices,
+                        &schema,
+                        &suffix,
+                    )
+                }
+                JoinType::Left => {
+                    let result = gpu_result(left_keys_table.left_join(&right_keys_table))?;
+                    build_joined_table(
+                        &left_table,
+                        &right_table,
+                        &result.left_indices,
+                        &result.right_indices,
+                        &schema,
+                        &suffix,
+                    )
+                }
+                JoinType::Full => {
+                    let result = gpu_result(left_keys_table.full_join(&right_keys_table))?;
+                    build_joined_table(
+                        &left_table,
+                        &right_table,
+                        &result.left_indices,
+                        &result.right_indices,
+                        &schema,
+                        &suffix,
+                    )
+                }
+                JoinType::Semi => {
+                    let result = gpu_result(left_keys_table.left_semi_join(&right_keys_table))?;
+                    let gathered = gpu_result(left_table.inner_table().gather(&result.left_indices))?;
+                    let result_df = GpuDataFrame::from_table(gathered, left_table.names().to_vec());
+                    // Reorder to match output schema
+                    let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
+                    result_df.select_columns(&schema_names)
+                }
+                JoinType::Anti => {
+                    let result = gpu_result(left_keys_table.left_anti_join(&right_keys_table))?;
+                    let gathered = gpu_result(left_table.inner_table().gather(&result.left_indices))?;
+                    let result_df = GpuDataFrame::from_table(gathered, left_table.names().to_vec());
+                    let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
+                    result_df.select_columns(&schema_names)
+                }
+                JoinType::Cross => {
+                    let cross_result = gpu_result(left_table.inner_table().cross_join(right_table.inner_table()))?;
+                    // Build names: left names + right names (with suffix for conflicts)
+                    let mut all_names = Vec::new();
+                    let left_name_set: std::collections::HashSet<&str> =
+                        left_table.names().iter().map(|s| s.as_str()).collect();
+                    for n in left_table.names() {
+                        all_names.push(n.clone());
+                    }
+                    for n in right_table.names() {
+                        if left_name_set.contains(n.as_str()) {
+                            all_names.push(format!("{}{}", n, suffix));
+                        } else {
+                            all_names.push(n.clone());
+                        }
+                    }
+                    let result_df = GpuDataFrame::from_table(cross_result, all_names);
+                    let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
+                    result_df.select_columns(&schema_names)
+                }
+                _ => polars_bail!(ComputeError: "GPU engine: unsupported join type {:?}", join_type),
+            }
+        }
+
+        IR::Union { inputs, options } => {
+            let inputs = inputs.clone();
+            let options = *options;
+
+            if inputs.is_empty() {
+                polars_bail!(ComputeError: "GPU engine: Union with no inputs");
+            }
+
+            let tables: Vec<GpuDataFrame> = inputs
+                .iter()
+                .map(|node| execute_node(*node, lp_arena, expr_arena))
+                .collect::<PolarsResult<_>>()?;
+
+            // Use the first table's names as reference
+            let names = tables[0].names().to_vec();
+
+            let table_refs: Vec<&cudf::Table> = tables.iter().map(|t| t.inner_table()).collect();
+            let concatenated = gpu_result(cudf::concatenate::concatenate_tables(&table_refs))?;
+            let result = GpuDataFrame::from_table(concatenated, names);
+
+            // Apply optional slice
+            if let Some((offset, len)) = options.slice {
+                result.slice(offset, len)
+            } else {
+                Ok(result)
+            }
+        }
+
+        IR::HConcat {
+            inputs,
+            schema,
+            ..
+        } => {
+            let inputs = inputs.clone();
+            let schema = schema.clone();
+
+            let tables: Vec<GpuDataFrame> = inputs
+                .iter()
+                .map(|node| execute_node(*node, lp_arena, expr_arena))
+                .collect::<PolarsResult<_>>()?;
+
+            // Collect all columns from all tables
+            let mut all_columns = Vec::new();
+            let mut all_names = Vec::new();
+            for t in &tables {
+                for i in 0..t.width() {
+                    all_columns.push(t.column(i)?);
+                    all_names.push(t.names()[i].clone());
+                }
+            }
+
+            let combined = GpuDataFrame::from_columns(all_columns, all_names)?;
+            let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
+            combined.select_columns(&schema_names)
+        }
+
         other => {
             let kind: &'static str = other.into();
             polars_bail!(ComputeError: "GPU engine: unsupported IR node {}", kind)
@@ -425,6 +596,51 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         }
         _ => polars_bail!(ComputeError: "GPU engine: unsupported aggregation type"),
     }
+}
+
+/// Build a joined table from left/right gather maps, applying suffix for name conflicts.
+fn build_joined_table(
+    left: &GpuDataFrame,
+    right: &GpuDataFrame,
+    left_indices: &cudf::Column,
+    right_indices: &cudf::Column,
+    schema: &std::sync::Arc<polars_core::prelude::Schema>,
+    suffix: &str,
+) -> PolarsResult<GpuDataFrame> {
+    let left_gathered = gpu_result(left.inner_table().gather(left_indices))?;
+    let right_gathered = gpu_result(right.inner_table().gather(right_indices))?;
+
+    // Build column names: left names + right names (with suffix for conflicts)
+    let left_name_set: std::collections::HashSet<&str> =
+        left.names().iter().map(|s| s.as_str()).collect();
+    let mut all_names = Vec::new();
+    for n in left.names() {
+        all_names.push(n.clone());
+    }
+    for n in right.names() {
+        if left_name_set.contains(n.as_str()) {
+            all_names.push(format!("{}{}", n, suffix));
+        } else {
+            all_names.push(n.clone());
+        }
+    }
+
+    // Combine columns from both gathered tables
+    let left_ncols = left_gathered.num_columns();
+    let right_ncols = right_gathered.num_columns();
+    let mut all_columns = Vec::with_capacity(left_ncols + right_ncols);
+    for i in 0..left_ncols {
+        all_columns.push(gpu_result(left_gathered.column(i))?);
+    }
+    for i in 0..right_ncols {
+        all_columns.push(gpu_result(right_gathered.column(i))?);
+    }
+
+    let combined = GpuDataFrame::from_columns(all_columns, all_names)?;
+
+    // Reorder to match the output schema
+    let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
+    combined.select_columns(&schema_names)
 }
 
 /// Execute an optimized IR plan on GPU, returning a Polars DataFrame.
