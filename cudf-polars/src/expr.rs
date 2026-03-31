@@ -7,10 +7,10 @@ use cudf::reduction::ReduceOp;
 use cudf::types::{DataType as GpuDataType, TypeId as GpuTypeId};
 use cudf::unary::UnaryOp;
 use polars_error::{PolarsResult, polars_bail, polars_err};
-use polars_plan::plans::{AExpr, IRAggExpr};
-use polars_plan::plans::LiteralValue;
-use polars_plan::dsl::function_expr::FunctionExpr;
 use polars_plan::dsl::function_expr::BooleanFunction;
+use polars_plan::dsl::function_expr::FunctionExpr;
+use polars_plan::plans::LiteralValue;
+use polars_plan::plans::{AExpr, IRAggExpr};
 use polars_utils::arena::{Arena, Node};
 
 use crate::error::gpu_result;
@@ -76,9 +76,7 @@ pub fn eval_expr(
             gpu_result(GpuColumn::from_slice(&values))
         }
 
-        AExpr::Alias(inner, _name) => {
-            eval_expr(*inner, expr_arena, df)
-        }
+        AExpr::Alias(inner, _name) => eval_expr(*inner, expr_arena, df),
 
         AExpr::Agg(agg_expr) => eval_agg_expr(agg_expr, expr_arena, df),
 
@@ -98,9 +96,7 @@ pub fn eval_expr(
         }
 
         AExpr::Function {
-            input,
-            function,
-            ..
+            input, function, ..
         } => {
             let input = input.clone();
             let function = function.clone();
@@ -153,8 +149,9 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
             gpu_result(GpuColumn::from_strings(&strings))
         }
         LiteralValue::Int(v) => {
-            let val = i64::try_from(*v)
-                .map_err(|_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v))?;
+            let val = i64::try_from(*v).map_err(
+                |_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v),
+            )?;
             let data = vec![val; height];
             gpu_result(GpuColumn::from_slice(&data))
         }
@@ -174,7 +171,9 @@ fn eval_agg_expr(
 ) -> PolarsResult<GpuColumn> {
     let height = df.height();
     match agg {
-        IRAggExpr::Sum(input) => reduce_and_broadcast(*input, ReduceOp::Sum, expr_arena, df, height),
+        IRAggExpr::Sum(input) => {
+            reduce_and_broadcast(*input, ReduceOp::Sum, expr_arena, df, height)
+        }
         IRAggExpr::Min { input, .. } => {
             reduce_and_broadcast(*input, ReduceOp::Min, expr_arena, df, height)
         }
@@ -330,7 +329,6 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
     }
 }
 
-
 /// Evaluate a built-in function expression.
 fn eval_function(
     inputs: &[polars_plan::prelude::expr_ir::ExprIR],
@@ -363,7 +361,9 @@ fn eval_function(
                     let neg_one = gpu_result(GpuColumn::from_slice(&vec![-1.0f64; col.len()]))?;
                     gpu_result(col.binary_op(&neg_one, cudf::BinaryOp::Mul, dtype))
                 }
-                _ => polars_bail!(ComputeError: "GPU engine: Negate not supported for type {:?}", tid),
+                _ => {
+                    polars_bail!(ComputeError: "GPU engine: Negate not supported for type {:?}", tid)
+                }
             }
         }
         FunctionExpr::Boolean(bf) => eval_boolean_function(bf, inputs, expr_arena, df),
@@ -387,7 +387,9 @@ fn eval_function(
             let height = df.height();
             gpu_result(GpuColumn::from_slice(&vec![nc; height]))
         }
-        _ => polars_bail!(ComputeError: "GPU engine: unsupported function expression {:?}", function),
+        _ => {
+            polars_bail!(ComputeError: "GPU engine: unsupported function expression {:?}", function)
+        }
     }
 }
 

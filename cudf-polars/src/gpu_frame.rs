@@ -3,11 +3,11 @@
 //! Wraps a `cudf::Table` with column names, providing named access
 //! and conversion back to Polars `DataFrame`.
 
-use cudf::{Column as GpuColumn, Table as GpuTable};
 use cudf::aggregation::AggregationKind;
 use cudf::groupby::GroupBy;
-use cudf::sorting::{SortOrder, NullOrder};
+use cudf::sorting::{NullOrder, SortOrder};
 use cudf::stream_compaction::{DuplicateKeepOption, NullEquality};
+use cudf::{Column as GpuColumn, Table as GpuTable};
 use polars_core::prelude::*;
 use polars_error::{PolarsResult, polars_err};
 
@@ -186,7 +186,10 @@ impl GpuDataFrame {
         };
 
         let result = if maintain_order {
-            gpu_result(self.table.stable_distinct(&key_indices, keep, NullEquality::Equal))?
+            gpu_result(
+                self.table
+                    .stable_distinct(&key_indices, keep, NullEquality::Equal),
+            )?
         } else {
             gpu_result(self.table.distinct(&key_indices, keep, NullEquality::Equal))?
         };

@@ -4,11 +4,11 @@
 
 use std::time::Instant;
 
+use cudf::Scalar;
 use cudf::aggregation::AggregationKind;
 use cudf::binaryop::BinaryOp;
 use cudf::sorting::{NullOrder, SortOrder};
 use cudf::types::{DataType, TypeId};
-use cudf::Scalar;
 use polars_core::prelude::*;
 
 use cudf_polars::convert;
@@ -37,12 +37,8 @@ fn main() {
         let _ = gpu.to_polars().unwrap();
     }
 
-    println!(
-        "| Operation | CPU (ms) | GPU total (ms) | GPU compute (ms) | Speedup |"
-    );
-    println!(
-        "|-----------|----------|----------------|------------------|---------|"
-    );
+    println!("| Operation | CPU (ms) | GPU total (ms) | GPU compute (ms) | Speedup |");
+    println!("|-----------|----------|----------------|------------------|---------|");
 
     // -- Filter: value > 50000.0 --
     {
@@ -61,11 +57,7 @@ fn main() {
         let val_col = gpu_df.column_by_name("value").unwrap();
         let threshold = Scalar::new(50000.0f64).unwrap();
         let mask_col = val_col
-            .binary_op_scalar(
-                &threshold,
-                BinaryOp::Greater,
-                DataType::new(TypeId::Bool8),
-            )
+            .binary_op_scalar(&threshold, BinaryOp::Greater, DataType::new(TypeId::Bool8))
             .unwrap();
         let filtered = gpu_df.apply_boolean_mask(&mask_col).unwrap();
         let compute_ms = start2.elapsed().as_secs_f64() * 1000.0;
@@ -90,9 +82,7 @@ fn main() {
     {
         // CPU
         let start = Instant::now();
-        let _cpu = df
-            .sort(["value"], SortMultipleOptions::default())
-            .unwrap();
+        let _cpu = df.sort(["value"], SortMultipleOptions::default()).unwrap();
         let cpu_ms = start.elapsed().as_secs_f64() * 1000.0;
 
         // GPU
@@ -103,11 +93,7 @@ fn main() {
         let start2 = Instant::now();
         let key_col = gpu_df.column_by_name("value").unwrap();
         let sorted = gpu_df
-            .sort_by_key(
-                vec![key_col],
-                &[SortOrder::Ascending],
-                &[NullOrder::After],
-            )
+            .sort_by_key(vec![key_col], &[SortOrder::Ascending], &[NullOrder::After])
             .unwrap();
         let compute_ms = start2.elapsed().as_secs_f64() * 1000.0;
 

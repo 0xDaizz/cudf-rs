@@ -2,15 +2,21 @@
 //!
 //! Uses the Arrow C Data Interface as the bridge between polars-arrow and arrow-rs.
 
+use cudf::{Column as GpuColumn, Table as GpuTable};
 use polars_core::frame::DataFrame;
 use polars_core::prelude::*;
 use polars_error::PolarsResult;
-use cudf::{Column as GpuColumn, Table as GpuTable};
 
 // Verify polars-arrow and arrow-rs FFI structs have identical layout
 const _: () = {
-    assert!(std::mem::size_of::<polars_arrow::ffi::ArrowArray>() == std::mem::size_of::<arrow::ffi::FFI_ArrowArray>());
-    assert!(std::mem::size_of::<polars_arrow::ffi::ArrowSchema>() == std::mem::size_of::<arrow::ffi::FFI_ArrowSchema>());
+    assert!(
+        std::mem::size_of::<polars_arrow::ffi::ArrowArray>()
+            == std::mem::size_of::<arrow::ffi::FFI_ArrowArray>()
+    );
+    assert!(
+        std::mem::size_of::<polars_arrow::ffi::ArrowSchema>()
+            == std::mem::size_of::<arrow::ffi::FFI_ArrowSchema>()
+    );
 };
 
 /// Convert a Polars DataFrame to a GPU-resident cudf Table.
@@ -32,9 +38,8 @@ pub fn dataframe_to_gpu(df: &DataFrame) -> PolarsResult<(GpuTable, Vec<String>)>
         let (ffi_array, ffi_schema) = polars_arrow_to_arrow_ffi(chunk)?;
 
         // Import into arrow-rs
-        let arrow_data = unsafe {
-            arrow::ffi::from_ffi(ffi_array, &ffi_schema)
-        }.map_err(|e| polars_err!(ComputeError: "Arrow FFI import failed: {}", e))?;
+        let arrow_data = unsafe { arrow::ffi::from_ffi(ffi_array, &ffi_schema) }
+            .map_err(|e| polars_err!(ComputeError: "Arrow FFI import failed: {}", e))?;
         let arrow_array = arrow::array::make_array(arrow_data);
 
         // Convert arrow-rs array to GPU column
@@ -50,7 +55,8 @@ pub fn dataframe_to_gpu(df: &DataFrame) -> PolarsResult<(GpuTable, Vec<String>)>
 
 /// Convert a GPU-resident cudf Table back to a Polars DataFrame.
 pub fn gpu_to_dataframe(table: GpuTable, column_names: &[String]) -> PolarsResult<DataFrame> {
-    let gpu_columns = table.into_columns()
+    let gpu_columns = table
+        .into_columns()
         .map_err(|e| polars_err!(ComputeError: "GPU column extraction failed: {}", e))?;
 
     if gpu_columns.len() != column_names.len() {
@@ -62,7 +68,8 @@ pub fn gpu_to_dataframe(table: GpuTable, column_names: &[String]) -> PolarsResul
 
     for (gpu_col, name) in gpu_columns.into_iter().zip(column_names) {
         // GPU column to arrow-rs array
-        let arrow_array = gpu_col.to_arrow_array()
+        let arrow_array = gpu_col
+            .to_arrow_array()
             .map_err(|e| polars_err!(ComputeError: "GPU download failed: {}", e))?;
 
         // Export arrow-rs to C Data Interface, import as polars-arrow
@@ -83,11 +90,7 @@ fn polars_arrow_to_arrow_ffi(
     // Export polars-arrow array to C ABI structs
     let dtype = chunk.dtype().clone();
     let polars_c_array = polars_arrow::ffi::export_array_to_c(chunk);
-    let field = polars_arrow::datatypes::Field::new(
-        PlSmallStr::from_static("_"),
-        dtype,
-        true,
-    );
+    let field = polars_arrow::datatypes::Field::new(PlSmallStr::from_static("_"), dtype, true);
     let polars_c_schema = polars_arrow::ffi::export_field_to_c(&field);
 
     // Transmute: polars-arrow ArrowSchema/ArrowArray and arrow-rs FFI_ArrowSchema/FFI_ArrowArray
@@ -119,7 +122,10 @@ fn polars_arrow_to_arrow_ffi(
 /// Bridge arrow-rs array to polars-arrow array via C ABI.
 fn arrow_to_polars_arrow_ffi(
     arrow_array: &dyn arrow::array::Array,
-) -> PolarsResult<(Box<dyn polars_arrow::array::Array>, polars_arrow::datatypes::Field)> {
+) -> PolarsResult<(
+    Box<dyn polars_arrow::array::Array>,
+    polars_arrow::datatypes::Field,
+)> {
     let data = arrow_array.to_data();
     let (ffi_array, ffi_schema) = arrow::ffi::to_ffi(&data)
         .map_err(|e| polars_err!(ComputeError: "Arrow FFI export failed: {}", e))?;
@@ -135,21 +141,15 @@ fn arrow_to_polars_arrow_ffi(
 
     let polars_c_array = unsafe {
         std::ptr::read(
-            &ffi_array as *const arrow::ffi::FFI_ArrowArray
-                as *const polars_arrow::ffi::ArrowArray,
+            &ffi_array as *const arrow::ffi::FFI_ArrowArray as *const polars_arrow::ffi::ArrowArray,
         )
     };
     std::mem::forget(ffi_array);
 
-    let polars_field = unsafe {
-        polars_arrow::ffi::import_field_from_c(&polars_c_schema)?
-    };
+    let polars_field = unsafe { polars_arrow::ffi::import_field_from_c(&polars_c_schema)? };
 
     let polars_array = unsafe {
-        polars_arrow::ffi::import_array_from_c(
-            polars_c_array,
-            polars_field.dtype.clone(),
-        )?
+        polars_arrow::ffi::import_array_from_c(polars_c_array, polars_field.dtype.clone())?
     };
 
     Ok((polars_array, polars_field))

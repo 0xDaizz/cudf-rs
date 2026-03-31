@@ -2,11 +2,11 @@
 
 use polars_core::prelude::*;
 use polars_error::{PolarsResult, polars_bail};
-use polars_plan::plans::{AExpr, IRAggExpr, IR, IRPlan};
+use polars_plan::plans::{AExpr, IR, IRAggExpr, IRPlan};
 use polars_utils::arena::{Arena, Node};
 
 use cudf::aggregation::AggregationKind;
-use cudf::sorting::{SortOrder, NullOrder};
+use cudf::sorting::{NullOrder, SortOrder};
 use cudf::stream_compaction::DuplicateKeepOption;
 
 use polars_ops::prelude::JoinType;
@@ -23,9 +23,7 @@ pub fn execute_node(
 ) -> PolarsResult<GpuDataFrame> {
     match lp_arena.get(node) {
         IR::DataFrameScan {
-            df,
-            output_schema,
-            ..
+            df, output_schema, ..
         } => {
             let gpu_df = GpuDataFrame::from_polars(df)?;
             // If there's an output_schema (projection), apply it
@@ -46,9 +44,7 @@ pub fn execute_node(
         }
 
         IR::Select {
-            input,
-            expr: exprs,
-            ..
+            input, expr: exprs, ..
         } => {
             let input_node = *input;
             let exprs = exprs.clone();
@@ -71,11 +67,7 @@ pub fn execute_node(
             table.select_columns(&col_names)
         }
 
-        IR::Slice {
-            input,
-            offset,
-            len,
-        } => {
+        IR::Slice { input, offset, len } => {
             let input_node = *input;
             let offset = *offset;
             let len = *len as usize;
@@ -97,7 +89,8 @@ pub fn execute_node(
             // HStack adds new columns to the existing frame.
             // Use Option<Column> to allow zero-copy reordering without dummy GPU allocations.
             let existing_width = table.width();
-            let mut all_columns: Vec<Option<cudf::Column>> = Vec::with_capacity(existing_width + exprs.len());
+            let mut all_columns: Vec<Option<cudf::Column>> =
+                Vec::with_capacity(existing_width + exprs.len());
             let mut all_names = Vec::with_capacity(existing_width + exprs.len());
 
             for i in 0..existing_width {
@@ -248,8 +241,7 @@ pub fn execute_node(
 
             for agg_expr_ir in &aggs {
                 let agg_name = agg_expr_ir.output_name().to_string();
-                let (input_node, agg_kind) =
-                    extract_agg_info(agg_expr_ir.node(), expr_arena)?;
+                let (input_node, agg_kind) = extract_agg_info(agg_expr_ir.node(), expr_arena)?;
 
                 // Evaluate the input column for this aggregation
                 let input_col = expr::eval_expr(input_node, expr_arena, &table)?;
@@ -262,8 +254,14 @@ pub fn execute_node(
                 agg_names.push(agg_name);
             }
 
-            let result =
-                table.groupby(key_columns, key_names, value_columns, agg_requests, agg_names, *maintain_order)?;
+            let result = table.groupby(
+                key_columns,
+                key_names,
+                value_columns,
+                agg_requests,
+                agg_names,
+                *maintain_order,
+            )?;
 
             // Reorder to match output schema if needed
             let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
@@ -292,8 +290,7 @@ pub fn execute_node(
                 .as_ref()
                 .map(|s| s.iter().map(|n| n.as_str()).collect());
 
-            let result =
-                table.distinct(subset.as_deref(), keep, options.maintain_order)?;
+            let result = table.distinct(subset.as_deref(), keep, options.maintain_order)?;
 
             // Apply optional slice
             if let Some((offset, len)) = options.slice {
@@ -319,9 +316,9 @@ pub fn execute_node(
 
             match scan_type {
                 FileScan::Parquet { .. } => {
-                    let paths = sources.as_paths().ok_or_else(|| {
-                        polars_err!(ComputeError: "GPU engine: Scan requires file paths")
-                    })?;
+                    let paths = sources.as_paths().ok_or_else(
+                        || polars_err!(ComputeError: "GPU engine: Scan requires file paths"),
+                    )?;
 
                     if paths.is_empty() {
                         polars_bail!(ComputeError: "GPU engine: Scan has no source paths");
@@ -331,12 +328,12 @@ pub fn execute_node(
                     let path_str = paths[0].to_string_lossy().to_string();
 
                     // Determine which columns to read
-                    let col_names: Vec<String> = if let Some(ref with_cols) = file_options.with_columns
-                    {
-                        with_cols.iter().map(|c| c.to_string()).collect()
-                    } else {
-                        vec![]
-                    };
+                    let col_names: Vec<String> =
+                        if let Some(ref with_cols) = file_options.with_columns {
+                            with_cols.iter().map(|c| c.to_string()).collect()
+                        } else {
+                            vec![]
+                        };
 
                     let mut reader = cudf::io::parquet::ParquetReader::new(&path_str);
                     if !col_names.is_empty() {
@@ -377,7 +374,6 @@ pub fn execute_node(
                 }
             }
         }
-
 
         IR::Join {
             input_left,
@@ -454,7 +450,8 @@ pub fn execute_node(
                 }
                 JoinType::Semi => {
                     let result = gpu_result(left_keys_table.left_semi_join(&right_keys_table))?;
-                    let gathered = gpu_result(left_table.inner_table().gather(&result.left_indices))?;
+                    let gathered =
+                        gpu_result(left_table.inner_table().gather(&result.left_indices))?;
                     let result_df = GpuDataFrame::from_table(gathered, left_table.names().to_vec());
                     // Reorder to match output schema
                     let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
@@ -462,13 +459,18 @@ pub fn execute_node(
                 }
                 JoinType::Anti => {
                     let result = gpu_result(left_keys_table.left_anti_join(&right_keys_table))?;
-                    let gathered = gpu_result(left_table.inner_table().gather(&result.left_indices))?;
+                    let gathered =
+                        gpu_result(left_table.inner_table().gather(&result.left_indices))?;
                     let result_df = GpuDataFrame::from_table(gathered, left_table.names().to_vec());
                     let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
                     result_df.select_columns(&schema_names)
                 }
                 JoinType::Cross => {
-                    let cross_result = gpu_result(left_table.inner_table().cross_join(right_table.inner_table()))?;
+                    let cross_result = gpu_result(
+                        left_table
+                            .inner_table()
+                            .cross_join(right_table.inner_table()),
+                    )?;
                     // Build names: left names + right names (with suffix for conflicts)
                     let mut all_names = Vec::new();
                     let left_name_set: std::collections::HashSet<&str> =
@@ -487,7 +489,9 @@ pub fn execute_node(
                     let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
                     result_df.select_columns(&schema_names)
                 }
-                _ => polars_bail!(ComputeError: "GPU engine: unsupported join type {:?}", join_type),
+                _ => {
+                    polars_bail!(ComputeError: "GPU engine: unsupported join type {:?}", join_type)
+                }
             }
         }
 
@@ -527,11 +531,7 @@ pub fn execute_node(
             }
         }
 
-        IR::HConcat {
-            inputs,
-            schema,
-            ..
-        } => {
+        IR::HConcat { inputs, schema, .. } => {
             let inputs = inputs.clone();
             let schema = schema.clone();
 
@@ -605,7 +605,9 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::First(input) => Ok((*input, AggregationKind::NthElement { n: 0 })),
         IRAggExpr::Last(input) => Ok((*input, AggregationKind::NthElement { n: -1 })),
         IRAggExpr::Std(input, ddof) => Ok((*input, AggregationKind::Std { ddof: *ddof as i32 })),
-        IRAggExpr::Var(input, ddof) => Ok((*input, AggregationKind::Variance { ddof: *ddof as i32 })),
+        IRAggExpr::Var(input, ddof) => {
+            Ok((*input, AggregationKind::Variance { ddof: *ddof as i32 }))
+        }
         IRAggExpr::Quantile { .. } => {
             polars_bail!(ComputeError: "GPU engine: Quantile aggregation not yet supported")
         }
