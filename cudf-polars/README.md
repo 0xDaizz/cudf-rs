@@ -48,8 +48,13 @@ fn main() {
 | **Sort**       | Sort by key columns    | `GpuDataFrame::sort_by_key()`       | Done   |
 | **GroupBy**     | Aggregation            | `GpuDataFrame::groupby()`           | Done   |
 | **Dedup**      | Distinct rows          | `GpuDataFrame::distinct()`          | Done   |
+| **Join**       | Inner/Left/Full        | `Table::inner_join()` etc.          | Done   |
+|                | Semi/Anti/Cross        | `Table::left_semi_join()` etc.      | Done   |
+| **Union**      | Vertical concat        | `concatenate_tables()`              | Done   |
+| **HConcat**    | Horizontal concat      | Column collection                   | Done   |
 | **Binary Ops** | Column-column          | `Column::binary_op()`               | Done   |
 |                | Column-scalar          | `Column::binary_op_scalar()`        | Done   |
+| **Ternary**    | when/then/otherwise    | `Column::copy_if_else()`            | Done   |
 | **Expression** | Polars expr -> GPU     | `cudf_polars::expr`                 | Done   |
 | **Plan Exec**  | Full plan execution    | `cudf_polars::execute_plan()`       | Done   |
 
@@ -103,7 +108,7 @@ cudf (Rust)  ->  cudf-cxx (C++ bridge)  ->  libcudf (NVIDIA)
 - **Window functions**:  expressions are not supported.
 - **GroupBy maintain_order**: Approximated by key-column sort (not true input-order preservation).
 - **Std/Var ddof**: Standalone reduce always uses ddof=1; GroupBy passes ddof correctly.
-- **IsFinite**: Treats ±Infinity as finite (cudf lacks is_inf operation).
+- **IsFinite/IsInfinite**: Fully supported via `is_inf()` / `is_not_inf()`.
 - **Quantile aggregation**: Not supported in GroupBy context.
 - **Multi-file Parquet**: Only reads the first file in multi-file scans.
 - **MapFunction**: rename, explode, melt, pivot not supported.
