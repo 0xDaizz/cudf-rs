@@ -246,15 +246,21 @@ fn eval_agg_expr(
         IRAggExpr::Median(input) => {
             reduce_and_broadcast(*input, ReduceOp::Median, expr_arena, df, height)
         }
-        IRAggExpr::Std(input, _ddof) => {
-            // TODO: ReduceOp::Std does not accept a ddof parameter.
-            // cudf reduction always uses ddof=1. If _ddof != 1, results will be incorrect.
-            reduce_and_broadcast(*input, ReduceOp::Std, expr_arena, df, height)
+        IRAggExpr::Std(input, ddof) => {
+            let input_node = *input;
+            let ddof_val = *ddof;
+            let col = eval_expr(input_node, expr_arena, df)?;
+            let output_type = GpuDataType::new(GpuTypeId::Float64);
+            let scalar = gpu_result(col.reduce_std_with_ddof(ddof_val as i32, output_type))?;
+            broadcast_scalar(&scalar, height)
         }
-        IRAggExpr::Var(input, _ddof) => {
-            // TODO: ReduceOp::Variance does not accept a ddof parameter.
-            // cudf reduction always uses ddof=1. If _ddof != 1, results will be incorrect.
-            reduce_and_broadcast(*input, ReduceOp::Variance, expr_arena, df, height)
+        IRAggExpr::Var(input, ddof) => {
+            let input_node = *input;
+            let ddof_val = *ddof;
+            let col = eval_expr(input_node, expr_arena, df)?;
+            let output_type = GpuDataType::new(GpuTypeId::Float64);
+            let scalar = gpu_result(col.reduce_var_with_ddof(ddof_val as i32, output_type))?;
+            broadcast_scalar(&scalar, height)
         }
         IRAggExpr::Count(input, include_nulls) => {
             if *include_nulls {
@@ -502,16 +508,18 @@ fn eval_boolean_function(
             gpu_result(col.is_not_nan())
         }
         BooleanFunction::IsFinite => {
-            // LIMITATION: This approximation treats Infinity as finite.
-            // cudf does not provide a dedicated is_inf operation.
-            // Correct implementation would require: is_valid AND NOT(is_nan) AND NOT(is_inf)
-            // Current: is_valid AND NOT(is_nan) — misses +/-Inf values.
+            // is_finite = is_valid AND NOT(is_nan) AND NOT(is_inf)
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
-            let is_nan = gpu_result(col.is_nan())?;
-            let not_nan = gpu_result(is_nan.unary_op(UnaryOp::Not))?;
             let is_valid = gpu_result(col.is_valid())?;
-            gpu_result(not_nan.binary_op(
-                &is_valid,
+            let not_nan = gpu_result(col.is_not_nan())?;
+            let not_inf = gpu_result(col.is_not_inf())?;
+            let valid_and_not_nan = gpu_result(is_valid.binary_op(
+                &not_nan,
+                cudf::BinaryOp::LogicalAnd,
+                GpuDataType::new(GpuTypeId::Bool8),
+            ))?;
+            gpu_result(valid_and_not_nan.binary_op(
+                &not_inf,
                 cudf::BinaryOp::LogicalAnd,
                 GpuDataType::new(GpuTypeId::Bool8),
             ))
@@ -526,18 +534,57 @@ fn eval_boolean_function(
         }
         BooleanFunction::Any { ignore_nulls } => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
-            let _ = ignore_nulls;
-            // Reduce to check if any true
-            let scalar = gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
             let height = df.height();
-            broadcast_scalar(&scalar, height)
+            if !ignore_nulls && col.null_count() > 0 {
+                // Propagate null: if there are nulls and we are not ignoring them,
+                // check if any non-null value is true first
+                let scalar = gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
+                if scalar.is_valid() {
+                    let val: bool = gpu_result(scalar.value())?;
+                    if val {
+                        // At least one true found -> result is true
+                        broadcast_scalar(&scalar, height)
+                    } else {
+                        // All non-null are false but there are nulls -> result is null
+                        let opts: Vec<Option<bool>> = vec![None; height];
+                        gpu_result(cudf::Column::from_optional_bool(&opts))
+                    }
+                } else {
+                    // All null -> result is null
+                    let opts: Vec<Option<bool>> = vec![None; height];
+                    gpu_result(cudf::Column::from_optional_bool(&opts))
+                }
+            } else {
+                let scalar = gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
+                broadcast_scalar(&scalar, height)
+            }
         }
         BooleanFunction::All { ignore_nulls } => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
-            let _ = ignore_nulls;
-            let scalar = gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
             let height = df.height();
-            broadcast_scalar(&scalar, height)
+            if !ignore_nulls && col.null_count() > 0 {
+                // Propagate null: if there are nulls and we are not ignoring them,
+                // check if any non-null value is false first
+                let scalar = gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
+                if scalar.is_valid() {
+                    let val: bool = gpu_result(scalar.value())?;
+                    if !val {
+                        // At least one false found -> result is false
+                        broadcast_scalar(&scalar, height)
+                    } else {
+                        // All non-null are true but there are nulls -> result is null
+                        let opts: Vec<Option<bool>> = vec![None; height];
+                        gpu_result(cudf::Column::from_optional_bool(&opts))
+                    }
+                } else {
+                    // All null -> result is null
+                    let opts: Vec<Option<bool>> = vec![None; height];
+                    gpu_result(cudf::Column::from_optional_bool(&opts))
+                }
+            } else {
+                let scalar = gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
+                broadcast_scalar(&scalar, height)
+            }
         }
         _ => polars_bail!(ComputeError: "GPU engine: unsupported boolean function {:?}", bf),
     }

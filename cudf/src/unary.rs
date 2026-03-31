@@ -123,6 +123,22 @@ impl Column {
         Ok(Column { inner: result })
     }
 
+
+    /// Return a bool8 column indicating which elements are +/-infinity.
+    ///
+    /// Only applicable to floating-point columns.
+    pub fn is_inf(&self) -> Result<Column> {
+        let result = cudf_cxx::unary::ffi::is_inf(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
+
+    /// Return a bool8 column indicating which elements are not +/-infinity.
+    ///
+    /// Only applicable to floating-point columns.
+    pub fn is_not_inf(&self) -> Result<Column> {
+        let result = cudf_cxx::unary::ffi::is_not_inf(&self.inner).map_err(CudfError::from_cxx)?;
+        Ok(Column { inner: result })
+    }
     /// Cast this column to a different data type.
     ///
     /// # Examples

@@ -62,4 +62,16 @@ std::unique_ptr<OwnedScalar> reduce_with_init(
 /// Check if a reduction aggregation is valid for a given source data type.
 bool is_valid_reduction_aggregation(int32_t source_type_id, int32_t agg_kind);
 
+/// Reduce: variance with custom ddof.
+std::unique_ptr<OwnedScalar> reduce_var_with_ddof(
+    const OwnedColumn& col,
+    int32_t ddof,
+    int32_t output_type_id);
+
+/// Reduce: standard deviation with custom ddof.
+std::unique_ptr<OwnedScalar> reduce_std_with_ddof(
+    const OwnedColumn& col,
+    int32_t ddof,
+    int32_t output_type_id);
+
 } // namespace cudf_shims

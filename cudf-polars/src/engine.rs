@@ -595,11 +595,11 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::Mean(input) => Ok((*input, AggregationKind::Mean)),
         IRAggExpr::Median(input) => Ok((*input, AggregationKind::Median)),
         IRAggExpr::Count(input, include_nulls) => {
-            // TODO: cudf-rs AggregationKind has no CountValid variant.
-            // Count always includes nulls at the libcudf level.
-            // The exclude-nulls logic is handled in eval_agg_expr instead.
-            let _ = include_nulls;
-            Ok((*input, AggregationKind::Count))
+            if *include_nulls {
+                Ok((*input, AggregationKind::Count))
+            } else {
+                Ok((*input, AggregationKind::CountValid))
+            }
         }
         IRAggExpr::NUnique(input) => Ok((*input, AggregationKind::Nunique)),
         IRAggExpr::First(input) => Ok((*input, AggregationKind::NthElement { n: 0 })),

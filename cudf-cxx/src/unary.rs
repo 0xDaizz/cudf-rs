@@ -32,6 +32,12 @@ pub mod ffi {
         /// Cast a column to a different data type.
         fn cast(input: &OwnedColumn, type_id: i32) -> Result<UniquePtr<OwnedColumn>>;
 
+
+        /// Return a bool8 column indicating which elements are +/-infinity.
+        fn is_inf(input: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
+
+        /// Return a bool8 column indicating which elements are NOT +/-infinity.
+        fn is_not_inf(input: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
         /// Check if a cast between two data types is supported.
         fn is_supported_cast(from_type_id: i32, to_type_id: i32) -> bool;
     }

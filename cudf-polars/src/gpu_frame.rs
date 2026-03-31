@@ -137,38 +137,70 @@ impl GpuDataFrame {
         maintain_order: bool,
     ) -> PolarsResult<Self> {
         let keys_table = gpu_result(GpuTable::new(key_columns))?;
-        let values_table = gpu_result(GpuTable::new(value_columns))?;
 
-        let mut gb = GroupBy::new(&keys_table);
-        for (col_idx, kind) in agg_requests {
-            gb = gb.agg(col_idx, kind);
-        }
-
-        let result = gpu_result(gb.execute(&values_table))?;
-
-        // Result has key columns first, then aggregation columns
-        let mut all_names = key_names.clone();
-        all_names.extend(agg_names);
-
-        let result_df = Self {
-            table: result,
-            names: all_names,
-        };
-
-        // LIMITATION: maintain_order is approximated by sorting result by key columns.
-        // This does NOT match Polars semantics (preserve first-appearance order).
-        // True maintain_order would require tracking input row indices before groupby.
         if maintain_order {
-            let num_keys = key_names.len();
-            let mut sort_keys = Vec::with_capacity(num_keys);
-            for i in 0..num_keys {
-                sort_keys.push(result_df.column(i)?);
+            // Use row indices to preserve first-appearance order:
+            // 1. Add a row-index column as an extra value column
+            // 2. Aggregate it with Min to get first-appearance index per group
+            // 3. Sort result by that index, then drop it
+            let height = keys_table.num_rows();
+            let row_idx = gpu_result(cudf::filling::sequence_i64(height, 0, 1))?;
+
+            let row_idx_col_idx = value_columns.len();
+            let mut all_value_cols = value_columns;
+            all_value_cols.push(row_idx);
+            let values_with_idx = gpu_result(GpuTable::new(all_value_cols))?;
+
+            let mut gb = GroupBy::new(&keys_table);
+            for (col_idx, kind) in &agg_requests {
+                gb = gb.agg(*col_idx, kind.clone());
             }
-            let orders = vec![SortOrder::Ascending; num_keys];
-            let null_orders = vec![NullOrder::After; num_keys];
-            result_df.sort_by_key(sort_keys, &orders, &null_orders)
+            gb = gb.agg(row_idx_col_idx, AggregationKind::Min);
+
+            let result = gpu_result(gb.execute(&values_with_idx))?;
+
+            // The last column is the row-index min. Sort by it, then drop it.
+            let last_col_idx = result.num_columns() - 1;
+            let idx_col = gpu_result(result.column(last_col_idx))?;
+            let sort_keys = gpu_result(GpuTable::new(vec![idx_col]))?;
+
+            let sorted = gpu_result(result.sort_by_key(
+                &sort_keys,
+                &[SortOrder::Ascending],
+                &[NullOrder::After],
+            ))?;
+
+            // Drop the last column (row index)
+            let mut final_cols = Vec::with_capacity(last_col_idx);
+            for i in 0..last_col_idx {
+                final_cols.push(gpu_result(sorted.column(i))?);
+            }
+            let final_table = gpu_result(GpuTable::new(final_cols))?;
+
+            let mut all_names = key_names;
+            all_names.extend(agg_names);
+
+            Ok(Self {
+                table: final_table,
+                names: all_names,
+            })
         } else {
-            Ok(result_df)
+            let values_table = gpu_result(GpuTable::new(value_columns))?;
+
+            let mut gb = GroupBy::new(&keys_table);
+            for (col_idx, kind) in agg_requests {
+                gb = gb.agg(col_idx, kind);
+            }
+
+            let result = gpu_result(gb.execute(&values_table))?;
+
+            let mut all_names = key_names;
+            all_names.extend(agg_names);
+
+            Ok(Self {
+                table: result,
+                names: all_names,
+            })
         }
     }
 
