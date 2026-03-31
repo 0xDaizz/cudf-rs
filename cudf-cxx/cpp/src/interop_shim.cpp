@@ -371,6 +371,22 @@ std::unique_ptr<OwnedTable> table_from_dlpack(uint64_t dlpack_ptr) {
     return std::make_unique<OwnedTable>(std::move(table));
 }
 
+// Minimal DLManagedTensor definition from DLPack spec.
+// cudf/interop.hpp only forward-declares it; we need the full definition
+// to call the deleter.
+#ifndef DLPACK_DLPACK_H_
+typedef enum { kDLCPU = 1, kDLCUDA = 2 } DLDeviceType_dlpack;
+typedef struct { int32_t device_type; int32_t device_id; } DLDevice_dlpack;
+typedef enum { kDLInt = 0, kDLUInt = 1, kDLFloat = 2 } DLDataTypeCode_dlpack;
+typedef struct { uint8_t code; uint8_t bits; uint16_t lanes; } DLDataType_dlpack;
+typedef struct { void* data; DLDevice_dlpack device; int32_t ndim; DLDataType_dlpack dtype; int64_t* shape; int64_t* strides; uint64_t byte_offset; } DLTensor_dlpack;
+struct DLManagedTensor {
+    DLTensor_dlpack dl_tensor;
+    void* manager_ctx;
+    void (*deleter)(struct DLManagedTensor*);
+};
+#endif
+
 void free_dlpack(uint64_t dlpack_ptr) {
     if (dlpack_ptr == 0) return;
     auto* tensor = reinterpret_cast<DLManagedTensor*>(dlpack_ptr);

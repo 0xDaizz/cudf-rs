@@ -1,0 +1,25 @@
+[package]
+name = "cudf-polars"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0 OR MIT"
+description = "GPU execution engine for Polars using NVIDIA libcudf"
+
+[dependencies]
+cudf = { path = "../cudf", features = ["arrow-interop"] }
+polars-core = { version = "=0.46.0", default-features = false }
+polars-utils = { version = "=0.46.0" }
+polars-error = { version = "=0.46.0" }
+polars-arrow = { version = "=0.46.0" }
+polars-plan = { version = "=0.46.0", default-features = false, features = ["parquet", "semi_anti_join", "abs"] }
+polars-ops = { version = "=0.46.0", default-features = false, features = ["semi_anti_join"] }
+arrow = { version = "54", default-features = false, features = ["ffi"] }
+
+[features]
+default = []
+gpu-tests = []
+
+[[example]]
+name = "benchmark"
+required-features = ["gpu-tests"]
