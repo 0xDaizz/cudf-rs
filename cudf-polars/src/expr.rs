@@ -300,7 +300,9 @@ fn eval_agg_expr(
             // In standalone context, just evaluate the input
             eval_expr(*input, expr_arena, df)
         }
-        other => polars_bail!(ComputeError: "GPU engine: unsupported standalone aggregation: {:?}", other),
+        other => {
+            polars_bail!(ComputeError: "GPU engine: unsupported standalone aggregation: {:?}", other)
+        }
     }
 }
 
