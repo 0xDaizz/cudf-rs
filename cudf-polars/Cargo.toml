@@ -12,7 +12,7 @@ polars-core = { version = "=0.46.0", default-features = false }
 polars-utils = { version = "=0.46.0" }
 polars-error = { version = "=0.46.0" }
 polars-arrow = { version = "=0.46.0" }
-polars-plan = { version = "=0.46.0", default-features = false }
+polars-plan = { version = "=0.46.0", default-features = false, features = ["parquet"] }
 arrow = { version = "54", default-features = false, features = ["ffi"] }
 
 [features]

@@ -3,9 +3,10 @@
 //! Walks the `AExpr` arena and evaluates each node, producing a GPU column.
 
 use cudf::Column as GpuColumn;
+use cudf::reduction::ReduceOp;
 use cudf::types::{DataType as GpuDataType, TypeId as GpuTypeId};
 use polars_error::{PolarsResult, polars_bail, polars_err};
-use polars_plan::plans::AExpr;
+use polars_plan::plans::{AExpr, IRAggExpr};
 use polars_plan::plans::LiteralValue;
 use polars_utils::arena::{Arena, Node};
 
@@ -76,6 +77,8 @@ pub fn eval_expr(
             eval_expr(*inner, expr_arena, df)
         }
 
+        AExpr::Agg(agg_expr) => eval_agg_expr(agg_expr, expr_arena, df),
+
         _ => polars_bail!(ComputeError: "GPU engine: unsupported expression node"),
     }
 }
@@ -132,5 +135,132 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
             gpu_result(GpuColumn::from_slice(&data))
         }
         _ => polars_bail!(ComputeError: "GPU engine: unsupported literal type"),
+    }
+}
+
+/// Evaluate a standalone aggregation expression (reduce column to scalar, broadcast to height).
+fn eval_agg_expr(
+    agg: &IRAggExpr,
+    expr_arena: &Arena<AExpr>,
+    df: &GpuDataFrame,
+) -> PolarsResult<GpuColumn> {
+    let height = df.height();
+    match agg {
+        IRAggExpr::Sum(input) => reduce_and_broadcast(*input, ReduceOp::Sum, expr_arena, df, height),
+        IRAggExpr::Min { input, .. } => {
+            reduce_and_broadcast(*input, ReduceOp::Min, expr_arena, df, height)
+        }
+        IRAggExpr::Max { input, .. } => {
+            reduce_and_broadcast(*input, ReduceOp::Max, expr_arena, df, height)
+        }
+        IRAggExpr::Mean(input) => {
+            reduce_and_broadcast(*input, ReduceOp::Mean, expr_arena, df, height)
+        }
+        IRAggExpr::Median(input) => {
+            reduce_and_broadcast(*input, ReduceOp::Median, expr_arena, df, height)
+        }
+        IRAggExpr::Std(input, _ddof) => {
+            reduce_and_broadcast(*input, ReduceOp::Std, expr_arena, df, height)
+        }
+        IRAggExpr::Var(input, _ddof) => {
+            reduce_and_broadcast(*input, ReduceOp::Variance, expr_arena, df, height)
+        }
+        IRAggExpr::Count(_input, _include_nulls) => {
+            let count = height as u32;
+            let data = vec![count; height];
+            gpu_result(GpuColumn::from_slice(&data))
+        }
+        IRAggExpr::NUnique(input) => {
+            let col = eval_expr(*input, expr_arena, df)?;
+            let n = gpu_result(col.distinct_count())? as u32;
+            let data = vec![n; height];
+            gpu_result(GpuColumn::from_slice(&data))
+        }
+        IRAggExpr::First(input) | IRAggExpr::Last(input) => {
+            // In standalone context, just evaluate the input
+            eval_expr(*input, expr_arena, df)
+        }
+        _ => polars_bail!(ComputeError: "GPU engine: unsupported standalone aggregation"),
+    }
+}
+
+/// Reduce a column and broadcast the scalar result to `height` rows.
+fn reduce_and_broadcast(
+    input_node: Node,
+    op: ReduceOp,
+    expr_arena: &Arena<AExpr>,
+    df: &GpuDataFrame,
+    height: usize,
+) -> PolarsResult<GpuColumn> {
+    let col = eval_expr(input_node, expr_arena, df)?;
+    let dtype = col.data_type();
+
+    // For mean/median/std/var, output is always float64
+    let output_type = match op {
+        ReduceOp::Mean | ReduceOp::Median | ReduceOp::Std | ReduceOp::Variance => {
+            GpuDataType::new(GpuTypeId::Float64)
+        }
+        _ => dtype,
+    };
+
+    let scalar = gpu_result(col.reduce(op, output_type))?;
+
+    // Extract scalar value and broadcast to all rows
+    broadcast_scalar(&scalar, height)
+}
+
+/// Broadcast a scalar value to a column of the given height.
+fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuColumn> {
+    let dtype = scalar.data_type();
+    let tid = dtype.id();
+
+    // If the scalar is not valid (null), create a null column
+    if !scalar.is_valid() {
+        let opts: Vec<Option<i32>> = vec![None; height];
+        return gpu_result(GpuColumn::from_optional_i32(&opts));
+    }
+
+    match tid {
+        GpuTypeId::Int8 => {
+            let v: i8 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Int16 => {
+            let v: i16 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Int32 => {
+            let v: i32 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Int64 => {
+            let v: i64 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Uint8 => {
+            let v: u8 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Uint16 => {
+            let v: u16 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Uint32 => {
+            let v: u32 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Uint64 => {
+            let v: u64 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Float32 => {
+            let v: f32 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        GpuTypeId::Float64 => {
+            let v: f64 = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
+        _ => polars_bail!(ComputeError: "GPU engine: cannot broadcast scalar of type {:?}", tid),
     }
 }

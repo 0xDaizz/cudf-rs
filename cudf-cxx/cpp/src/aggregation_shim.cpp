@@ -41,11 +41,15 @@ std::unique_ptr<OwnedAggregation> agg_count(int32_t null_handling) {
 }
 
 std::unique_ptr<OwnedAggregation> agg_any() {
-    return wrap(cudf::make_any_aggregation<cudf::groupby_aggregation>());
+    throw std::runtime_error(
+        "any is not supported as a groupby aggregation in this libcudf version. "
+        "Use reduce aggregation instead.");
 }
 
 std::unique_ptr<OwnedAggregation> agg_all() {
-    return wrap(cudf::make_all_aggregation<cudf::groupby_aggregation>());
+    throw std::runtime_error(
+        "all is not supported as a groupby aggregation in this libcudf version. "
+        "Use reduce aggregation instead.");
 }
 
 std::unique_ptr<OwnedAggregation> agg_sum_of_squares() {

@@ -303,4 +303,159 @@ mod engine_tests {
         let vals: Vec<u32> = gpu_error::gpu_result(result.to_vec()).unwrap();
         assert_eq!(vals, vec![5u32; 5]);
     }
+
+    // ── M3: Sort tests ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn gpu_frame_sort_ascending() {
+        use cudf::sorting::{SortOrder, NullOrder};
+
+        let df = df!("x" => [3i32, 1, 4, 1, 5]).unwrap();
+        let gpu_df = GpuDataFrame::from_polars(&df).unwrap();
+
+        let key = gpu_df.column_by_name("x").unwrap();
+        let sorted = gpu_df
+            .sort_by_key(vec![key], &[SortOrder::Ascending], &[NullOrder::After])
+            .unwrap();
+
+        let back = sorted.to_polars().unwrap();
+        let vals: Vec<i32> = back
+            .column("x")
+            .unwrap()
+            .i32()
+            .unwrap()
+            .into_no_null_iter()
+            .collect();
+        assert_eq!(vals, vec![1, 1, 3, 4, 5]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn gpu_frame_sort_descending() {
+        use cudf::sorting::{SortOrder, NullOrder};
+
+        let df = df!("x" => [3i32, 1, 4, 1, 5]).unwrap();
+        let gpu_df = GpuDataFrame::from_polars(&df).unwrap();
+
+        let key = gpu_df.column_by_name("x").unwrap();
+        let sorted = gpu_df
+            .sort_by_key(vec![key], &[SortOrder::Descending], &[NullOrder::After])
+            .unwrap();
+
+        let back = sorted.to_polars().unwrap();
+        let vals: Vec<i32> = back
+            .column("x")
+            .unwrap()
+            .i32()
+            .unwrap()
+            .into_no_null_iter()
+            .collect();
+        assert_eq!(vals, vec![5, 4, 3, 1, 1]);
+    }
+
+    // ── M3: GroupBy tests ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn gpu_frame_groupby_sum() {
+        use cudf::aggregation::AggregationKind;
+
+        let df = df!(
+            "cat" => [1i32, 1, 2, 2, 3],
+            "val" => [10.0f64, 20.0, 30.0, 40.0, 50.0]
+        )
+        .unwrap();
+        let gpu_df = GpuDataFrame::from_polars(&df).unwrap();
+
+        let key_col = gpu_df.column_by_name("cat").unwrap();
+        let val_col = gpu_df.column_by_name("val").unwrap();
+
+        let result = gpu_df
+            .groupby(
+                vec![key_col],
+                vec!["cat".to_string()],
+                vec![val_col],
+                vec![(0, AggregationKind::Sum)],
+                vec!["val_sum".to_string()],
+            )
+            .unwrap();
+
+        assert_eq!(result.height(), 3); // 3 groups
+        let back = result.to_polars().unwrap();
+        assert_eq!(back.width(), 2); // cat + val_sum
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn gpu_frame_groupby_mean_count() {
+        use cudf::aggregation::AggregationKind;
+
+        let df = df!(
+            "grp" => [1i32, 1, 2, 2],
+            "a" => [10.0f64, 20.0, 30.0, 40.0],
+            "b" => [100i32, 200, 300, 400]
+        )
+        .unwrap();
+        let gpu_df = GpuDataFrame::from_polars(&df).unwrap();
+
+        let key_col = gpu_df.column_by_name("grp").unwrap();
+        let a_col = gpu_df.column_by_name("a").unwrap();
+        let b_col = gpu_df.column_by_name("b").unwrap();
+
+        let result = gpu_df
+            .groupby(
+                vec![key_col],
+                vec!["grp".to_string()],
+                vec![a_col, b_col],
+                vec![
+                    (0, AggregationKind::Mean),
+                    (1, AggregationKind::Count),
+                ],
+                vec!["a_mean".to_string(), "b_count".to_string()],
+            )
+            .unwrap();
+
+        assert_eq!(result.height(), 2); // 2 groups
+        assert_eq!(result.width(), 3); // grp + a_mean + b_count
+    }
+
+    // ── M3: Distinct tests ──
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn gpu_frame_distinct_all_columns() {
+        use cudf::stream_compaction::DuplicateKeepOption;
+
+        let df = df!(
+            "x" => [1i32, 2, 2, 3, 3, 3],
+            "y" => [10i32, 20, 20, 30, 30, 30]
+        )
+        .unwrap();
+        let gpu_df = GpuDataFrame::from_polars(&df).unwrap();
+
+        let result = gpu_df
+            .distinct(None, DuplicateKeepOption::First, false)
+            .unwrap();
+        assert_eq!(result.height(), 3); // 3 unique rows
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-tests")]
+    fn gpu_frame_distinct_subset() {
+        use cudf::stream_compaction::DuplicateKeepOption;
+
+        let df = df!(
+            "x" => [1i32, 1, 2, 2],
+            "y" => [10i32, 20, 30, 40]
+        )
+        .unwrap();
+        let gpu_df = GpuDataFrame::from_polars(&df).unwrap();
+
+        let result = gpu_df
+            .distinct(Some(&["x"]), DuplicateKeepOption::First, true)
+            .unwrap();
+        assert_eq!(result.height(), 2); // 2 unique x values
+        assert_eq!(result.width(), 2); // both columns preserved
+    }
 }

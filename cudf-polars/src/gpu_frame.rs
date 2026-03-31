@@ -4,6 +4,10 @@
 //! and conversion back to Polars `DataFrame`.
 
 use cudf::{Column as GpuColumn, Table as GpuTable};
+use cudf::aggregation::AggregationKind;
+use cudf::groupby::GroupBy;
+use cudf::sorting::{SortOrder, NullOrder};
+use cudf::stream_compaction::{DuplicateKeepOption, NullEquality};
 use polars_core::prelude::*;
 use polars_error::{PolarsResult, polars_err};
 
@@ -100,6 +104,87 @@ impl GpuDataFrame {
             table: sliced,
             names: self.names.clone(),
         })
+    }
+
+    /// Sort this frame by the given key columns.
+    pub fn sort_by_key(
+        &self,
+        key_columns: Vec<GpuColumn>,
+        orders: &[SortOrder],
+        null_orders: &[NullOrder],
+    ) -> PolarsResult<Self> {
+        let keys_table = gpu_result(GpuTable::new(key_columns))?;
+        let sorted = gpu_result(self.table.sort_by_key(&keys_table, orders, null_orders))?;
+        Ok(Self {
+            table: sorted,
+            names: self.names.clone(),
+        })
+    }
+
+    /// Perform a groupby aggregation.
+    ///
+    /// `key_columns` and `key_names` describe the groupby keys.
+    /// `value_columns` are the columns to aggregate.
+    /// `agg_kinds` maps each value column index (in `value_columns`) to its aggregation kind.
+    /// `agg_names` are the output names for each aggregation result column.
+    pub fn groupby(
+        &self,
+        key_columns: Vec<GpuColumn>,
+        key_names: Vec<String>,
+        value_columns: Vec<GpuColumn>,
+        agg_requests: Vec<(usize, AggregationKind)>,
+        agg_names: Vec<String>,
+    ) -> PolarsResult<Self> {
+        let keys_table = gpu_result(GpuTable::new(key_columns))?;
+        let values_table = gpu_result(GpuTable::new(value_columns))?;
+
+        let mut gb = GroupBy::new(&keys_table);
+        for (col_idx, kind) in agg_requests {
+            gb = gb.agg(col_idx, kind);
+        }
+
+        let result = gpu_result(gb.execute(&values_table))?;
+
+        // Result has key columns first, then aggregation columns
+        let mut all_names = key_names;
+        all_names.extend(agg_names);
+
+        Ok(Self {
+            table: result,
+            names: all_names,
+        })
+    }
+
+    /// Remove duplicate rows based on the given subset of columns.
+    pub fn distinct(
+        &self,
+        subset: Option<&[&str]>,
+        keep: DuplicateKeepOption,
+        maintain_order: bool,
+    ) -> PolarsResult<Self> {
+        let key_indices: Vec<usize> = match subset {
+            Some(cols) => cols
+                .iter()
+                .map(|&name| self.column_index(name))
+                .collect::<PolarsResult<_>>()?,
+            None => (0..self.width()).collect(),
+        };
+
+        let result = if maintain_order {
+            gpu_result(self.table.stable_distinct(&key_indices, keep, NullEquality::Equal))?
+        } else {
+            gpu_result(self.table.distinct(&key_indices, keep, NullEquality::Equal))?
+        };
+
+        Ok(Self {
+            table: result,
+            names: self.names.clone(),
+        })
+    }
+
+    /// Access the inner cudf Table (for advanced operations).
+    pub fn inner_table(&self) -> &GpuTable {
+        &self.table
     }
 
     /// Convert back to a Polars DataFrame.
