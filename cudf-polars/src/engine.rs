@@ -611,7 +611,9 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::Quantile { .. } => {
             polars_bail!(ComputeError: "GPU engine: Quantile aggregation not yet supported")
         }
-        _ => polars_bail!(ComputeError: "GPU engine: unsupported aggregation type"),
+        other => {
+            polars_bail!(ComputeError: "GPU engine: unsupported aggregation type: {:?}", other)
+        }
     }
 }
 

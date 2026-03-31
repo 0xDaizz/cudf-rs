@@ -53,36 +53,44 @@ pub fn eval_expr(
             // Scalar optimization: avoid broadcasting a literal to a full column.
             // Use binary_op_scalar (or binaryop::binary_op for scalar-column order)
             // to let libcudf handle the broadcast internally on GPU.
+            // Falls back to column-column path for unsupported scalar types (Null, String, etc.).
             let left_is_literal = matches!(expr_arena.get(left_node), AExpr::Literal(_));
             let right_is_literal = matches!(expr_arena.get(right_node), AExpr::Literal(_));
 
-            if left_is_literal && !right_is_literal {
-                let scalar = literal_to_scalar(expr_arena.get(left_node))?;
-                let right_col = eval_expr(right_node, expr_arena, df)?;
-                let output_type = if is_comparison(op) {
-                    GpuDataType::new(GpuTypeId::Bool8)
-                } else {
-                    arithmetic_output_type(&scalar.data_type(), &right_col.data_type())
-                };
-                return gpu_result(cudf::binaryop::binary_op(
-                    &scalar,
-                    &right_col,
-                    gpu_op,
-                    output_type,
-                ));
-            }
-            if right_is_literal && !left_is_literal {
-                let left_col = eval_expr(left_node, expr_arena, df)?;
-                let scalar = literal_to_scalar(expr_arena.get(right_node))?;
-                let output_type = if is_comparison(op) {
-                    GpuDataType::new(GpuTypeId::Bool8)
-                } else {
-                    arithmetic_output_type(&left_col.data_type(), &scalar.data_type())
-                };
-                return gpu_result(left_col.binary_op_scalar(&scalar, gpu_op, output_type));
+            let try_scalar = || -> PolarsResult<GpuColumn> {
+                if left_is_literal && !right_is_literal {
+                    let scalar = literal_to_scalar(expr_arena.get(left_node))?;
+                    let right_col = eval_expr(right_node, expr_arena, df)?;
+                    let output_type = if is_comparison(op) {
+                        GpuDataType::new(GpuTypeId::Bool8)
+                    } else {
+                        arithmetic_output_type(&scalar.data_type(), &right_col.data_type())
+                    };
+                    return gpu_result(cudf::binaryop::binary_op(
+                        &scalar,
+                        &right_col,
+                        gpu_op,
+                        output_type,
+                    ));
+                }
+                if right_is_literal && !left_is_literal {
+                    let left_col = eval_expr(left_node, expr_arena, df)?;
+                    let scalar = literal_to_scalar(expr_arena.get(right_node))?;
+                    let output_type = if is_comparison(op) {
+                        GpuDataType::new(GpuTypeId::Bool8)
+                    } else {
+                        arithmetic_output_type(&left_col.data_type(), &scalar.data_type())
+                    };
+                    return gpu_result(left_col.binary_op_scalar(&scalar, gpu_op, output_type));
+                }
+                polars_bail!(ComputeError: "not a scalar case")
+            };
+
+            if let Ok(result) = try_scalar() {
+                return Ok(result);
             }
 
-            // Both are columns (or both literals) — fall back to column-column op
+            // Both are columns (or unsupported scalar type) — fall back to column-column op
             let left_col = eval_expr(left_node, expr_arena, df)?;
             let right_col = eval_expr(right_node, expr_arena, df)?;
             let output_type = if is_comparison(op) {
@@ -134,7 +142,7 @@ pub fn eval_expr(
             eval_function(&input, &function, expr_arena, df)
         }
 
-        _ => polars_bail!(ComputeError: "GPU engine: unsupported expression node"),
+        other => polars_bail!(ComputeError: "GPU engine: unsupported expression: {:?}", other),
     }
 }
 
@@ -190,7 +198,7 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
             let data = vec![*v; height];
             gpu_result(GpuColumn::from_slice(&data))
         }
-        _ => polars_bail!(ComputeError: "GPU engine: unsupported literal type"),
+        other => polars_bail!(ComputeError: "GPU engine: unsupported literal type: {:?}", other),
     }
 }
 
@@ -215,8 +223,14 @@ fn literal_to_scalar(expr: &AExpr) -> PolarsResult<cudf::Scalar> {
                 gpu_result(cudf::Scalar::new(val))
             }
             LiteralValue::Float(v) => gpu_result(cudf::Scalar::new(*v)),
+            LiteralValue::Null => {
+                polars_bail!(ComputeError: "GPU engine: null literal not supported in scalar path")
+            }
+            LiteralValue::String(_) => {
+                polars_bail!(ComputeError: "GPU engine: string literal not supported in scalar path")
+            }
             _ => {
-                polars_bail!(ComputeError: "GPU engine: literal type not supported for scalar optimization")
+                polars_bail!(ComputeError: "GPU engine: literal type {:?} not supported for scalar optimization", lit)
             }
         },
         _ => polars_bail!(ComputeError: "GPU engine: expected literal expression"),
@@ -286,7 +300,9 @@ fn eval_agg_expr(
             // In standalone context, just evaluate the input
             eval_expr(*input, expr_arena, df)
         }
-        _ => polars_bail!(ComputeError: "GPU engine: unsupported standalone aggregation"),
+        other => {
+            polars_bail!(ComputeError: "GPU engine: unsupported standalone aggregation: {:?}", other)
+        }
     }
 }
 
@@ -375,6 +391,10 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
     }
 
     match tid {
+        GpuTypeId::Bool8 => {
+            let v: bool = gpu_result(scalar.value())?;
+            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+        }
         GpuTypeId::Int8 => {
             let v: i8 = gpu_result(scalar.value())?;
             gpu_result(GpuColumn::from_slice(&vec![v; height]))
@@ -433,28 +453,21 @@ fn eval_function(
         }
         FunctionExpr::Negate => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
-            // Negate: multiply by -1 using the same type
+            // Negate: multiply by scalar -1 (avoids allocating a full-length column)
             let dtype = col.data_type();
             let tid = dtype.id();
-            match tid {
-                GpuTypeId::Int8 | GpuTypeId::Int16 | GpuTypeId::Int32 | GpuTypeId::Int64 => {
-                    let neg_one = gpu_result(GpuColumn::from_slice(&vec![-1i64; col.len()]))?;
-                    let target_type = GpuDataType::new(tid);
-                    let neg_one_cast = gpu_result(neg_one.cast(target_type))?;
-                    gpu_result(col.binary_op(&neg_one_cast, cudf::BinaryOp::Mul, target_type))
-                }
-                GpuTypeId::Float32 => {
-                    let neg_one = gpu_result(GpuColumn::from_slice(&vec![-1.0f32; col.len()]))?;
-                    gpu_result(col.binary_op(&neg_one, cudf::BinaryOp::Mul, dtype))
-                }
-                GpuTypeId::Float64 => {
-                    let neg_one = gpu_result(GpuColumn::from_slice(&vec![-1.0f64; col.len()]))?;
-                    gpu_result(col.binary_op(&neg_one, cudf::BinaryOp::Mul, dtype))
-                }
+            let neg_scalar = match tid {
+                GpuTypeId::Int8 => gpu_result(cudf::Scalar::new(-1i8))?,
+                GpuTypeId::Int16 => gpu_result(cudf::Scalar::new(-1i16))?,
+                GpuTypeId::Int32 => gpu_result(cudf::Scalar::new(-1i32))?,
+                GpuTypeId::Int64 => gpu_result(cudf::Scalar::new(-1i64))?,
+                GpuTypeId::Float32 => gpu_result(cudf::Scalar::new(-1.0f32))?,
+                GpuTypeId::Float64 => gpu_result(cudf::Scalar::new(-1.0f64))?,
                 _ => {
                     polars_bail!(ComputeError: "GPU engine: Negate not supported for type {:?}", tid)
                 }
-            }
+            };
+            gpu_result(col.binary_op_scalar(&neg_scalar, cudf::BinaryOp::Mul, dtype))
         }
         FunctionExpr::Boolean(bf) => eval_boolean_function(bf, inputs, expr_arena, df),
         FunctionExpr::FillNull => {
@@ -525,12 +538,8 @@ fn eval_boolean_function(
             ))
         }
         BooleanFunction::IsInfinite => {
-            // IsInfinite: NOT(IsNan) AND NOT(IsFinite) ... complex without direct support
-            // We can compute: is_valid AND NOT(is_nan) AND NOT(is_finite)
-            // But cudf has no is_infinite. Use: (x != x is NaN), abs(x) == inf
-            // Simplest: NOT(is_nan) AND NOT(is_valid) ... no.
-            // Let's do: is_valid AND is_nan complement check
-            polars_bail!(ComputeError: "GPU engine: IsInfinite not yet supported")
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            gpu_result(col.is_inf())
         }
         BooleanFunction::Any { ignore_nulls } => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
