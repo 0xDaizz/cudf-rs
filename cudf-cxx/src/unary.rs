@@ -32,7 +32,6 @@ pub mod ffi {
         /// Cast a column to a different data type.
         fn cast(input: &OwnedColumn, type_id: i32) -> Result<UniquePtr<OwnedColumn>>;
 
-
         /// Return a bool8 column indicating which elements are +/-infinity.
         fn is_inf(input: &OwnedColumn) -> Result<UniquePtr<OwnedColumn>>;
 

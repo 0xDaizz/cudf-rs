@@ -123,7 +123,6 @@ impl Column {
         Ok(Column { inner: result })
     }
 
-
     /// Return a bool8 column indicating which elements are +/-infinity.
     ///
     /// Only applicable to floating-point columns.

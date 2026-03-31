@@ -538,7 +538,8 @@ fn eval_boolean_function(
             if !ignore_nulls && col.null_count() > 0 {
                 // Propagate null: if there are nulls and we are not ignoring them,
                 // check if any non-null value is true first
-                let scalar = gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
+                let scalar =
+                    gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
                 if scalar.is_valid() {
                     let val: bool = gpu_result(scalar.value())?;
                     if val {
@@ -555,7 +556,8 @@ fn eval_boolean_function(
                     gpu_result(cudf::Column::from_optional_bool(&opts))
                 }
             } else {
-                let scalar = gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
+                let scalar =
+                    gpu_result(col.reduce(ReduceOp::Any, GpuDataType::new(GpuTypeId::Bool8)))?;
                 broadcast_scalar(&scalar, height)
             }
         }
@@ -565,7 +567,8 @@ fn eval_boolean_function(
             if !ignore_nulls && col.null_count() > 0 {
                 // Propagate null: if there are nulls and we are not ignoring them,
                 // check if any non-null value is false first
-                let scalar = gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
+                let scalar =
+                    gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
                 if scalar.is_valid() {
                     let val: bool = gpu_result(scalar.value())?;
                     if !val {
@@ -582,7 +585,8 @@ fn eval_boolean_function(
                     gpu_result(cudf::Column::from_optional_bool(&opts))
                 }
             } else {
-                let scalar = gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
+                let scalar =
+                    gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
                 broadcast_scalar(&scalar, height)
             }
         }
