@@ -19,3 +19,7 @@ arrow = { version = "54", default-features = false, features = ["ffi"] }
 [features]
 default = []
 gpu-tests = []
+
+[[example]]
+name = "benchmark"
+required-features = ["gpu-tests"]
