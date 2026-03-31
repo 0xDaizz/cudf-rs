@@ -507,6 +507,14 @@ pub fn execute_node(
             // Use the first table's names as reference
             let names = tables[0].names().to_vec();
 
+            // Reorder remaining tables' columns to match the first table's column order.
+            // Different upstream branches may produce columns in different orders.
+            let mut tables = tables;
+            let ref_names: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+            for table in tables.iter_mut().skip(1) {
+                *table = table.select_columns(&ref_names)?;
+            }
+
             let table_refs: Vec<&cudf::Table> = tables.iter().map(|t| t.inner_table()).collect();
             let concatenated = gpu_result(cudf::concatenate::concatenate_tables(&table_refs))?;
             let result = GpuDataFrame::from_table(concatenated, names);
@@ -531,6 +539,13 @@ pub fn execute_node(
                 .iter()
                 .map(|node| execute_node(*node, lp_arena, expr_arena))
                 .collect::<PolarsResult<_>>()?;
+
+            // Validate that all inputs have the same height.
+            // GPU HConcat cannot pad shorter tables with nulls without knowing column types.
+            let heights: Vec<usize> = tables.iter().map(|t| t.height()).collect();
+            if heights.windows(2).any(|w| w[0] != w[1]) {
+                polars_bail!(ComputeError: "GPU HConcat requires all inputs to have the same height, got {:?}", heights);
+            }
 
             // Collect all columns from all tables
             let mut all_columns = Vec::new();

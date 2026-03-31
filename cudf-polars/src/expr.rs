@@ -416,9 +416,10 @@ fn eval_boolean_function(
             gpu_result(col.is_not_nan())
         }
         BooleanFunction::IsFinite => {
-            // IsFinite = NOT(IsNan) AND NOT(IsInfinite)
-            // Approximation: NOT(IsNan) since cudf doesn't have is_infinite directly
-            // Actually, is_finite = is_valid AND NOT(is_nan) for float types
+            // LIMITATION: This approximation treats Infinity as finite.
+            // cudf does not provide a dedicated is_inf operation.
+            // Correct implementation would require: is_valid AND NOT(is_nan) AND NOT(is_inf)
+            // Current: is_valid AND NOT(is_nan) — misses +/-Inf values.
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             let is_nan = gpu_result(col.is_nan())?;
             let not_nan = gpu_result(is_nan.unary_op(UnaryOp::Not))?;

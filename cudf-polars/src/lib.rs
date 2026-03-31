@@ -578,6 +578,25 @@ mod m4_tests {
         // Left join: all 4 left rows preserved
         assert_eq!(left_gathered.num_rows(), 4);
         assert_eq!(right_gathered.num_rows(), 4);
+
+        // Verify actual values: combine left+right gathered, then sort by id
+        let left_result_df = GpuDataFrame::from_table(left_gathered, left_gpu.names().to_vec());
+        let right_result_df = GpuDataFrame::from_table(right_gathered, right_gpu.names().to_vec());
+        let left_back = left_result_df.to_polars().unwrap();
+        let right_back = right_result_df.to_polars().unwrap();
+
+        // Combine left and right columns into one DataFrame, then sort
+        let mut combined = left_back.clone();
+        combined.with_column(right_back.column("score").unwrap().clone()).unwrap();
+        let combined = combined.sort(["id"], Default::default()).unwrap();
+
+        let ids: Vec<i32> = combined.column("id").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(ids, vec![1, 2, 3, 4]); // all left rows preserved
+        let vals: Vec<i32> = combined.column("val").unwrap().i32().unwrap().into_no_null_iter().collect();
+        assert_eq!(vals, vec![10, 20, 30, 40]);
+        let scores: Vec<Option<i32>> = combined.column("score").unwrap().i32().unwrap().into_iter().collect();
+        // id=1 -> None, id=2 -> 200, id=3 -> 300, id=4 -> None
+        assert_eq!(scores, vec![None, Some(200), Some(300), None]);
     }
 
     #[test]
@@ -669,6 +688,17 @@ mod m4_tests {
         let cross = gpu_error::gpu_result(left_gpu.inner_table().cross_join(right_gpu.inner_table())).unwrap();
         assert_eq!(cross.num_rows(), 6); // 2 * 3
         assert_eq!(cross.num_columns(), 2); // a, b
+
+        // Verify actual values
+        let names = vec!["a".to_string(), "b".to_string()];
+        let result_df = GpuDataFrame::from_table(cross, names);
+        let back = result_df.to_polars().unwrap();
+        let back = back.sort(["a", "b"], Default::default()).unwrap();
+        let a_vals: Vec<i32> = back.column("a").unwrap().i32().unwrap().into_no_null_iter().collect();
+        let b_vals: Vec<i32> = back.column("b").unwrap().i32().unwrap().into_no_null_iter().collect();
+        // Cross join: each left row x each right row, sorted by (a, b)
+        assert_eq!(a_vals, vec![1, 1, 1, 2, 2, 2]);
+        assert_eq!(b_vals, vec![10, 20, 30, 10, 20, 30]);
     }
 
     // ── Union (vertical concat) test ──
