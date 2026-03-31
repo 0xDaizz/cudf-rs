@@ -93,12 +93,13 @@ pub fn execute_node(
             let table = execute_node(input_node, lp_arena, expr_arena)?;
 
             // HStack adds new columns to the existing frame.
+            // Use Option<Column> to allow zero-copy reordering without dummy GPU allocations.
             let existing_width = table.width();
-            let mut all_columns = Vec::with_capacity(existing_width + exprs.len());
+            let mut all_columns: Vec<Option<cudf::Column>> = Vec::with_capacity(existing_width + exprs.len());
             let mut all_names = Vec::with_capacity(existing_width + exprs.len());
 
             for i in 0..existing_width {
-                all_columns.push(table.column(i)?);
+                all_columns.push(Some(table.column(i)?));
                 all_names.push(table.names()[i].clone());
             }
 
@@ -107,9 +108,9 @@ pub fn execute_node(
                 let name = e.output_name().to_string();
 
                 if let Some(pos) = all_names.iter().position(|n| n == &name) {
-                    all_columns[pos] = col;
+                    all_columns[pos] = Some(col);
                 } else {
-                    all_columns.push(col);
+                    all_columns.push(Some(col));
                     all_names.push(name);
                 }
             }
@@ -120,10 +121,10 @@ pub fn execute_node(
             let mut ordered_names = Vec::with_capacity(schema_names.len());
             for &sn in &schema_names {
                 if let Some(pos) = all_names.iter().position(|n| n == sn) {
-                    ordered_columns.push(std::mem::replace(
-                        &mut all_columns[pos],
-                        crate::error::gpu_result(cudf::Column::from_slice(&[0i32])).unwrap(),
-                    ));
+                    let col = all_columns[pos].take().ok_or_else(|| {
+                        polars_err!(ColumnNotFound: "duplicate reference to column '{}' in HStack schema", sn)
+                    })?;
+                    ordered_columns.push(col);
                     ordered_names.push(sn.to_string());
                 } else {
                     polars_bail!(ColumnNotFound: "{}", sn);
