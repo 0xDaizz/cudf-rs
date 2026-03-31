@@ -114,7 +114,7 @@ impl Column {
 
     /// Concatenate nested list elements within each row.
     ///
-    /// Input must be a column of type LIST<LIST<T>>. The inner lists
+    /// Input must be a column of type `LIST<LIST<T>>`. The inner lists
     /// within each row are concatenated into a single list.
     pub fn lists_concatenate_list_elements(&self) -> Result<Column> {
         let raw = cudf_cxx::lists::ops::ffi::lists_concatenate_list_elements(&self.inner)

@@ -30,8 +30,10 @@ pub enum AggregationKind {
     Min,
     /// Maximum value.
     Max,
-    /// Count of values.
+    /// Count of all values (including nulls).
     Count,
+    /// Count of non-null values only.
+    CountValid,
     /// Logical OR (any true).
     Any,
     /// Logical AND (all true).
@@ -93,6 +95,7 @@ impl Aggregation {
             AggregationKind::Min => ffi::agg_min(),
             AggregationKind::Max => ffi::agg_max(),
             AggregationKind::Count => ffi::agg_count(NullHandling::Include as i32),
+            AggregationKind::CountValid => ffi::agg_count(NullHandling::Exclude as i32),
             AggregationKind::Any => ffi::agg_any(),
             AggregationKind::All => ffi::agg_all(),
             AggregationKind::SumOfSquares => ffi::agg_sum_of_squares(),

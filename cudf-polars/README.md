@@ -55,8 +55,7 @@ fn main() {
 
 ### Supported Aggregations (GroupBy)
 
-Sum, Product, Min, Max, Count, Mean, Median, Variance, Std, Nunique,
-NthElement, CollectList, CollectSet, Argmax, Argmin, Quantile, and more.
+Sum, Min, Max, Count, Mean, Median, Variance, Std, Nunique, First, Last.
 
 ### Supported Data Types
 
@@ -95,6 +94,20 @@ cudf-polars::GpuDataFrame -- named GPU columns
       v
 cudf (Rust)  ->  cudf-cxx (C++ bridge)  ->  libcudf (NVIDIA)
 ```
+
+## Limitations
+
+- **Polars version**: Pinned to polars 0.46.0. Upgrading requires manual IR compatibility audit.
+- **Types**: Date, Time, Datetime, Duration, Categorical, List, Struct types pass through Arrow bridge but are not tested.
+- **String operations**: String-specific expressions (contains, replace, split) are not supported.
+- **Window functions**:  expressions are not supported.
+- **GroupBy maintain_order**: Approximated by key-column sort (not true input-order preservation).
+- **Std/Var ddof**: Standalone reduce always uses ddof=1; GroupBy passes ddof correctly.
+- **IsFinite**: Treats ±Infinity as finite (cudf lacks is_inf operation).
+- **Quantile aggregation**: Not supported in GroupBy context.
+- **Multi-file Parquet**: Only reads the first file in multi-file scans.
+- **MapFunction**: rename, explode, melt, pivot not supported.
+- **Cache/ExtContext**: IR nodes not supported.
 
 ## License
 

@@ -34,4 +34,11 @@ std::unique_ptr<OwnedColumn> cast(const OwnedColumn& input, int32_t type_id);
 /// Check if a cast between two data types is supported.
 bool is_supported_cast(int32_t from_type_id, int32_t to_type_id);
 
+
+/// Return a bool8 column indicating which elements are +/-infinity.
+std::unique_ptr<OwnedColumn> is_inf(const OwnedColumn& input);
+
+/// Return a bool8 column indicating which elements are NOT +/-infinity.
+std::unique_ptr<OwnedColumn> is_not_inf(const OwnedColumn& input);
+
 } // namespace cudf_shims

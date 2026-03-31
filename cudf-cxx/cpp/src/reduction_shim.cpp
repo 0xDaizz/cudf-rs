@@ -167,4 +167,31 @@ bool is_valid_reduction_aggregation(int32_t source_type_id, int32_t agg_kind)
     return cudf::reduction::is_valid_aggregation(src_type, agg->kind);
 }
 
+
+std::unique_ptr<OwnedScalar> reduce_var_with_ddof(
+    const OwnedColumn& col,
+    int32_t ddof,
+    int32_t output_type_id)
+{
+    auto agg = cudf::make_variance_aggregation<cudf::reduce_aggregation>(
+        static_cast<cudf::size_type>(ddof));
+    auto out_type = cudf::data_type{static_cast<cudf::type_id>(output_type_id)};
+
+    auto result = cudf::reduce(col.view(), *agg, out_type);
+    return std::make_unique<OwnedScalar>(std::move(result));
+}
+
+std::unique_ptr<OwnedScalar> reduce_std_with_ddof(
+    const OwnedColumn& col,
+    int32_t ddof,
+    int32_t output_type_id)
+{
+    auto agg = cudf::make_std_aggregation<cudf::reduce_aggregation>(
+        static_cast<cudf::size_type>(ddof));
+    auto out_type = cudf::data_type{static_cast<cudf::type_id>(output_type_id)};
+
+    auto result = cudf::reduce(col.view(), *agg, out_type);
+    return std::make_unique<OwnedScalar>(std::move(result));
+}
+
 } // namespace cudf_shims

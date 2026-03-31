@@ -217,8 +217,8 @@ impl ChunkedParquetReader {
 /// A chunked Parquet writer for writing large tables in pieces.
 ///
 /// This writer allows writing a table incrementally, chunk by chunk,
-/// to a single Parquet file. Call [`write`] for each chunk and
-/// [`close`] when done.
+/// to a single Parquet file. Call [`Self::write`] for each chunk and
+/// [`Self::close`] when done.
 ///
 /// # Examples
 ///

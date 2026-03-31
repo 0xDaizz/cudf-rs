@@ -5,6 +5,7 @@
 [![docs.rs](https://img.shields.io/docsrs/cudf)](https://docs.rs/cudf)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-orange?logo=rust)](https://www.rust-lang.org)
 [![CUDA 12.2+](https://img.shields.io/badge/CUDA-12.2+-76B900?logo=nvidia)](https://developer.nvidia.com/cuda-toolkit)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/0xDaizz/cudf-rs)
 
 Unofficial Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf) -- GPU-accelerated DataFrame operations.
 
