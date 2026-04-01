@@ -12,7 +12,7 @@ pub fn map_operator(op: Operator) -> PolarsResult<BinaryOp> {
         Operator::Plus => Ok(BinaryOp::Add),
         Operator::Minus => Ok(BinaryOp::Sub),
         Operator::Multiply => Ok(BinaryOp::Mul),
-        Operator::Divide => Ok(BinaryOp::Div),
+        Operator::RustDivide => Ok(BinaryOp::Div),
         Operator::TrueDivide => Ok(BinaryOp::TrueDiv),
         Operator::FloorDivide => Ok(BinaryOp::FloorDiv),
         Operator::Modulus => Ok(BinaryOp::Mod),

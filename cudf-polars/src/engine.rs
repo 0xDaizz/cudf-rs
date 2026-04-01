@@ -303,19 +303,19 @@ pub fn execute_node(
         IR::Scan {
             sources,
             scan_type,
-            file_options,
+            unified_scan_args,
             output_schema,
             predicate,
             ..
         } => {
-            use polars_plan::plans::FileScan;
+            use polars_plan::dsl::FileScanIR;
 
-            let file_options = file_options.clone();
+            let unified_scan_args = unified_scan_args.clone();
             let output_schema = output_schema.clone();
             let predicate = predicate.clone();
 
-            match scan_type {
-                FileScan::Parquet { .. } => {
+            match scan_type.as_ref() {
+                FileScanIR::Parquet { .. } => {
                     let paths = sources.as_paths().ok_or_else(
                         || polars_err!(ComputeError: "GPU engine: Scan requires file paths"),
                     )?;
@@ -325,12 +325,12 @@ pub fn execute_node(
                     }
 
                     // Read the first (or only) parquet file
-                    let path_str = paths[0].to_string_lossy().to_string();
+                    let path_str: String = AsRef::<str>::as_ref(&paths[0]).to_string();
 
                     // Determine which columns to read
                     let col_names: Vec<String> =
-                        if let Some(ref with_cols) = file_options.with_columns {
-                            with_cols.iter().map(|c| c.to_string()).collect()
+                        if let Some(ref projection) = unified_scan_args.projection {
+                            projection.iter().map(|c| c.to_string()).collect()
                         } else {
                             vec![]
                         };
@@ -340,15 +340,20 @@ pub fn execute_node(
                         reader = reader.columns(col_names.clone());
                     }
 
-                    // Apply row limit/skip from slice
-                    if let Some((offset, len)) = file_options.slice {
-                        if offset >= 0 {
-                            if offset > 0 {
-                                reader = reader.skip_rows(offset as usize);
+                    // Apply row limit/skip from pre_slice
+                    if let Some(ref slice) = unified_scan_args.pre_slice {
+                        use polars_utils::slice_enum::Slice as SliceEnum;
+                        match slice {
+                            SliceEnum::Positive { offset, len } => {
+                                if *offset > 0 {
+                                    reader = reader.skip_rows(*offset);
+                                }
+                                reader = reader.num_rows(*len);
                             }
-                            reader = reader.num_rows(len);
+                            SliceEnum::Negative { .. } => {
+                                // Negative offset (tail): read all, then slice at the end
+                            }
                         }
-                        // Negative offset (tail): read all, then slice at the end
                     }
 
                     let gpu_table = gpu_result(reader.read_with_metadata())?;
@@ -413,9 +418,9 @@ pub fn execute_node(
             let suffix = options
                 .args
                 .suffix
-                .as_ref()
-                .map(|s| s.as_str().to_string())
-                .unwrap_or_else(|| "_right".to_string());
+                .as_deref()
+                .unwrap_or("_right")
+                .to_string();
 
             match join_type {
                 JoinType::Inner => {
@@ -580,7 +585,6 @@ fn extract_agg_info(
     expr_arena: &Arena<AExpr>,
 ) -> PolarsResult<(Node, AggregationKind)> {
     match expr_arena.get(node) {
-        AExpr::Alias(inner, _) => extract_agg_info(*inner, expr_arena),
         AExpr::Agg(agg) => {
             let (input, kind) = map_ir_agg(agg)?;
             Ok((input, kind))
@@ -597,7 +601,7 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::Max { input, .. } => Ok((*input, AggregationKind::Max)),
         IRAggExpr::Mean(input) => Ok((*input, AggregationKind::Mean)),
         IRAggExpr::Median(input) => Ok((*input, AggregationKind::Median)),
-        IRAggExpr::Count(input, include_nulls) => {
+        IRAggExpr::Count { input, include_nulls } => {
             if *include_nulls {
                 Ok((*input, AggregationKind::Count))
             } else {
