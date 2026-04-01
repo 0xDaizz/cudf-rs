@@ -391,7 +391,7 @@ fn contiguous_split_basic() {
     let col = Column::from_slice(&[1i32, 2, 3, 4, 5, 6]).unwrap();
     let table = Table::new(vec![col]).unwrap();
 
-    let result = SplitResult::split(&table, &[2, 4]).unwrap();
+    let mut result = SplitResult::split(&table, &[2, 4]).unwrap();
     assert_eq!(result.num_parts(), 3);
 
     let part0 = result.get(0).unwrap();
@@ -417,7 +417,7 @@ fn contiguous_split_basic() {
 fn contiguous_split_out_of_bounds_partition() {
     let col = Column::from_slice(&[1i32, 2, 3]).unwrap();
     let table = Table::new(vec![col]).unwrap();
-    let result = SplitResult::split(&table, &[1]).unwrap();
+    let mut result = SplitResult::split(&table, &[1]).unwrap();
     assert_eq!(result.num_parts(), 2);
     match result.get(5) {
         Err(CudfError::IndexOutOfBounds { .. }) => {}

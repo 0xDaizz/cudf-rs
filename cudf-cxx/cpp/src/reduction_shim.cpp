@@ -124,14 +124,6 @@ std::unique_ptr<MinMaxResult> minmax(const OwnedColumn& col) {
     return result;
 }
 
-const OwnedScalar& minmax_get_min(const MinMaxResult& result) {
-    return *result.min_val;
-}
-
-const OwnedScalar& minmax_get_max(const MinMaxResult& result) {
-    return *result.max_val;
-}
-
 std::unique_ptr<OwnedScalar> minmax_take_min(MinMaxResult& result) {
     return std::move(result.min_val);
 }

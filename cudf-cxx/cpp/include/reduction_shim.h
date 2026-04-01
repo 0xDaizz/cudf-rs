@@ -40,12 +40,6 @@ struct MinMaxResult {
 
 std::unique_ptr<MinMaxResult> minmax(const OwnedColumn& col);
 
-/// Accessor for the min scalar from MinMaxResult.
-const OwnedScalar& minmax_get_min(const MinMaxResult& result);
-
-/// Accessor for the max scalar from MinMaxResult.
-const OwnedScalar& minmax_get_max(const MinMaxResult& result);
-
 /// Move min out of MinMaxResult.
 std::unique_ptr<OwnedScalar> minmax_take_min(MinMaxResult& result);
 

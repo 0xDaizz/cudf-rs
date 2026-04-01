@@ -4,6 +4,9 @@
 #include <cudf/copying.hpp>
 #include <cudf/utilities/default_stream.hpp>
 #include <rmm/device_buffer.hpp>
+#include <cuda_runtime.h>
+#include <stdexcept>
+#include <string>
 
 namespace cudf_shims {
 
@@ -21,7 +24,10 @@ rust::Vec<uint8_t> bools_to_mask(const OwnedColumn& col) {
 
     // Copy device buffer to host.
     std::vector<uint8_t> host_data(mask_buffer->size());
-    cudaMemcpy(host_data.data(), mask_buffer->data(), mask_buffer->size(), cudaMemcpyDeviceToHost);
+    auto err = cudaMemcpy(host_data.data(), mask_buffer->data(), mask_buffer->size(), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpy failed: ") + cudaGetErrorString(err));
+    }
 
     rust::Vec<uint8_t> out;
     out.reserve(host_data.size());

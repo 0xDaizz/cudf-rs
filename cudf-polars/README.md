@@ -107,7 +107,7 @@ cudf (Rust)  ->  cudf-cxx (C++ bridge)  ->  libcudf (NVIDIA)
 - **String operations**: String-specific expressions (contains, replace, split) are not supported.
 - **Window functions**:  expressions are not supported.
 - **GroupBy maintain_order**: Approximated by key-column sort (not true input-order preservation).
-- **Std/Var ddof**: Standalone reduce always uses ddof=1; GroupBy passes ddof correctly.
+- **Std/Var ddof**: Default standalone reduce uses ddof=1; full ddof support available via `reduce_var_with_ddof` / `reduce_std_with_ddof`. GroupBy passes ddof correctly.
 - **IsFinite/IsInfinite**: Fully supported via `is_inf()` / `is_not_inf()`.
 - **Quantile aggregation**: Not supported in GroupBy context.
 - **Multi-file Parquet**: Only reads the first file in multi-file scans.

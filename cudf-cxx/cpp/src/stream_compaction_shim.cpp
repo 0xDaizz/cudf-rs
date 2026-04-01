@@ -20,9 +20,9 @@ std::vector<cudf::size_type> to_size_type_vec(rust::Slice<const int32_t> indices
 /// Convert i32 to cudf::duplicate_keep_option.
 cudf::duplicate_keep_option to_keep_option(int32_t keep) {
     switch (keep) {
-        case 0: return cudf::duplicate_keep_option::KEEP_FIRST;
-        case 1: return cudf::duplicate_keep_option::KEEP_LAST;
-        case 2: return cudf::duplicate_keep_option::KEEP_ANY;
+        case 0: return cudf::duplicate_keep_option::KEEP_ANY;
+        case 1: return cudf::duplicate_keep_option::KEEP_FIRST;
+        case 2: return cudf::duplicate_keep_option::KEEP_LAST;
         case 3: return cudf::duplicate_keep_option::KEEP_NONE;
         default: throw std::runtime_error("Invalid keep option: " + std::to_string(keep));
     }
@@ -127,7 +127,7 @@ int32_t distinct_count_column(
     int32_t null_handling,
     int32_t nan_handling)
 {
-    auto nh = null_handling == 0 ? cudf::null_policy::INCLUDE : cudf::null_policy::EXCLUDE;
+    auto nh = null_handling == 0 ? cudf::null_policy::EXCLUDE : cudf::null_policy::INCLUDE;
     auto nanp = nan_handling == 0 ? cudf::nan_policy::NAN_IS_VALID : cudf::nan_policy::NAN_IS_NULL;
     return cudf::distinct_count(col.view(), nh, nanp);
 }
@@ -164,7 +164,7 @@ int32_t unique_count_column(
     int32_t null_handling,
     int32_t nan_handling)
 {
-    auto nh = null_handling == 0 ? cudf::null_policy::INCLUDE : cudf::null_policy::EXCLUDE;
+    auto nh = null_handling == 0 ? cudf::null_policy::EXCLUDE : cudf::null_policy::INCLUDE;
     auto nanp = nan_handling == 0 ? cudf::nan_policy::NAN_IS_VALID : cudf::nan_policy::NAN_IS_NULL;
     return cudf::unique_count(col.view(), nh, nanp);
 }

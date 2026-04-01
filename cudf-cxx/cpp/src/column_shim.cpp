@@ -117,8 +117,11 @@ std::unique_ptr<OwnedColumn> column_from_strings(rust::Slice<const rust::String>
             rmm::device_buffer{}, 0);
         // Zero out the single offset.
         int32_t zero = 0;
-        cudaMemcpyAsync(offsets_col->mutable_view().data<int32_t>(), &zero,
+        auto err = cudaMemcpyAsync(offsets_col->mutable_view().data<int32_t>(), &zero,
                         sizeof(int32_t), cudaMemcpyHostToDevice, stream.value());
+        if (err != cudaSuccess) {
+            throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+        }
         stream.synchronize();
         return std::make_unique<OwnedColumn>(
             cudf::make_strings_column(
@@ -317,8 +320,11 @@ std::unique_ptr<OwnedColumn> column_from_strings_nullable(
             rmm::device_buffer(sizeof(int32_t), stream, mr),
             rmm::device_buffer{}, 0);
         int32_t zero = 0;
-        cudaMemcpyAsync(offsets_col->mutable_view().data<int32_t>(), &zero,
+        auto err = cudaMemcpyAsync(offsets_col->mutable_view().data<int32_t>(), &zero,
                         sizeof(int32_t), cudaMemcpyHostToDevice, stream.value());
+        if (err != cudaSuccess) {
+            throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+        }
         stream.synchronize();
         return std::make_unique<OwnedColumn>(
             cudf::make_strings_column(

@@ -206,6 +206,12 @@ Case, find, contains, replace, split, strip, slice, combine, convert, extract, f
 
 Arrow C Data Interface, Arrow IPC, DLPack tensor exchange, pack/unpack/contiguous_split.
 
+## Limitations / Notes
+
+- **GroupBy `maintain_order`**: In cudf-polars, `maintain_order` is approximated by a key-column sort, not true input-order preservation.
+- **Std/Var ddof**: Default standalone reduction uses ddof=1. Full ddof support is available via `reduce_var_with_ddof` / `reduce_std_with_ddof`.
+- **Polars version**: cudf-polars is pinned to Polars 0.46.0. Upgrading requires a manual IR compatibility audit.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding new bindings, code conventions, and testing.

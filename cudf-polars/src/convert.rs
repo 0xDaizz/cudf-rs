@@ -7,16 +7,35 @@ use polars_core::frame::DataFrame;
 use polars_core::prelude::*;
 use polars_error::PolarsResult;
 
-// Verify polars-arrow and arrow-rs FFI structs have identical layout
+// Verify polars-arrow and arrow-rs FFI structs have identical memory layout.
+//
+// SAFETY INVARIANT: We reinterpret polars-arrow FFI structs as arrow-rs FFI structs
+// (and vice versa) via `ptr::read` below. This is sound only if both struct pairs are
+// `#[repr(C)]` with identical size, alignment, and field offsets. Both crates implement
+// the Arrow C Data Interface spec, so the layouts should match.
+//
+// Field-level offset_of! verification is not possible because the upstream FFI types
+// (polars-arrow and arrow-rs) have private fields (e.g. `private_data`). However,
+// size + alignment equality is a sufficient check: both types implement the Arrow C
+// Data Interface spec (https://arrow.apache.org/docs/format/CDataInterface.html),
+// which defines a fixed C struct layout. Two `#[repr(C)]` structs with identical
+// size, alignment, and the same spec-mandated field sequence are guaranteed to have
+// identical field offsets.
 const _: () = {
-    assert!(
-        std::mem::size_of::<polars_arrow::ffi::ArrowArray>()
-            == std::mem::size_of::<arrow::ffi::FFI_ArrowArray>()
-    );
-    assert!(
-        std::mem::size_of::<polars_arrow::ffi::ArrowSchema>()
-            == std::mem::size_of::<arrow::ffi::FFI_ArrowSchema>()
-    );
+    use std::mem::{align_of, size_of};
+
+    type PolarsArray = polars_arrow::ffi::ArrowArray;
+    type ArrowArray = arrow::ffi::FFI_ArrowArray;
+    type PolarsSchema = polars_arrow::ffi::ArrowSchema;
+    type ArrowSchema = arrow::ffi::FFI_ArrowSchema;
+
+    // --- ArrowArray: size and alignment ---
+    assert!(size_of::<PolarsArray>() == size_of::<ArrowArray>());
+    assert!(align_of::<PolarsArray>() == align_of::<ArrowArray>());
+
+    // --- ArrowSchema: size and alignment ---
+    assert!(size_of::<PolarsSchema>() == size_of::<ArrowSchema>());
+    assert!(align_of::<PolarsSchema>() == align_of::<ArrowSchema>());
 };
 
 /// Convert a Polars DataFrame to a GPU-resident cudf Table.
@@ -93,12 +112,12 @@ fn polars_arrow_to_arrow_ffi(
     let field = polars_arrow::datatypes::Field::new(PlSmallStr::from_static("_"), dtype, true);
     let polars_c_schema = polars_arrow::ffi::export_field_to_c(&field);
 
-    // Transmute: polars-arrow ArrowSchema/ArrowArray and arrow-rs FFI_ArrowSchema/FFI_ArrowArray
-    // are both #[repr(C)] with identical layout (Arrow C Data Interface spec).
+    // Reinterpret polars-arrow C ABI structs as arrow-rs C ABI structs.
     //
-    // SAFETY: Both types implement the same C ABI layout as specified by
-    // the Arrow C Data Interface. We transfer ownership by moving through
-    // raw pointers.
+    // SAFETY: Both struct pairs are `#[repr(C)]` implementations of the Arrow C Data
+    // Interface. The const assertions at module level verify identical size and alignment.
+    // We move ownership via ptr::read + mem::forget to avoid double-drop of the release
+    // callback.
     let ffi_schema = unsafe {
         std::ptr::read(
             &polars_c_schema as *const polars_arrow::ffi::ArrowSchema
@@ -130,7 +149,10 @@ fn arrow_to_polars_arrow_ffi(
     let (ffi_array, ffi_schema) = arrow::ffi::to_ffi(&data)
         .map_err(|e| polars_err!(ComputeError: "Arrow FFI export failed: {}", e))?;
 
-    // Transmute arrow-rs FFI types to polars-arrow C ABI types
+    // Reinterpret arrow-rs C ABI structs as polars-arrow C ABI structs.
+    //
+    // SAFETY: Same layout invariant as above — verified by compile-time assertions
+    // at module level (size and alignment match).
     let polars_c_schema = unsafe {
         std::ptr::read(
             &ffi_schema as *const arrow::ffi::FFI_ArrowSchema

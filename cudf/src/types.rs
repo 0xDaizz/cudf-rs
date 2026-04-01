@@ -269,8 +269,8 @@ pub fn checked_i32(val: usize) -> crate::error::Result<i32> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum NullHandling {
-    /// Include nulls in the computation.
-    Include = 0,
     /// Exclude nulls from the computation.
-    Exclude = 1,
+    Exclude = 0,
+    /// Include nulls in the computation.
+    Include = 1,
 }
