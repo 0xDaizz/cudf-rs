@@ -85,7 +85,7 @@ std::unique_ptr<OwnedColumn> rank(
     auto m = static_cast<cudf::rank_method>(method);
     auto co = column_order == 0 ? cudf::order::ASCENDING : cudf::order::DESCENDING;
     auto no = null_order == 0 ? cudf::null_order::AFTER : cudf::null_order::BEFORE;
-    auto nh = null_handling == 0 ? cudf::null_policy::INCLUDE : cudf::null_policy::EXCLUDE;
+    auto nh = null_handling == 0 ? cudf::null_policy::EXCLUDE : cudf::null_policy::INCLUDE;
 
     auto result = cudf::rank(
         col.view(),

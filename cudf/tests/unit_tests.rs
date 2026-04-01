@@ -554,8 +554,8 @@ mod enum_tests {
     // -- NullHandling (sorting) --
     #[test]
     fn null_handling_sorting_values() {
-        assert_eq!(NullHandling::Include as i32, 0);
-        assert_eq!(NullHandling::Exclude as i32, 1);
+        assert_eq!(NullHandling::Exclude as i32, 0);
+        assert_eq!(NullHandling::Include as i32, 1);
     }
 
     // -- UnaryOp --
@@ -624,15 +624,15 @@ mod enum_tests {
     // -- DuplicateKeepOption --
     #[test]
     fn duplicate_keep_any() {
-        assert_eq!(DuplicateKeepOption::First as i32, 0);
+        assert_eq!(DuplicateKeepOption::Any as i32, 0);
     }
     #[test]
     fn duplicate_keep_first() {
-        assert_eq!(DuplicateKeepOption::Last as i32, 1);
+        assert_eq!(DuplicateKeepOption::First as i32, 1);
     }
     #[test]
     fn duplicate_keep_last() {
-        assert_eq!(DuplicateKeepOption::Any as i32, 2);
+        assert_eq!(DuplicateKeepOption::Last as i32, 2);
     }
     #[test]
     fn duplicate_keep_none() {

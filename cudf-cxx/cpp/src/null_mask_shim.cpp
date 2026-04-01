@@ -78,13 +78,16 @@ void copy_null_mask_to_host(
     }
 
     auto stream = cudf::get_default_stream();
-    cudaMemcpyAsync(
+    auto err = cudaMemcpyAsync(
         out.data(),
         mask,
         num_bytes,
         cudaMemcpyDeviceToHost,
         stream.value()
     );
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+    }
     stream.synchronize();
 }
 
@@ -156,7 +159,10 @@ rust::Vec<uint8_t> copy_bitmask_to_host(const OwnedColumn& col) {
 
     auto num_bytes = dev_buf.size();
     std::vector<uint8_t> host_data(num_bytes);
-    cudaMemcpyAsync(host_data.data(), dev_buf.data(), num_bytes, cudaMemcpyDeviceToHost, stream.value());
+    auto err = cudaMemcpyAsync(host_data.data(), dev_buf.data(), num_bytes, cudaMemcpyDeviceToHost, stream.value());
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+    }
     stream.synchronize();
 
     out.reserve(num_bytes);
@@ -178,7 +184,10 @@ std::unique_ptr<BitmaskResult> bitmask_and(const BitmaskBuilder& builder) {
     auto [dev_buf, null_count] = cudf::bitmask_and(tv, stream, mr);
 
     std::vector<uint8_t> host_data(dev_buf.size());
-    cudaMemcpyAsync(host_data.data(), dev_buf.data(), dev_buf.size(), cudaMemcpyDeviceToHost, stream.value());
+    auto err = cudaMemcpyAsync(host_data.data(), dev_buf.data(), dev_buf.size(), cudaMemcpyDeviceToHost, stream.value());
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+    }
     stream.synchronize();
 
     auto result = std::make_unique<BitmaskResult>();
@@ -198,7 +207,10 @@ std::unique_ptr<BitmaskResult> bitmask_or(const BitmaskBuilder& builder) {
     auto [dev_buf, null_count] = cudf::bitmask_or(tv, stream, mr);
 
     std::vector<uint8_t> host_data(dev_buf.size());
-    cudaMemcpyAsync(host_data.data(), dev_buf.data(), dev_buf.size(), cudaMemcpyDeviceToHost, stream.value());
+    auto err = cudaMemcpyAsync(host_data.data(), dev_buf.data(), dev_buf.size(), cudaMemcpyDeviceToHost, stream.value());
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("cudaMemcpyAsync failed: ") + cudaGetErrorString(err));
+    }
     stream.synchronize();
 
     auto result = std::make_unique<BitmaskResult>();

@@ -51,7 +51,7 @@ pub mod ffi {
         /// `method`: 0=FIRST, 1=AVERAGE, 2=MIN, 3=MAX, 4=DENSE.
         /// `column_order`: 0=ascending, 1=descending.
         /// `null_order`: 0=before, 1=after.
-        /// `null_handling`: 0=INCLUDE, 1=EXCLUDE.
+        /// `null_handling`: 0=EXCLUDE, 1=INCLUDE.
         /// `percentage`: whether to return percentage ranks.
         fn rank(
             col: &OwnedColumn,

@@ -47,7 +47,7 @@ pub mod ffi {
         // ── Deduplication ──────────────────────────────────────────
 
         /// Return unique rows based on key columns.
-        /// `keep`: 0=FIRST, 1=LAST, 2=ANY, 3=NONE.
+        /// `keep`: 0=ANY, 1=FIRST, 2=LAST, 3=NONE.
         /// `null_equality`: 0=EQUAL, 1=UNEQUAL.
         fn unique(
             table: &OwnedTable,
@@ -65,7 +65,7 @@ pub mod ffi {
         ) -> Result<UniquePtr<OwnedTable>>;
 
         /// Count the number of distinct elements in a column.
-        /// `null_handling`: 0=INCLUDE, 1=EXCLUDE.
+        /// `null_handling`: 0=EXCLUDE, 1=INCLUDE.
         /// `nan_handling`: 0=NAN_IS_VALID, 1=NAN_IS_NULL.
         fn distinct_count_column(
             col: &OwnedColumn,

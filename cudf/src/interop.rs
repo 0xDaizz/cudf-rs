@@ -325,9 +325,16 @@ impl PackedTable {
 ///
 /// Holds an opaque handle to the split partitions.  Individual partitions
 /// can be extracted as [`PackedTable`]s.
+///
+/// **Important:** Each partition can only be extracted once via [`get`](SplitResult::get).
+/// The underlying C++ implementation uses `std::move` to transfer ownership of the
+/// packed data, so calling `get()` twice on the same index would yield moved-from
+/// (invalid) data.  The `extracted` bitmap enforces this at runtime.
 pub struct SplitResult {
     handle: u64,
     num_parts: usize,
+    /// Tracks which partition indices have already been extracted.
+    extracted: Vec<bool>,
 }
 
 impl SplitResult {
@@ -354,9 +361,11 @@ impl SplitResult {
                 "unexpected contiguous_split return".into(),
             ));
         }
+        let num_parts = info[1] as usize;
         Ok(Self {
             handle: info[0],
-            num_parts: info[1] as usize,
+            num_parts,
+            extracted: vec![false; num_parts],
         })
     }
 
@@ -366,15 +375,27 @@ impl SplitResult {
     }
 
     /// Get a packed partition by index (moves data out of the split result).
-    pub fn get(&self, index: usize) -> Result<PackedTable> {
+    ///
+    /// Each index can only be extracted **once**.  The underlying C++ code uses
+    /// `std::move` on the partition data, so a second call with the same index
+    /// would access moved-from (invalid) data.  This method tracks extractions
+    /// and returns an error on duplicate access.
+    pub fn get(&mut self, index: usize) -> Result<PackedTable> {
         if index >= self.num_parts {
             return Err(CudfError::IndexOutOfBounds {
                 index,
                 size: self.num_parts,
             });
         }
+        if self.extracted[index] {
+            return Err(CudfError::InvalidArgument(format!(
+                "partition {index} has already been extracted from this SplitResult; \
+                 each partition can only be retrieved once (the C++ side moves ownership)"
+            )));
+        }
         let raw = cudf_cxx::interop::ffi::contiguous_split_get(self.handle, checked_i32(index)?)
             .map_err(CudfError::from_cxx)?;
+        self.extracted[index] = true;
         Ok(PackedTable { inner: raw })
     }
 }

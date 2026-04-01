@@ -33,12 +33,12 @@ pub enum NullEquality {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum DuplicateKeepOption {
-    /// Keep the first occurrence of each duplicate.
-    First = 0,
-    /// Keep the last occurrence of each duplicate.
-    Last = 1,
     /// Keep any single occurrence of each duplicate.
-    Any = 2,
+    Any = 0,
+    /// Keep the first occurrence of each duplicate.
+    First = 1,
+    /// Keep the last occurrence of each duplicate.
+    Last = 2,
     /// Remove all duplicates entirely.
     None = 3,
 }
@@ -202,7 +202,7 @@ impl Column {
     pub fn distinct_count(&self) -> Result<usize> {
         let count = cudf_cxx::stream_compaction::ffi::distinct_count_column(
             &self.inner,
-            0, // null_handling: INCLUDE
+            1, // null_handling: INCLUDE
             0, // nan_handling: NAN_IS_VALID
         )
         .map_err(CudfError::from_cxx)?;
@@ -216,7 +216,7 @@ impl Column {
     pub fn unique_count(&self) -> Result<usize> {
         let count = cudf_cxx::stream_compaction::ffi::unique_count_column(
             &self.inner,
-            0, // null_handling: INCLUDE
+            1, // null_handling: INCLUDE
             0, // nan_handling: NAN_IS_VALID
         )
         .map_err(CudfError::from_cxx)?;

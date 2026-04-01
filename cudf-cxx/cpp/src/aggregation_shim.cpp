@@ -14,7 +14,7 @@ std::unique_ptr<OwnedAggregation> wrap(std::unique_ptr<T> agg) {
 }
 
 cudf::null_policy to_null_policy(int32_t v) {
-    return v == 0 ? cudf::null_policy::INCLUDE : cudf::null_policy::EXCLUDE;
+    return v == 0 ? cudf::null_policy::EXCLUDE : cudf::null_policy::INCLUDE;
 }
 
 } // anonymous namespace

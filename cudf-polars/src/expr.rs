@@ -149,8 +149,19 @@ pub fn eval_expr(
 /// Convert a Polars `LiteralValue` to a GPU column of the given height.
 fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuColumn> {
     match lit {
-        // TODO: Null type should match the context (e.g., the other operand's type in BinaryExpr).
-        // Currently always creates i32 nullable column. This may cause type mismatches.
+        // BUG(type-erasure): `Null` literal always materialises as nullable i32.
+        // In a context like `col("f64_col") + lit(NULL)` this will produce an
+        // i32 column where an f64 null column is expected, causing a downstream
+        // type-mismatch error from cuDF's binary-op kernel.
+        //
+        // Proper fix: propagate the expected `DataType` from the parent
+        // `BinaryExpr` / `Ternary` / `Cast` node into this function so we can
+        // create the null column with the correct physical type.  Until then,
+        // callers that hit a type-mismatch on null columns should cast
+        // explicitly.
+        //
+        // TODO(HIGH): accept a `dtype: &DataType` parameter and construct the
+        // appropriately-typed null column.
         LiteralValue::Null => {
             let opts: Vec<Option<i32>> = vec![None; height];
             gpu_result(GpuColumn::from_optional_i32(&opts))

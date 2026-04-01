@@ -41,7 +41,7 @@ std::unique_ptr<OwnedTable> apply_boolean_mask(
     const OwnedColumn& boolean_mask);
 
 /// Returns a table with unique rows based on the specified key columns.
-/// `keep`: 0=KEEP_FIRST, 1=KEEP_LAST, 2=KEEP_ANY, 3=KEEP_NONE.
+/// `keep`: 0=KEEP_ANY, 1=KEEP_FIRST, 2=KEEP_LAST, 3=KEEP_NONE.
 /// `null_equality`: 0=EQUAL, 1=UNEQUAL.
 std::unique_ptr<OwnedTable> unique(
     const OwnedTable& table,
@@ -57,7 +57,7 @@ std::unique_ptr<OwnedTable> distinct(
     int32_t null_equality);
 
 /// Count the number of distinct elements in a column.
-/// `null_handling`: 0=INCLUDE, 1=EXCLUDE.
+/// `null_handling`: 0=EXCLUDE, 1=INCLUDE.
 /// `nan_handling`: 0=NAN_IS_VALID, 1=NAN_IS_NULL.
 int32_t distinct_count_column(
     const OwnedColumn& col,
@@ -65,7 +65,7 @@ int32_t distinct_count_column(
     int32_t nan_handling);
 
 /// Return indices of distinct rows in a table (all columns as keys).
-/// `keep`: 0=KEEP_FIRST, 1=KEEP_LAST, 2=KEEP_ANY, 3=KEEP_NONE.
+/// `keep`: 0=KEEP_ANY, 1=KEEP_FIRST, 2=KEEP_LAST, 3=KEEP_NONE.
 std::unique_ptr<OwnedColumn> distinct_indices(
     const OwnedTable& table,
     int32_t keep,
