@@ -61,7 +61,7 @@ export CUDA_PATH=/usr/local/cuda
 
 ```toml
 [dependencies]
-cudf = "0.1"
+cudf = "0.2"
 ```
 
 ### 4. Build
