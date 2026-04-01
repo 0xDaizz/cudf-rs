@@ -11,12 +11,13 @@ default-target = "x86_64-unknown-linux-gnu"
 
 [dependencies]
 cudf = { path = "../cudf", version = "0.2.0", features = ["arrow-interop"] }
-polars-core = { version = "=0.46.0", default-features = false }
-polars-utils = { version = "=0.46.0" }
-polars-error = { version = "=0.46.0" }
-polars-arrow = { version = "=0.46.0" }
-polars-plan = { version = "=0.46.0", default-features = false, features = ["parquet", "semi_anti_join", "abs"] }
-polars-ops = { version = "=0.46.0", default-features = false, features = ["semi_anti_join"] }
+polars-core = { version = "=0.53.0", default-features = false }
+polars-utils = { version = "=0.53.0" }
+polars-error = { version = "=0.53.0" }
+polars-arrow = { version = "=0.53.0" }
+polars-plan = { version = "=0.53.0", default-features = false, features = ["parquet", "semi_anti_join", "abs"] }
+polars-ops = { version = "=0.53.0", default-features = false, features = ["semi_anti_join"] }
+polars-lazy = { version = "=0.53.0", default-features = false, features = ["abs", "parquet", "semi_anti_join"] }
 arrow = { version = "54", default-features = false, features = ["ffi"] }
 
 [features]

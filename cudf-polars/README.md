@@ -100,9 +100,22 @@ cudf-polars::GpuDataFrame -- named GPU columns
 cudf (Rust)  ->  cudf-cxx (C++ bridge)  ->  libcudf (NVIDIA)
 ```
 
+`execute_plan()` takes an `IRPlan` obtained from polars-lazy's `to_alp_optimized()`.
+
+### LazyFrame Integration
+
+```rust
+use polars_lazy::frame::LazyFrame;
+use cudf_polars::engine::execute_plan;
+
+let lf: LazyFrame = df.lazy().filter(...).group_by(...);
+let plan = lf.to_alp_optimized()?;
+let result = execute_plan(plan)?;
+```
+
 ## Limitations
 
-- **Polars version**: Pinned to polars 0.46.0. Upgrading requires manual IR compatibility audit.
+- **Polars version**: Compatible with polars 0.53.0.
 - **Types**: Date, Time, Datetime, Duration, Categorical, List, Struct types pass through Arrow bridge but are not tested.
 - **String operations**: String-specific expressions (contains, replace, split) are not supported.
 - **Window functions**:  expressions are not supported.

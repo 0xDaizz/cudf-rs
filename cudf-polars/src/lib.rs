@@ -280,7 +280,7 @@ mod engine_tests {
     fn expr_comparison() {
         use polars_plan::dsl::Operator;
         use polars_plan::plans::AExpr;
-        use polars_plan::plans::LiteralValue;
+        use polars_plan::plans::{DynLiteralValue, LiteralValue};
         use polars_utils::arena::Arena;
 
         let df = df!("x" => [1i32, 2, 3, 4, 5]).unwrap();
@@ -288,7 +288,7 @@ mod engine_tests {
 
         let mut arena = Arena::new();
         let col_node = arena.add(AExpr::Column("x".into()));
-        let lit_node = arena.add(AExpr::Literal(LiteralValue::Int32(3)));
+        let lit_node = arena.add(AExpr::Literal(LiteralValue::Dyn(DynLiteralValue::Int(3))));
         let cmp = arena.add(AExpr::BinaryExpr {
             left: col_node,
             op: Operator::Gt,

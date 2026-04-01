@@ -7,8 +7,8 @@ use cudf::reduction::ReduceOp;
 use cudf::types::{DataType as GpuDataType, TypeId as GpuTypeId};
 use cudf::unary::UnaryOp;
 use polars_error::{PolarsResult, polars_bail, polars_err};
-use polars_plan::dsl::function_expr::BooleanFunction;
-use polars_plan::dsl::function_expr::FunctionExpr;
+use polars_plan::plans::IRBooleanFunction;
+use polars_plan::plans::IRFunctionExpr;
 use polars_plan::plans::LiteralValue;
 use polars_plan::plans::{AExpr, IRAggExpr};
 use polars_utils::arena::{Arena, Node};
@@ -115,8 +115,6 @@ pub fn eval_expr(
             gpu_result(GpuColumn::from_slice(&values))
         }
 
-        AExpr::Alias(inner, _name) => eval_expr(*inner, expr_arena, df),
-
         AExpr::Agg(agg_expr) => eval_agg_expr(agg_expr, expr_arena, df),
 
         AExpr::Ternary {
@@ -139,7 +137,7 @@ pub fn eval_expr(
         } => {
             let input = input.clone();
             let function = function.clone();
-            eval_function(&input, &function, expr_arena, df)
+            eval_ir_function(&input, &function, expr_arena, df)
         }
 
         other => polars_bail!(ComputeError: "GPU engine: unsupported expression: {:?}", other),
@@ -148,67 +146,97 @@ pub fn eval_expr(
 
 /// Convert a Polars `LiteralValue` to a GPU column of the given height.
 fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuColumn> {
+    use polars_core::prelude::*;
+    use polars_plan::plans::DynLiteralValue;
+
     match lit {
-        // BUG(type-erasure): `Null` literal always materialises as nullable i32.
-        // In a context like `col("f64_col") + lit(NULL)` this will produce an
-        // i32 column where an f64 null column is expected, causing a downstream
-        // type-mismatch error from cuDF's binary-op kernel.
-        //
-        // Proper fix: propagate the expected `DataType` from the parent
-        // `BinaryExpr` / `Ternary` / `Cast` node into this function so we can
-        // create the null column with the correct physical type.  Until then,
-        // callers that hit a type-mismatch on null columns should cast
-        // explicitly.
-        //
-        // TODO(HIGH): accept a `dtype: &DataType` parameter and construct the
-        // appropriately-typed null column.
-        LiteralValue::Null => {
-            let opts: Vec<Option<i32>> = vec![None; height];
-            gpu_result(GpuColumn::from_optional_i32(&opts))
+        LiteralValue::Scalar(scalar) => {
+            if scalar.is_null() {
+                // Null scalar: create a null column of the appropriate type
+                // TODO(HIGH): improve null type handling for type-mismatch prevention
+                let opts: Vec<Option<i32>> = vec![None; height];
+                return gpu_result(GpuColumn::from_optional_i32(&opts));
+            }
+            let value = scalar.value();
+            match value {
+                AnyValue::Boolean(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::Int8(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::Int16(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::Int32(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::Int64(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::UInt8(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::UInt16(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::UInt32(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::UInt64(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::Float32(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::Float64(v) => {
+                    let data = vec![*v; height];
+                    gpu_result(GpuColumn::from_slice(&data))
+                }
+                AnyValue::String(s) => {
+                    let strings: Vec<&str> = vec![s; height];
+                    gpu_result(GpuColumn::from_strings(&strings))
+                }
+                AnyValue::StringOwned(s) => {
+                    let s_ref: &str = s.as_str();
+                    let strings: Vec<&str> = vec![s_ref; height];
+                    gpu_result(GpuColumn::from_strings(&strings))
+                }
+                other => {
+                    polars_bail!(ComputeError: "GPU engine: unsupported scalar AnyValue type: {:?}", other)
+                }
+            }
         }
-        LiteralValue::Boolean(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::Int32(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::Int64(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::UInt32(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::UInt64(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::Float32(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::Float64(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::String(s) => {
-            let strings: Vec<&str> = vec![s.as_str(); height];
-            gpu_result(GpuColumn::from_strings(&strings))
-        }
-        LiteralValue::Int(v) => {
-            let val = i64::try_from(*v).map_err(
-                |_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v),
-            )?;
-            let data = vec![val; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
-        LiteralValue::Float(v) => {
-            let data = vec![*v; height];
-            gpu_result(GpuColumn::from_slice(&data))
-        }
+        LiteralValue::Dyn(dyn_lit) => match dyn_lit {
+            DynLiteralValue::Int(v) => {
+                let val = i64::try_from(*v).map_err(
+                    |_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v),
+                )?;
+                let data = vec![val; height];
+                gpu_result(GpuColumn::from_slice(&data))
+            }
+            DynLiteralValue::Float(v) => {
+                let data = vec![*v; height];
+                gpu_result(GpuColumn::from_slice(&data))
+            }
+            DynLiteralValue::Str(s) => {
+                let strings: Vec<&str> = vec![s.as_str(); height];
+                gpu_result(GpuColumn::from_strings(&strings))
+            }
+            other => {
+                polars_bail!(ComputeError: "GPU engine: unsupported dynamic literal type: {:?}", other)
+            }
+        },
         other => polars_bail!(ComputeError: "GPU engine: unsupported literal type: {:?}", other),
     }
 }
@@ -218,28 +246,48 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
 /// Used by the BinaryExpr scalar optimization path to avoid broadcasting
 /// a literal value into a full GPU column.
 fn literal_to_scalar(expr: &AExpr) -> PolarsResult<cudf::Scalar> {
+    use polars_core::prelude::*;
+    use polars_plan::plans::DynLiteralValue;
+
     match expr {
         AExpr::Literal(lit) => match lit {
-            LiteralValue::Boolean(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::Int32(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::Int64(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::UInt32(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::UInt64(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::Float32(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::Float64(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::Int(v) => {
-                let val = i64::try_from(*v).map_err(
-                    |_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v),
-                )?;
-                gpu_result(cudf::Scalar::new(val))
+            LiteralValue::Scalar(scalar) => {
+                if scalar.is_null() {
+                    polars_bail!(ComputeError: "GPU engine: null literal not supported in scalar path")
+                }
+                let value = scalar.value();
+                match value {
+                    AnyValue::Boolean(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::Int8(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::Int16(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::Int32(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::Int64(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::UInt8(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::UInt16(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::UInt32(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::UInt64(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::Float32(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::Float64(v) => gpu_result(cudf::Scalar::new(*v)),
+                    AnyValue::String(_) | AnyValue::StringOwned(_) => {
+                        polars_bail!(ComputeError: "GPU engine: string literal not supported in scalar path")
+                    }
+                    _ => {
+                        polars_bail!(ComputeError: "GPU engine: scalar AnyValue type {:?} not supported for scalar optimization", value)
+                    }
+                }
             }
-            LiteralValue::Float(v) => gpu_result(cudf::Scalar::new(*v)),
-            LiteralValue::Null => {
-                polars_bail!(ComputeError: "GPU engine: null literal not supported in scalar path")
-            }
-            LiteralValue::String(_) => {
-                polars_bail!(ComputeError: "GPU engine: string literal not supported in scalar path")
-            }
+            LiteralValue::Dyn(dyn_lit) => match dyn_lit {
+                DynLiteralValue::Int(v) => {
+                    let val = i64::try_from(*v).map_err(
+                        |_| polars_err!(ComputeError: "integer literal {} exceeds i64 range", v),
+                    )?;
+                    gpu_result(cudf::Scalar::new(val))
+                }
+                DynLiteralValue::Float(v) => gpu_result(cudf::Scalar::new(*v)),
+                _ => {
+                    polars_bail!(ComputeError: "GPU engine: dynamic literal type {:?} not supported for scalar optimization", dyn_lit)
+                }
+            },
             _ => {
                 polars_bail!(ComputeError: "GPU engine: literal type {:?} not supported for scalar optimization", lit)
             }
@@ -287,7 +335,10 @@ fn eval_agg_expr(
             let scalar = gpu_result(col.reduce_var_with_ddof(ddof_val as i32, output_type))?;
             broadcast_scalar(&scalar, height)
         }
-        IRAggExpr::Count(input, include_nulls) => {
+        IRAggExpr::Count {
+            input,
+            include_nulls,
+        } => {
             if *include_nulls {
                 // Count all rows including nulls
                 let count = height as u32;
@@ -451,18 +502,18 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
 }
 
 /// Evaluate a built-in function expression.
-fn eval_function(
+fn eval_ir_function(
     inputs: &[polars_plan::prelude::expr_ir::ExprIR],
-    function: &FunctionExpr,
+    function: &IRFunctionExpr,
     expr_arena: &Arena<AExpr>,
     df: &GpuDataFrame,
 ) -> PolarsResult<GpuColumn> {
     match function {
-        FunctionExpr::Abs => {
+        IRFunctionExpr::Abs => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             gpu_result(col.unary_op(UnaryOp::Abs))
         }
-        FunctionExpr::Negate => {
+        IRFunctionExpr::Negate => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             // Negate: multiply by scalar -1 (avoids allocating a full-length column)
             let dtype = col.data_type();
@@ -480,8 +531,8 @@ fn eval_function(
             };
             gpu_result(col.binary_op_scalar(&neg_scalar, cudf::BinaryOp::Mul, dtype))
         }
-        FunctionExpr::Boolean(bf) => eval_boolean_function(bf, inputs, expr_arena, df),
-        FunctionExpr::FillNull => {
+        IRFunctionExpr::Boolean(bf) => eval_boolean_function(bf, inputs, expr_arena, df),
+        IRFunctionExpr::FillNull => {
             // FillNull: inputs[0] is the column, inputs[1] is the fill value
             if inputs.len() != 2 {
                 polars_bail!(ComputeError: "GPU engine: FillNull expects 2 inputs");
@@ -492,10 +543,10 @@ fn eval_function(
             let is_valid = gpu_result(col.is_valid())?;
             gpu_result(col.copy_if_else(&fill, &is_valid))
         }
-        FunctionExpr::DropNulls => {
+        IRFunctionExpr::DropNulls => {
             polars_bail!(ComputeError: "GPU engine: DropNulls not supported in expression context (use Filter)")
         }
-        FunctionExpr::NullCount => {
+        IRFunctionExpr::NullCount => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             let nc = col.null_count() as u32;
             let height = df.height();
@@ -509,29 +560,29 @@ fn eval_function(
 
 /// Evaluate a boolean function.
 fn eval_boolean_function(
-    bf: &BooleanFunction,
+    bf: &IRBooleanFunction,
     inputs: &[polars_plan::prelude::expr_ir::ExprIR],
     expr_arena: &Arena<AExpr>,
     df: &GpuDataFrame,
 ) -> PolarsResult<GpuColumn> {
     match bf {
-        BooleanFunction::IsNull => {
+        IRBooleanFunction::IsNull => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             gpu_result(col.is_null())
         }
-        BooleanFunction::IsNotNull => {
+        IRBooleanFunction::IsNotNull => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             gpu_result(col.is_valid())
         }
-        BooleanFunction::IsNan => {
+        IRBooleanFunction::IsNan => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             gpu_result(col.is_nan())
         }
-        BooleanFunction::IsNotNan => {
+        IRBooleanFunction::IsNotNan => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             gpu_result(col.is_not_nan())
         }
-        BooleanFunction::IsFinite => {
+        IRBooleanFunction::IsFinite => {
             // is_finite = is_valid AND NOT(is_nan) AND NOT(is_inf)
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             let is_valid = gpu_result(col.is_valid())?;
@@ -548,11 +599,11 @@ fn eval_boolean_function(
                 GpuDataType::new(GpuTypeId::Bool8),
             ))
         }
-        BooleanFunction::IsInfinite => {
+        IRBooleanFunction::IsInfinite => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             gpu_result(col.is_inf())
         }
-        BooleanFunction::Any { ignore_nulls } => {
+        IRBooleanFunction::Any { ignore_nulls } => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             let height = df.height();
             if !ignore_nulls && col.null_count() > 0 {
@@ -581,7 +632,7 @@ fn eval_boolean_function(
                 broadcast_scalar(&scalar, height)
             }
         }
-        BooleanFunction::All { ignore_nulls } => {
+        IRBooleanFunction::All { ignore_nulls } => {
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             let height = df.height();
             if !ignore_nulls && col.null_count() > 0 {

@@ -43,7 +43,7 @@ pub fn dataframe_to_gpu(df: &DataFrame) -> PolarsResult<(GpuTable, Vec<String>)>
     let mut gpu_columns = Vec::with_capacity(df.width());
     let mut names = Vec::with_capacity(df.width());
 
-    for col in df.get_columns() {
+    for col in df.columns() {
         let series = col.as_materialized_series();
         names.push(series.name().to_string());
 
@@ -99,7 +99,7 @@ pub fn gpu_to_dataframe(table: GpuTable, column_names: &[String]) -> PolarsResul
         series_vec.push(series.into_column());
     }
 
-    DataFrame::new(series_vec)
+    DataFrame::new_infer_height(series_vec)
 }
 
 /// Bridge polars-arrow array to arrow-rs FFI structs.
