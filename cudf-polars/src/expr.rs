@@ -212,7 +212,9 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
                     let strings: Vec<&str> = vec![s_ref; height];
                     gpu_result(GpuColumn::from_strings(&strings))
                 }
-                other => polars_bail!(ComputeError: "GPU engine: unsupported scalar AnyValue type: {:?}", other),
+                other => {
+                    polars_bail!(ComputeError: "GPU engine: unsupported scalar AnyValue type: {:?}", other)
+                }
             }
         }
         LiteralValue::Dyn(dyn_lit) => match dyn_lit {
@@ -231,7 +233,9 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
                 let strings: Vec<&str> = vec![s.as_str(); height];
                 gpu_result(GpuColumn::from_strings(&strings))
             }
-            other => polars_bail!(ComputeError: "GPU engine: unsupported dynamic literal type: {:?}", other),
+            other => {
+                polars_bail!(ComputeError: "GPU engine: unsupported dynamic literal type: {:?}", other)
+            }
         },
         other => polars_bail!(ComputeError: "GPU engine: unsupported literal type: {:?}", other),
     }
@@ -331,7 +335,10 @@ fn eval_agg_expr(
             let scalar = gpu_result(col.reduce_var_with_ddof(ddof_val as i32, output_type))?;
             broadcast_scalar(&scalar, height)
         }
-        IRAggExpr::Count { input, include_nulls } => {
+        IRAggExpr::Count {
+            input,
+            include_nulls,
+        } => {
             if *include_nulls {
                 // Count all rows including nulls
                 let count = height as u32;

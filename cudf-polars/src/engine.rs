@@ -601,7 +601,10 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::Max { input, .. } => Ok((*input, AggregationKind::Max)),
         IRAggExpr::Mean(input) => Ok((*input, AggregationKind::Mean)),
         IRAggExpr::Median(input) => Ok((*input, AggregationKind::Median)),
-        IRAggExpr::Count { input, include_nulls } => {
+        IRAggExpr::Count {
+            input,
+            include_nulls,
+        } => {
             if *include_nulls {
                 Ok((*input, AggregationKind::Count))
             } else {

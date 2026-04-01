@@ -288,9 +288,7 @@ mod engine_tests {
 
         let mut arena = Arena::new();
         let col_node = arena.add(AExpr::Column("x".into()));
-        let lit_node = arena.add(AExpr::Literal(LiteralValue::Dyn(
-            DynLiteralValue::Int(3),
-        )));
+        let lit_node = arena.add(AExpr::Literal(LiteralValue::Dyn(DynLiteralValue::Int(3))));
         let cmp = arena.add(AExpr::BinaryExpr {
             left: col_node,
             op: Operator::Gt,
