@@ -248,6 +248,12 @@ impl<'a> HashJoin<'a> {
     pub fn inner_join_size(&self, probe: &Table) -> Result<usize> {
         let sz = cudf_cxx::join::ffi::hash_join_inner_size(&self.inner, &probe.inner)
             .map_err(CudfError::from_cxx)?;
+        if sz < 0 {
+            return Err(CudfError::InvalidArgument(format!(
+                "join size returned negative value: {}",
+                sz
+            )));
+        }
         Ok(sz as usize)
     }
 
@@ -255,6 +261,12 @@ impl<'a> HashJoin<'a> {
     pub fn left_join_size(&self, probe: &Table) -> Result<usize> {
         let sz = cudf_cxx::join::ffi::hash_join_left_size(&self.inner, &probe.inner)
             .map_err(CudfError::from_cxx)?;
+        if sz < 0 {
+            return Err(CudfError::InvalidArgument(format!(
+                "join size returned negative value: {}",
+                sz
+            )));
+        }
         Ok(sz as usize)
     }
 
@@ -262,6 +274,12 @@ impl<'a> HashJoin<'a> {
     pub fn full_join_size(&self, probe: &Table) -> Result<usize> {
         let sz = cudf_cxx::join::ffi::hash_join_full_size(&self.inner, &probe.inner)
             .map_err(CudfError::from_cxx)?;
+        if sz < 0 {
+            return Err(CudfError::InvalidArgument(format!(
+                "join size returned negative value: {}",
+                sz
+            )));
+        }
         Ok(sz as usize)
     }
 }

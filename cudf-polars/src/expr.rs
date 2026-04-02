@@ -19,18 +19,35 @@ use crate::types::{is_comparison, map_dtype, map_operator};
 
 /// Compute the output type for arithmetic operations (supertype promotion).
 fn arithmetic_output_type(left_type: &GpuDataType, right_type: &GpuDataType) -> GpuDataType {
+    use GpuTypeId::*;
     let l = left_type.id();
     let r = right_type.id();
 
-    if l == GpuTypeId::Float64 || r == GpuTypeId::Float64 {
-        GpuDataType::new(GpuTypeId::Float64)
-    } else if l == GpuTypeId::Float32 || r == GpuTypeId::Float32 {
-        GpuDataType::new(GpuTypeId::Float32)
-    } else if l == GpuTypeId::Int64 || r == GpuTypeId::Int64 {
-        GpuDataType::new(GpuTypeId::Int64)
-    } else {
-        *left_type
+    // Bool + Bool stays Bool (bitwise AND/OR/XOR on booleans)
+    if l == Bool8 && r == Bool8 {
+        return GpuDataType::new(Bool8);
     }
+
+    // Float types dominate
+    if l == Float64 || r == Float64 {
+        return GpuDataType::new(Float64);
+    }
+    if l == Float32 || r == Float32 {
+        return GpuDataType::new(Float32);
+    }
+
+    // Unsigned 64/32 promote to Int64 to avoid overflow
+    if l == Uint64 || r == Uint64 || l == Uint32 || r == Uint32 {
+        return GpuDataType::new(Int64);
+    }
+
+    // Int64 dominates remaining integers
+    if l == Int64 || r == Int64 {
+        return GpuDataType::new(Int64);
+    }
+
+    // Everything else (Int8, Int16, UInt8, UInt16, Int32, Bool) → Int32
+    GpuDataType::new(Int32)
 }
 
 /// Evaluate an expression node, producing a GPU column.
