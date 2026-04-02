@@ -677,3 +677,25 @@ pub fn execute_plan(plan: IRPlan) -> PolarsResult<DataFrame> {
     let result = execute_node(plan.lp_top, &plan.lp_arena, &plan.expr_arena)?;
     result.to_polars()
 }
+
+/// Execute a Polars LazyFrame on the GPU.
+///
+/// This is the main entry point for GPU-accelerated query execution.
+/// It takes a LazyFrame, runs Polars' query optimizer, then executes
+/// the optimized plan on the GPU via libcudf.
+///
+/// # Example
+/// ```no_run
+/// use polars_core::prelude::*;
+/// use polars_lazy::prelude::*;
+/// use cudf_polars::collect_gpu;
+///
+/// let df = df!("x" => [1, 2, 3], "y" => [4, 5, 6]).unwrap();
+/// let result = collect_gpu(
+///     df.lazy().filter(col("x").gt(lit(1)))
+/// ).unwrap();
+/// ```
+pub fn collect_gpu(lf: polars_lazy::frame::LazyFrame) -> PolarsResult<DataFrame> {
+    let plan = lf.to_alp_optimized()?;
+    execute_plan(plan)
+}
