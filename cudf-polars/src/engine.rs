@@ -341,6 +341,7 @@ pub fn execute_node(
                     }
 
                     // Apply row limit/skip from pre_slice
+                    let mut negative_slice: Option<(usize, usize)> = None;
                     if let Some(ref slice) = unified_scan_args.pre_slice {
                         use polars_utils::slice_enum::Slice as SliceEnum;
                         match slice {
@@ -350,8 +351,12 @@ pub fn execute_node(
                                 }
                                 reader = reader.num_rows(*len);
                             }
-                            SliceEnum::Negative { .. } => {
-                                // Negative offset (tail): read all, then slice at the end
+                            SliceEnum::Negative {
+                                offset_from_end,
+                                len,
+                            } => {
+                                // Negative offset (tail): read all, then slice after
+                                negative_slice = Some((*offset_from_end, *len));
                             }
                         }
                     }
@@ -359,6 +364,13 @@ pub fn execute_node(
                     let gpu_table = gpu_result(reader.read_with_metadata())?;
                     let names: Vec<String> = gpu_table.column_names.clone();
                     let gpu_df = GpuDataFrame::from_table(gpu_table.table, names);
+
+                    // Apply deferred negative (tail) slice
+                    let gpu_df = if let Some((offset_from_end, len)) = negative_slice {
+                        gpu_df.slice(-(offset_from_end as i64), len)?
+                    } else {
+                        gpu_df
+                    };
 
                     // Apply column projection from output_schema
                     let gpu_df = if let Some(ref schema) = output_schema {
@@ -579,7 +591,9 @@ pub fn execute_node(
 
 /// Extract the input node and aggregation kind from an AExpr that wraps an aggregation.
 ///
-/// Walks through Alias nodes to find the underlying AExpr::Agg.
+/// In polars-plan 0.53+, `Alias` is no longer an `AExpr` variant — it lives on the
+/// `ExprIR` wrapper (`OutputName::Alias`), so the caller strips it via `ExprIR::node()`.
+/// This function handles `Cast` wrappers that the optimizer may insert around `Agg`.
 fn extract_agg_info(
     node: Node,
     expr_arena: &Arena<AExpr>,
@@ -589,6 +603,7 @@ fn extract_agg_info(
             let (input, kind) = map_ir_agg(agg)?;
             Ok((input, kind))
         }
+        AExpr::Cast { expr, .. } => extract_agg_info(*expr, expr_arena),
         _ => polars_bail!(ComputeError: "GPU engine: expected aggregation expression in GroupBy"),
     }
 }
