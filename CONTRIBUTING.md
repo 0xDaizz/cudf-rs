@@ -175,6 +175,35 @@ cargo test -- --nocapture
 - Type variations: test with i32, i64, f32, f64 where applicable
 - Error cases: invalid type combinations, out-of-bounds indices
 
+### GPU Feature Flag
+
+Tests that require a GPU are gated behind the `gpu-tests` feature:
+
+```sh
+# cudf crate tests
+cargo test -p cudf --features gpu-tests
+
+# cudf-polars e2e tests
+cargo test -p cudf-polars --features gpu-tests
+```
+
+### LD_LIBRARY_PATH Setup
+
+When using pip-installed libcudf (not conda), set all required library paths:
+
+```sh
+export LD_LIBRARY_PATH=/path/to/pyarrow:/path/to/libcudf/lib64:/path/to/librmm/lib64:/path/to/libnvcomp/lib64:/path/to/rapids_logger/lib64:/usr/local/cuda/lib64
+```
+
+### Python Integration Tests
+
+The Python test suite validates the Polars GPU engine (cudf-polars-cu12) end-to-end:
+
+```sh
+pip install polars cudf-polars-cu12 --extra-index-url=https://pypi.nvidia.com
+python tests/polars_gpu_integration.py
+```
+
 ## PR Process
 
 1. Fork the repository

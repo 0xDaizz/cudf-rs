@@ -17,21 +17,22 @@ data-intensive operations.
 
 ```rust
 use polars_core::prelude::*;
-use cudf_polars::gpu_frame::GpuDataFrame;
+use polars_lazy::prelude::*;
+use cudf_polars::collect_gpu;
 
 fn main() {
-    // Create a Polars DataFrame
     let df = df!(
         "id"    => [1i32, 2, 3, 1, 2, 3],
         "value" => [10.0f64, 20.0, 30.0, 40.0, 50.0, 60.0],
     ).unwrap();
 
-    // Upload to GPU
-    let gpu_df = GpuDataFrame::from_polars(&df).unwrap();
-    println!("GPU: {} rows x {} cols", gpu_df.height(), gpu_df.width());
-
-    // Download back to CPU
-    let result = gpu_df.to_polars().unwrap();
+    // Execute on GPU — one-line API
+    let result = collect_gpu(
+        df.lazy()
+          .filter(col("value").gt(lit(25.0)))
+          .group_by([col("id")])
+          .agg([col("value").sum()])
+    ).unwrap();
     println!("{}", result);
 }
 ```
@@ -113,19 +114,25 @@ let plan = lf.to_alp_optimized()?;
 let result = execute_plan(plan)?;
 ```
 
+## Testing
+
+```sh
+# Run GPU e2e tests (56 tests + 1 doctest)
+cargo test -p cudf-polars --features gpu-tests
+
+# Python polars-gpu integration (81 tests)
+python tests/polars_gpu_integration.py
+```
+
 ## Limitations
 
 - **Polars version**: Compatible with polars 0.53.0.
-- **Types**: Date, Time, Datetime, Duration, Categorical, List, Struct types pass through Arrow bridge but are not tested.
-- **String operations**: String-specific expressions (contains, replace, split) are not supported.
-- **Window functions**:  expressions are not supported.
-- **GroupBy maintain_order**: Approximated by key-column sort (not true input-order preservation).
-- **Std/Var ddof**: Default standalone reduce uses ddof=1; full ddof support available via `reduce_var_with_ddof` / `reduce_std_with_ddof`. GroupBy passes ddof correctly.
-- **IsFinite/IsInfinite**: Fully supported via `is_inf()` / `is_not_inf()`.
-- **Quantile aggregation**: Not supported in GroupBy context.
+- **Unsupported types**: Date, Datetime, Duration, Categorical, List, Struct return explicit errors.
+- **Unsupported expressions**: Window functions (`.over()`), `IsIn`, expression-level Sort/Filter/Slice, `Not`.
+- **Unsupported IR nodes**: `Cache`, `MapFunction` (rename, explode, melt), `ExtContext`.
 - **Multi-file Parquet**: Only reads the first file in multi-file scans.
-- **MapFunction**: rename, explode, melt, pivot not supported.
-- **Cache/ExtContext**: IR nodes not supported.
+- **GroupBy maintain_order**: Approximated by key-column sort (not true input-order preservation).
+- **Quantile aggregation**: Not supported in GroupBy context.
 
 ## License
 
