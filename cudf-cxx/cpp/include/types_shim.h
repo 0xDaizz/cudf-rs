@@ -2,6 +2,8 @@
 
 #include <cudf/types.hpp>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include "rust/cxx.h"
 
 namespace cudf_shims {
@@ -17,6 +19,14 @@ struct DataType {
 /// Maps our bridge TypeId enum values to cudf::type_id.
 /// The enum values are kept in sync manually.
 inline cudf::type_id to_cudf_type_id(int32_t id) {
+    return static_cast<cudf::type_id>(id);
+}
+
+/// Validates that an integer is within the valid cudf::type_id range before casting.
+inline cudf::type_id validated_type_id(int32_t id) {
+    if (id < 0 || id > 28) {  // 28 = max cudf::type_id value
+        throw std::runtime_error("cudf: invalid type_id " + std::to_string(id));
+    }
     return static_cast<cudf::type_id>(id);
 }
 

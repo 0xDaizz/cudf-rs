@@ -143,12 +143,16 @@ std::unique_ptr<OwnedColumn> column_from_strings(rust::Slice<const rust::String>
     std::vector<int32_t> offsets_vec;
     offsets_vec.reserve(num_strings + 1);
     std::string combined;
-    int32_t offset = 0;
+    int64_t offset = 0;
     offsets_vec.push_back(0);
     for (const auto& s : data) {
         combined.append(s.data(), s.size());
-        offset += static_cast<int32_t>(s.size());
-        offsets_vec.push_back(offset);
+        int64_t new_offset = offset + static_cast<int64_t>(s.size());
+        if (new_offset > INT32_MAX) {
+            throw std::runtime_error("cudf: total string data exceeds 2GB limit");
+        }
+        offset = new_offset;
+        offsets_vec.push_back(static_cast<int32_t>(offset));
     }
 
     // Upload chars to device.
@@ -346,12 +350,16 @@ std::unique_ptr<OwnedColumn> column_from_strings_nullable(
     std::vector<int32_t> offsets_vec;
     offsets_vec.reserve(num_strings + 1);
     std::string combined;
-    int32_t offset = 0;
+    int64_t offset = 0;
     offsets_vec.push_back(0);
     for (const auto& s : data) {
         combined.append(s.data(), s.size());
-        offset += static_cast<int32_t>(s.size());
-        offsets_vec.push_back(offset);
+        int64_t new_offset = offset + static_cast<int64_t>(s.size());
+        if (new_offset > INT32_MAX) {
+            throw std::runtime_error("cudf: total string data exceeds 2GB limit");
+        }
+        offset = new_offset;
+        offsets_vec.push_back(static_cast<int32_t>(offset));
     }
 
     // Upload chars to device.
