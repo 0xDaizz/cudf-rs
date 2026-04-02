@@ -6,7 +6,7 @@ use cudf::Column as GpuColumn;
 use cudf::reduction::ReduceOp;
 use cudf::types::{DataType as GpuDataType, TypeId as GpuTypeId};
 use cudf::unary::UnaryOp;
-use polars_error::{PolarsResult, polars_bail, polars_err};
+use polars_error::{PolarsResult, polars_bail};
 use polars_plan::plans::IRBooleanFunction;
 use polars_plan::plans::IRFunctionExpr;
 use polars_plan::plans::LiteralValue;
@@ -153,9 +153,61 @@ fn literal_to_gpu_column(lit: &LiteralValue, height: usize) -> PolarsResult<GpuC
         LiteralValue::Scalar(scalar) => {
             if scalar.is_null() {
                 // Null scalar: create a null column of the appropriate type
-                // TODO(HIGH): improve null type handling for type-mismatch prevention
-                let opts: Vec<Option<i32>> = vec![None; height];
-                return gpu_result(GpuColumn::from_optional_i32(&opts));
+                let gpu_dtype = crate::types::map_dtype(scalar.dtype())?;
+                let tid = gpu_dtype.id();
+                return match tid {
+                    GpuTypeId::Bool8 => {
+                        let opts: Vec<Option<bool>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_bool(&opts))
+                    }
+                    GpuTypeId::Int8 => {
+                        let opts: Vec<Option<i8>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_i8(&opts))
+                    }
+                    GpuTypeId::Int16 => {
+                        let opts: Vec<Option<i16>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_i16(&opts))
+                    }
+                    GpuTypeId::Int32 => {
+                        let opts: Vec<Option<i32>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_i32(&opts))
+                    }
+                    GpuTypeId::Int64 => {
+                        let opts: Vec<Option<i64>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_i64(&opts))
+                    }
+                    GpuTypeId::Uint8 => {
+                        let opts: Vec<Option<u8>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_u8(&opts))
+                    }
+                    GpuTypeId::Uint16 => {
+                        let opts: Vec<Option<u16>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_u16(&opts))
+                    }
+                    GpuTypeId::Uint32 => {
+                        let opts: Vec<Option<u32>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_u32(&opts))
+                    }
+                    GpuTypeId::Uint64 => {
+                        let opts: Vec<Option<u64>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_u64(&opts))
+                    }
+                    GpuTypeId::Float32 => {
+                        let opts: Vec<Option<f32>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_f32(&opts))
+                    }
+                    GpuTypeId::Float64 => {
+                        let opts: Vec<Option<f64>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_f64(&opts))
+                    }
+                    GpuTypeId::String => {
+                        let opts: Vec<Option<&str>> = vec![None; height];
+                        gpu_result(GpuColumn::from_optional_strings(&opts))
+                    }
+                    other => {
+                        polars_bail!(ComputeError: "GPU engine: cannot create null column for type {:?}", other)
+                    }
+                };
             }
             let value = scalar.value();
             match value {
@@ -445,9 +497,12 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
                 let opts: Vec<Option<f64>> = vec![None; height];
                 gpu_result(GpuColumn::from_optional_f64(&opts))
             }
-            _ => {
-                let opts: Vec<Option<i32>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_i32(&opts))
+            GpuTypeId::String => {
+                let opts: Vec<Option<&str>> = vec![None; height];
+                gpu_result(GpuColumn::from_optional_strings(&opts))
+            }
+            other => {
+                polars_bail!(ComputeError: "GPU engine: cannot broadcast null scalar of type {:?}", other)
             }
         };
     }

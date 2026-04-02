@@ -5,7 +5,7 @@
 namespace cudf_shims {
 
 std::unique_ptr<OwnedColumn> round_column(const OwnedColumn& col, int32_t decimal_places) {
-    auto result = cudf::round(
+    auto result = cudf::round_decimal(
         col.view(),
         decimal_places,
         cudf::rounding_method::HALF_UP);

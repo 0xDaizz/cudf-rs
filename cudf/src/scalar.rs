@@ -187,7 +187,13 @@ impl Scalar {
 
     /// The data type of this scalar.
     pub fn data_type(&self) -> DataType {
-        let id = TypeId::from_raw(self.inner.type_id()).unwrap_or(TypeId::Empty);
+        let raw = self.inner.type_id();
+        let id = TypeId::from_raw(raw).unwrap_or_else(|| {
+            panic!(
+                "cudf: unrecognized type_id {} from FFI — possible libcudf version mismatch",
+                raw
+            )
+        });
         DataType::new(id)
     }
 }

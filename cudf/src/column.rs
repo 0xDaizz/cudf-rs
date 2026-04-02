@@ -130,10 +130,21 @@ impl Column {
 
     /// The data type of this column.
     pub fn data_type(&self) -> DataType {
-        let id = TypeId::from_raw(self.inner.type_id()).unwrap_or(TypeId::Empty);
+        let raw = self.inner.type_id();
+        let id = TypeId::from_raw(raw).unwrap_or_else(|| {
+            panic!(
+                "cudf: unrecognized type_id {} from FFI — possible libcudf version mismatch",
+                raw
+            )
+        });
         let scale = self.inner.type_scale();
         if scale != 0 {
-            DataType::decimal(id, scale).unwrap_or_else(|_| DataType::new(id))
+            DataType::decimal(id, scale).unwrap_or_else(|e| {
+                panic!(
+                    "cudf: invalid decimal type — type_id {:?} with scale {}: {}",
+                    id, scale, e
+                )
+            })
         } else {
             DataType::new(id)
         }

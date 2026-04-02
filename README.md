@@ -208,9 +208,30 @@ Arrow C Data Interface, Arrow IPC, DLPack tensor exchange, pack/unpack/contiguou
 
 ## Limitations / Notes
 
-- **GroupBy `maintain_order`**: In cudf-polars, `maintain_order` is approximated by a key-column sort, not true input-order preservation.
-- **Std/Var ddof**: Default standalone reduction uses ddof=1. Full ddof support is available via `reduce_var_with_ddof` / `reduce_std_with_ddof`.
+- **GroupBy `maintain_order`**: Approximated by key-column sort, not true input-order preservation.
+- **Std/Var ddof**: Default standalone reduction uses ddof=1. Full ddof support via `reduce_var_with_ddof` / `reduce_std_with_ddof`.
 - **Polars version**: cudf-polars is compatible with Polars 0.53.0.
+- **Unsupported types**: Date, Datetime, Duration, Categorical, List, Struct are not yet mapped (returns explicit error).
+- **Unsupported expressions**: Window functions (`.over()`), `IsIn`, expression-level Sort/Filter/Slice.
+- **Unsupported IR nodes**: `Cache`, `MapFunction`, `ExtContext`, `Sink`.
+- **Multi-file Parquet**: Only reads the first file in multi-file scans.
+
+## Testing
+
+A GPU with CUDA is required to run tests.
+
+```sh
+# Unit tests (cudf crate — 55 tests)
+cargo test -p cudf --features gpu-tests
+
+# End-to-end tests (cudf-polars — 56 tests + 1 doctest)
+cargo test -p cudf-polars --features gpu-tests
+
+# Python polars-gpu integration tests (81 tests)
+python tests/polars_gpu_integration.py
+```
+
+Total: **193 tests** covering type roundtrips, filter, select, sort, groupby, join, slice, binary ops, distinct, with_columns, concat, nulls, edge cases, and error paths.
 
 ## Contributing
 
