@@ -54,11 +54,41 @@ pub(crate) fn execute_node(
 
             let mut columns = Vec::with_capacity(exprs.len());
             let mut names = Vec::with_capacity(exprs.len());
+            let mut all_agg = !exprs.is_empty();
             for e in &exprs {
+                if all_agg && !matches!(expr_arena.get(e.node()), AExpr::Agg(_)) {
+                    all_agg = false;
+                }
                 let col = expr::eval_expr(e.node(), expr_arena, &table)?;
                 columns.push(col);
                 names.push(e.output_name().to_string());
             }
+
+            // Standalone aggregation in Select: Polars reduces to 1 row.
+            // eval_agg_expr broadcasts to input height, so slice back to 1.
+            // For empty inputs (height=0), produce a 1-row null result.
+            if all_agg && !columns.is_empty() {
+                let col_len = columns[0].len();
+                if col_len > 1 {
+                    let mut sliced_cols = Vec::with_capacity(columns.len());
+                    for col in columns {
+                        let t = gpu_result(cudf::Table::new(vec![col]))?;
+                        let sliced = gpu_result(t.slice(0, 1))?;
+                        let cols = gpu_result(sliced.into_columns())?;
+                        sliced_cols.push(cols.into_iter().next().unwrap());
+                    }
+                    columns = sliced_cols;
+                } else if col_len == 0 {
+                    // Empty input: standalone agg should produce 1 null row
+                    let mut null_cols = Vec::with_capacity(columns.len());
+                    for col in &columns {
+                        null_cols.push(expr::null_column_of_type(col.data_type(), 1)?);
+                    }
+                    columns = null_cols;
+                }
+                // col_len == 1: already correct
+            }
+
             GpuDataFrame::from_columns(columns, names)
         }
 
