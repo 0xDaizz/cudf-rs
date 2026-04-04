@@ -1,5 +1,7 @@
 //! GPU execution engine: walks the IR tree and executes nodes on GPU.
 
+use std::collections::HashMap;
+
 use polars_core::prelude::*;
 use polars_error::{PolarsResult, polars_bail};
 use polars_plan::plans::{AExpr, IR, IRAggExpr, IRPlan, LiteralValue};
@@ -98,24 +100,38 @@ pub fn execute_node(
                 all_names.push(table.names()[i].clone());
             }
 
+            // Build name→position index for O(1) lookup instead of O(n) linear scan
+            let mut name_index: HashMap<String, usize> = all_names
+                .iter()
+                .enumerate()
+                .map(|(i, n)| (n.clone(), i))
+                .collect();
+
             for e in &exprs {
                 let col = expr::eval_expr(e.node(), expr_arena, &table)?;
                 let name = e.output_name().to_string();
 
-                if let Some(pos) = all_names.iter().position(|n| n == &name) {
+                if let Some(&pos) = name_index.get(&name) {
                     all_columns[pos] = Some(col);
                 } else {
+                    let new_pos = all_columns.len();
                     all_columns.push(Some(col));
+                    name_index.insert(name.clone(), new_pos);
                     all_names.push(name);
                 }
             }
 
-            // Reorder to match the output schema
+            // Reorder to match the output schema using HashMap for O(1) lookup
             let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
+            let name_pos: HashMap<&str, usize> = all_names
+                .iter()
+                .enumerate()
+                .map(|(i, n)| (n.as_str(), i))
+                .collect();
             let mut ordered_columns = Vec::with_capacity(schema_names.len());
             let mut ordered_names = Vec::with_capacity(schema_names.len());
             for &sn in &schema_names {
-                if let Some(pos) = all_names.iter().position(|n| n == sn) {
+                if let Some(&pos) = name_pos.get(sn) {
                     let col = all_columns[pos].take().ok_or_else(|| {
                         polars_err!(ColumnNotFound: "duplicate reference to column '{}' in HStack schema", sn)
                     })?;

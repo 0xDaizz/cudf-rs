@@ -565,11 +565,12 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
         }
         GpuTypeId::Int32 => {
             let v: i32 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            // GPU-native: sequence with step=0 creates a constant column without host allocation
+            gpu_result(cudf::filling::sequence_i32(height, v, 0))
         }
         GpuTypeId::Int64 => {
             let v: i64 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            gpu_result(cudf::filling::sequence_i64(height, v, 0))
         }
         GpuTypeId::Uint8 => {
             let v: u8 = gpu_result(scalar.value())?;
@@ -589,11 +590,11 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
         }
         GpuTypeId::Float32 => {
             let v: f32 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            gpu_result(cudf::filling::sequence_f32(height, v, 0.0))
         }
         GpuTypeId::Float64 => {
             let v: f64 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            gpu_result(cudf::filling::sequence_f64(height, v, 0.0))
         }
         _ => polars_bail!(ComputeError: "GPU engine: cannot broadcast scalar of type {:?}", tid),
     }
