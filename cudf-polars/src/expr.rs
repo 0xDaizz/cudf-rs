@@ -260,17 +260,16 @@ fn eval_window_groups_to_rows(
     let gathered = gpu_result(agg_as_table.gather(&join_result.right_indices))?;
     let agg_col = gpu_result(gathered.column(0))?;
 
-    // 8. Restore original row order: libcudf left_join does NOT guarantee output is
-    //    ordered by left_indices.  Sort by left_indices (ascending) so the agg column
-    //    aligns with the original DataFrame row order.
-    let value_table = gpu_result(GpuTable::new(vec![agg_col]))?;
-    let key_table = gpu_result(GpuTable::new(vec![join_result.left_indices]))?;
-    let sorted = gpu_result(value_table.sort_by_key(
-        &key_table,
-        &[cudf::sorting::SortOrder::Ascending],
-        &[cudf::sorting::NullOrder::After],
-    ))?;
-    let result_col = gpu_result(sorted.column(0))?;
+    // 8. Restore original row order using scatter (O(n)) instead of sort (O(n log n)).
+    //    left_indices[i] = the original row position for join result row i.
+    //    We scatter the gathered agg values into their correct positions.
+    let original_height = df.height();
+    let agg_dtype = agg_col.data_type();
+    let scatter_source = gpu_result(GpuTable::new(vec![agg_col]))?;
+    let target_col = null_column_for_type(agg_dtype, original_height)?;
+    let target_table = gpu_result(GpuTable::new(vec![target_col]))?;
+    let scattered = gpu_result(scatter_source.scatter(&join_result.left_indices, &target_table))?;
+    let result_col = gpu_result(scattered.column(0))?;
 
     Ok(result_col)
 }
@@ -551,6 +550,8 @@ fn eval_agg_expr(
             let sliced = gpu_result(single_row_table.slice(0, 1))?;
             let repeated = gpu_result(sliced.repeat(height))?;
             let cols = gpu_result(repeated.into_columns())?;
+            // SAFETY: `repeated` is a 1-column table (from single-column `sliced`),
+            // so `into_columns()` returns exactly 1 element. `.next()` is always Some.
             Ok(cols.into_iter().next().unwrap())
         }
         IRAggExpr::Last(input) => {
@@ -563,6 +564,8 @@ fn eval_agg_expr(
             let sliced = gpu_result(single_row_table.slice(last_idx, last_idx + 1))?;
             let repeated = gpu_result(sliced.repeat(height))?;
             let cols = gpu_result(repeated.into_columns())?;
+            // SAFETY: `repeated` is a 1-column table (from single-column `sliced`),
+            // so `into_columns()` returns exactly 1 element. `.next()` is always Some.
             Ok(cols.into_iter().next().unwrap())
         }
         other => {
@@ -910,7 +913,14 @@ fn eval_boolean_function(
             }
             let col = eval_expr(inputs[0].node(), expr_arena, df)?;
             let values = eval_expr(inputs[1].node(), expr_arena, df)?;
-            // haystack=values (the set), needles=col (each row to check)
+            // cudf::Column::contains(haystack=self, needles=arg): for each element in `col`,
+            // checks if it exists in `values`. This matches Polars' `col.is_in(values)` semantics.
+
+            // Empty values set → nothing can be "in", return all false
+            if values.len() == 0 {
+                return gpu_result(GpuColumn::from_optional_bool(&vec![Some(false); col.len()]));
+            }
+
             let result = gpu_result(values.contains(&col))?;
             if !nulls_equal {
                 // When nulls_equal=false (default), null in col should produce null in output
@@ -924,9 +934,20 @@ fn eval_boolean_function(
                 // Where col is valid keep result, where col is null use null_col
                 gpu_result(result.copy_if_else(&null_col, &col_valid))
             } else {
-                // nulls_equal=true: null IS IN {null} = true
-                // cudf returns false for null, keep basic behavior for now
-                Ok(result)
+                // nulls_equal=true: null IS IN {null} should be true
+                // cudf's contains returns false for null needles, fix:
+                // where col is null AND values contains null → true
+                let values_has_null = values.null_count() > 0;
+                if values_has_null {
+                    let col_is_null = gpu_result(col.is_null())?;
+                    // Build a column of all true, same length as col
+                    let true_col =
+                        gpu_result(GpuColumn::from_optional_bool(&vec![Some(true); col.len()]))?;
+                    // Where col is null, override result to true
+                    gpu_result(true_col.copy_if_else(&result, &col_is_null))
+                } else {
+                    Ok(result)
+                }
             }
         }
         _ => polars_bail!(ComputeError: "GPU engine: unsupported boolean function {:?}", bf),
