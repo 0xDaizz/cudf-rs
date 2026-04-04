@@ -918,9 +918,7 @@ fn eval_boolean_function(
 
             // Empty values set → nothing can be "in", return all false
             if values.len() == 0 {
-                return gpu_result(GpuColumn::from_optional_bool(
-                    &vec![Some(false); col.len()],
-                ));
+                return gpu_result(GpuColumn::from_optional_bool(&vec![Some(false); col.len()]));
             }
 
             let result = gpu_result(values.contains(&col))?;
@@ -943,9 +941,8 @@ fn eval_boolean_function(
                 if values_has_null {
                     let col_is_null = gpu_result(col.is_null())?;
                     // Build a column of all true, same length as col
-                    let true_col = gpu_result(GpuColumn::from_optional_bool(
-                        &vec![Some(true); col.len()],
-                    ))?;
+                    let true_col =
+                        gpu_result(GpuColumn::from_optional_bool(&vec![Some(true); col.len()]))?;
                     // Where col is null, override result to true
                     gpu_result(true_col.copy_if_else(&result, &col_is_null))
                 } else {
