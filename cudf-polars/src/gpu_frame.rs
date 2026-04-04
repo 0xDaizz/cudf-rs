@@ -239,6 +239,12 @@ impl GpuDataFrame {
         &self.table
     }
 
+    /// Decompose into (columns, names), consuming self. Zero-copy.
+    pub fn into_parts(self) -> PolarsResult<(Vec<GpuColumn>, Vec<String>)> {
+        let cols = gpu_result(self.table.into_columns())?;
+        Ok((cols, self.names))
+    }
+
     /// Convert back to a Polars DataFrame.
     pub fn to_polars(self) -> PolarsResult<DataFrame> {
         convert::gpu_to_dataframe(self.table, &self.names)

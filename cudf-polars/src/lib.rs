@@ -7,6 +7,7 @@ pub mod expr;
 pub mod gpu_frame;
 pub mod types;
 
+#[cfg(feature = "lazy")]
 pub use engine::collect_gpu;
 pub use engine::execute_plan;
 pub use gpu_frame::GpuDataFrame;

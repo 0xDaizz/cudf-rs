@@ -11,6 +11,16 @@ Unofficial Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf
 
 > **This project is unofficial and not affiliated with NVIDIA or RAPIDS.**
 
+## What's New in v0.3.0
+
+- **Polars integration via `_collect_post_opt`**: `collect_gpu()` now uses polars' native post-optimization callback. Zero changes to polars fork required for standalone use.
+- **`Engine::Gpu` dispatch**: polars-fork integration enables `lf.collect_with_engine(Engine::Gpu)` -- cudf-polars as a native GPU backend.
+- **New expressions**: `Not` (Bool logical / Int bitwise), `IsIn` (with null propagation), GroupBy `Quantile`.
+- **Window functions**: `AExpr::Over` with `GroupsToRows` mapping -- groupby then scatter broadcast (O(n)).
+- **Temporal types**: Date, Datetime (naive), Duration mapped to cudf timestamp/duration types.
+- **Performance**: HStack/HConcat zero-copy via `into_parts()`, GPU-native scalar broadcast (`sequence_*`), HashMap name lookup O(1).
+- **Safety**: `try_data_type()` fallible API, Arrow FFI debug assertions, First/Last empty guard.
+
 ## Features
 
 - **Near-zero unsafe public API** -- all `unsafe` is confined to the internal FFI layer (sole exception: `DLPackTensor::from_raw_ptr`)
@@ -61,7 +71,7 @@ export CUDA_PATH=/usr/local/cuda
 
 ```toml
 [dependencies]
-cudf = "0.2"
+cudf = "0.3"
 ```
 
 ### 4. Build
@@ -211,8 +221,8 @@ Arrow C Data Interface, Arrow IPC, DLPack tensor exchange, pack/unpack/contiguou
 - **GroupBy `maintain_order`**: Approximated by key-column sort, not true input-order preservation.
 - **Std/Var ddof**: Default standalone reduction uses ddof=1. Full ddof support via `reduce_var_with_ddof` / `reduce_std_with_ddof`.
 - **Polars version**: cudf-polars is compatible with Polars 0.53.0.
-- **Unsupported types**: Date, Datetime, Duration, Categorical, List, Struct are not yet mapped (returns explicit error).
-- **Unsupported expressions**: Window functions (`.over()`), `IsIn`, expression-level Sort/Filter/Slice.
+- **Unsupported types**: Categorical, List, Struct are not yet mapped (returns explicit error).
+- **Unsupported expressions**: expression-level Sort/Filter/Slice.
 - **Unsupported IR nodes**: `Cache`, `MapFunction`, `ExtContext`, `Sink`.
 - **Multi-file Parquet**: Only reads the first file in multi-file scans.
 

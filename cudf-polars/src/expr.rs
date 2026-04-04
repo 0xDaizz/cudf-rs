@@ -17,11 +17,34 @@ use crate::error::gpu_result;
 use crate::gpu_frame::GpuDataFrame;
 use crate::types::{is_comparison, map_dtype, map_operator};
 
+/// Returns true if the type ID is a temporal type (timestamp or duration).
+fn is_temporal(tid: GpuTypeId) -> bool {
+    matches!(
+        tid,
+        GpuTypeId::TimestampDays
+            | GpuTypeId::TimestampSeconds
+            | GpuTypeId::TimestampMilliseconds
+            | GpuTypeId::TimestampMicroseconds
+            | GpuTypeId::TimestampNanoseconds
+            | GpuTypeId::DurationDays
+            | GpuTypeId::DurationSeconds
+            | GpuTypeId::DurationMilliseconds
+            | GpuTypeId::DurationMicroseconds
+            | GpuTypeId::DurationNanoseconds
+    )
+}
+
 /// Compute the output type for arithmetic operations (supertype promotion).
 fn arithmetic_output_type(left_type: &GpuDataType, right_type: &GpuDataType) -> GpuDataType {
     use GpuTypeId::*;
     let l = left_type.id();
     let r = right_type.id();
+
+    // Temporal types: let cudf handle the type promotion natively.
+    // Return the left type as a hint; cudf's binary_op will determine the actual output.
+    if is_temporal(l) || is_temporal(r) {
+        return left_type.clone();
+    }
 
     // Bool + Bool stays Bool (bitwise AND/OR/XOR on booleans)
     if l == Bool8 && r == Bool8 {
@@ -157,8 +180,99 @@ pub fn eval_expr(
             eval_ir_function(&input, &function, expr_arena, df)
         }
 
+        AExpr::Over {
+            function,
+            partition_by,
+            order_by,
+            mapping,
+        } => {
+            use polars_plan::dsl::options::WindowMapping;
+
+            if order_by.is_some() {
+                polars_bail!(ComputeError: "GPU engine: window functions with order_by not yet supported");
+            }
+
+            let function = *function;
+            let partition_by = partition_by.clone();
+            let mapping = *mapping;
+
+            match mapping {
+                WindowMapping::GroupsToRows => {
+                    eval_window_groups_to_rows(function, &partition_by, expr_arena, df)
+                }
+                other => {
+                    polars_bail!(ComputeError: "GPU engine: unsupported window mapping {:?}", other)
+                }
+            }
+        }
+
         other => polars_bail!(ComputeError: "GPU engine: unsupported expression: {:?}", other),
     }
+}
+
+/// Evaluate a window function with `GroupsToRows` mapping.
+///
+/// Strategy: groupby partition keys → aggregate → left join back to original rows.
+/// This broadcasts the per-group aggregate result to every row in that group.
+fn eval_window_groups_to_rows(
+    function: Node,
+    partition_by: &[Node],
+    expr_arena: &Arena<AExpr>,
+    df: &GpuDataFrame,
+) -> PolarsResult<GpuColumn> {
+    use cudf::Table as GpuTable;
+
+    // 1. Evaluate partition key columns
+    let mut key_columns = Vec::with_capacity(partition_by.len());
+    for &key_node in partition_by {
+        let col = eval_expr(key_node, expr_arena, df)?;
+        key_columns.push(col);
+    }
+
+    // 2. Extract the aggregation info from the function node
+    let (input_node, agg_kind) = crate::engine::extract_agg_info(function, expr_arena)?;
+
+    // 3. Evaluate the input column for the aggregation
+    let value_col = eval_expr(input_node, expr_arena, df)?;
+
+    // 4. Perform groupby aggregation: keys → aggregate
+    let keys_table = gpu_result(GpuTable::new(key_columns.clone()))?;
+    let values_table = gpu_result(GpuTable::new(vec![value_col]))?;
+
+    let gb = cudf::groupby::GroupBy::new(&keys_table)
+        .agg(0, agg_kind);
+    // Result: [key_col_0, key_col_1, ..., agg_result_col]
+    let agg_result = gpu_result(gb.execute(&values_table))?;
+
+    // 5. Extract the aggregated keys and the agg result column from the result table
+    let n_keys = partition_by.len();
+    let mut agg_key_cols = Vec::with_capacity(n_keys);
+    for i in 0..n_keys {
+        agg_key_cols.push(gpu_result(agg_result.column(i))?);
+    }
+    let agg_value_col = gpu_result(agg_result.column(n_keys))?;
+
+    // 6. Left join: original keys LEFT JOIN aggregated keys → get per-row agg values
+    let agg_keys_table = gpu_result(GpuTable::new(agg_key_cols))?;
+    let join_result = gpu_result(keys_table.left_join(&agg_keys_table))?;
+
+    // 7. Gather the agg result column using right_indices to broadcast to original rows
+    let agg_as_table = gpu_result(GpuTable::new(vec![agg_value_col]))?;
+    let gathered = gpu_result(agg_as_table.gather(&join_result.right_indices))?;
+    let agg_col = gpu_result(gathered.column(0))?;
+
+    // 8. Restore original row order using scatter (O(n)) instead of sort (O(n log n)).
+    //    left_indices[i] = the original row position for join result row i.
+    //    We scatter the gathered agg values into their correct positions.
+    let original_height = df.height();
+    let agg_dtype = agg_col.data_type();
+    let scatter_source = gpu_result(GpuTable::new(vec![agg_col]))?;
+    let target_col = null_column_for_type(agg_dtype, original_height)?;
+    let target_table = gpu_result(GpuTable::new(vec![target_col]))?;
+    let scattered = gpu_result(scatter_source.scatter(&join_result.left_indices, &target_table))?;
+    let result_col = gpu_result(scattered.column(0))?;
+
+    Ok(result_col)
 }
 
 /// Convert a Polars `LiteralValue` to a GPU column of the given height.
@@ -427,9 +541,33 @@ fn eval_agg_expr(
             let data = vec![n; height];
             gpu_result(GpuColumn::from_slice(&data))
         }
-        IRAggExpr::First(input) | IRAggExpr::Last(input) => {
-            // In standalone context, just evaluate the input
-            eval_expr(*input, expr_arena, df)
+        IRAggExpr::First(input) => {
+            let col = eval_expr(*input, expr_arena, df)?;
+            if col.len() == 0 || height == 0 {
+                return null_column_for_type(col.data_type(), height);
+            }
+            // Slice the first element, then repeat to fill height
+            let single_row_table = gpu_result(cudf::Table::new(vec![col]))?;
+            let sliced = gpu_result(single_row_table.slice(0, 1))?;
+            let repeated = gpu_result(sliced.repeat(height))?;
+            let cols = gpu_result(repeated.into_columns())?;
+            // SAFETY: `repeated` is a 1-column table (from single-column `sliced`),
+            // so `into_columns()` returns exactly 1 element. `.next()` is always Some.
+            Ok(cols.into_iter().next().unwrap())
+        }
+        IRAggExpr::Last(input) => {
+            let col = eval_expr(*input, expr_arena, df)?;
+            if col.len() == 0 || height == 0 {
+                return null_column_for_type(col.data_type(), height);
+            }
+            let last_idx = col.len() - 1;
+            let single_row_table = gpu_result(cudf::Table::new(vec![col]))?;
+            let sliced = gpu_result(single_row_table.slice(last_idx, last_idx + 1))?;
+            let repeated = gpu_result(sliced.repeat(height))?;
+            let cols = gpu_result(repeated.into_columns())?;
+            // SAFETY: `repeated` is a 1-column table (from single-column `sliced`),
+            // so `into_columns()` returns exactly 1 element. `.next()` is always Some.
+            Ok(cols.into_iter().next().unwrap())
         }
         other => {
             polars_bail!(ComputeError: "GPU engine: unsupported standalone aggregation: {:?}", other)
@@ -462,6 +600,80 @@ fn reduce_and_broadcast(
     broadcast_scalar(&scalar, height)
 }
 
+/// Create a column of `height` null values with the given GPU data type.
+fn null_column_for_type(dtype: cudf::types::DataType, height: usize) -> PolarsResult<GpuColumn> {
+    let tid = dtype.id();
+    match tid {
+        GpuTypeId::Bool8 => {
+            let opts: Vec<Option<bool>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_bool(&opts))
+        }
+        GpuTypeId::Int8 => {
+            let opts: Vec<Option<i8>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i8(&opts))
+        }
+        GpuTypeId::Int16 => {
+            let opts: Vec<Option<i16>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i16(&opts))
+        }
+        GpuTypeId::Int32 => {
+            let opts: Vec<Option<i32>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i32(&opts))
+        }
+        GpuTypeId::Int64 => {
+            let opts: Vec<Option<i64>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i64(&opts))
+        }
+        GpuTypeId::Uint8 => {
+            let opts: Vec<Option<u8>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_u8(&opts))
+        }
+        GpuTypeId::Uint16 => {
+            let opts: Vec<Option<u16>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_u16(&opts))
+        }
+        GpuTypeId::Uint32 => {
+            let opts: Vec<Option<u32>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_u32(&opts))
+        }
+        GpuTypeId::Uint64 => {
+            let opts: Vec<Option<u64>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_u64(&opts))
+        }
+        GpuTypeId::Float32 => {
+            let opts: Vec<Option<f32>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_f32(&opts))
+        }
+        GpuTypeId::Float64 => {
+            let opts: Vec<Option<f64>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_f64(&opts))
+        }
+        GpuTypeId::String => {
+            let opts: Vec<Option<&str>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_strings(&opts))
+        }
+        // Temporal types: Date/TimestampDays and DurationDays are i32, all others are i64
+        GpuTypeId::TimestampDays | GpuTypeId::DurationDays => {
+            let opts: Vec<Option<i32>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i32(&opts))
+        }
+        GpuTypeId::TimestampSeconds
+        | GpuTypeId::TimestampMilliseconds
+        | GpuTypeId::TimestampMicroseconds
+        | GpuTypeId::TimestampNanoseconds
+        | GpuTypeId::DurationSeconds
+        | GpuTypeId::DurationMilliseconds
+        | GpuTypeId::DurationMicroseconds
+        | GpuTypeId::DurationNanoseconds => {
+            let opts: Vec<Option<i64>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i64(&opts))
+        }
+        other => {
+            polars_bail!(ComputeError: "GPU engine: cannot create null column of type {:?}", other)
+        }
+    }
+}
+
 /// Broadcast a scalar value to a column of the given height.
 fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuColumn> {
     let dtype = scalar.data_type();
@@ -469,59 +681,7 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
 
     // If the scalar is not valid (null), create a null column of the correct type
     if !scalar.is_valid() {
-        return match tid {
-            GpuTypeId::Bool8 => {
-                let opts: Vec<Option<bool>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_bool(&opts))
-            }
-            GpuTypeId::Int8 => {
-                let opts: Vec<Option<i8>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_i8(&opts))
-            }
-            GpuTypeId::Int16 => {
-                let opts: Vec<Option<i16>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_i16(&opts))
-            }
-            GpuTypeId::Int32 => {
-                let opts: Vec<Option<i32>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_i32(&opts))
-            }
-            GpuTypeId::Int64 => {
-                let opts: Vec<Option<i64>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_i64(&opts))
-            }
-            GpuTypeId::Uint8 => {
-                let opts: Vec<Option<u8>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_u8(&opts))
-            }
-            GpuTypeId::Uint16 => {
-                let opts: Vec<Option<u16>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_u16(&opts))
-            }
-            GpuTypeId::Uint32 => {
-                let opts: Vec<Option<u32>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_u32(&opts))
-            }
-            GpuTypeId::Uint64 => {
-                let opts: Vec<Option<u64>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_u64(&opts))
-            }
-            GpuTypeId::Float32 => {
-                let opts: Vec<Option<f32>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_f32(&opts))
-            }
-            GpuTypeId::Float64 => {
-                let opts: Vec<Option<f64>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_f64(&opts))
-            }
-            GpuTypeId::String => {
-                let opts: Vec<Option<&str>> = vec![None; height];
-                gpu_result(GpuColumn::from_optional_strings(&opts))
-            }
-            other => {
-                polars_bail!(ComputeError: "GPU engine: cannot broadcast null scalar of type {:?}", other)
-            }
-        };
+        return null_column_for_type(dtype, height);
     }
 
     match tid {
@@ -539,11 +699,12 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
         }
         GpuTypeId::Int32 => {
             let v: i32 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            // GPU-native: sequence with step=0 creates a constant column without host allocation
+            gpu_result(cudf::filling::sequence_i32(height, v, 0))
         }
         GpuTypeId::Int64 => {
             let v: i64 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            gpu_result(cudf::filling::sequence_i64(height, v, 0))
         }
         GpuTypeId::Uint8 => {
             let v: u8 = gpu_result(scalar.value())?;
@@ -563,12 +724,16 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
         }
         GpuTypeId::Float32 => {
             let v: f32 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            gpu_result(cudf::filling::sequence_f32(height, v, 0.0))
         }
         GpuTypeId::Float64 => {
             let v: f64 = gpu_result(scalar.value())?;
-            gpu_result(GpuColumn::from_slice(&vec![v; height]))
+            gpu_result(cudf::filling::sequence_f64(height, v, 0.0))
         }
+        // Temporal scalar broadcast is not supported — temporal columns in aggregation
+        // contexts (e.g. select(col("date").min())) would need type-aware extraction.
+        // Pass-through operations (filter, sort, join, groupby) don't need scalar broadcast.
+        // Null temporal scalars are handled via null_column_for_type above.
         _ => polars_bail!(ComputeError: "GPU engine: cannot broadcast scalar of type {:?}", tid),
     }
 }
@@ -731,6 +896,62 @@ fn eval_boolean_function(
                 let scalar =
                     gpu_result(col.reduce(ReduceOp::All, GpuDataType::new(GpuTypeId::Bool8)))?;
                 broadcast_scalar(&scalar, height)
+            }
+        }
+        IRBooleanFunction::Not => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let tid = col.data_type().id();
+            if tid == GpuTypeId::Bool8 {
+                gpu_result(col.unary_op(UnaryOp::Not))
+            } else {
+                // Integer types use bitwise invert (Polars semantics)
+                gpu_result(col.unary_op(UnaryOp::BitInvert))
+            }
+        }
+        IRBooleanFunction::IsIn { nulls_equal } => {
+            if inputs.len() != 2 {
+                polars_bail!(ComputeError: "GPU engine: IsIn expects 2 inputs");
+            }
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let values = eval_expr(inputs[1].node(), expr_arena, df)?;
+            // cudf::Column::contains(haystack=self, needles=arg): for each element in `col`,
+            // checks if it exists in `values`. This matches Polars' `col.is_in(values)` semantics.
+
+            // Empty values set → nothing can be "in", return all false
+            if values.len() == 0 {
+                return gpu_result(GpuColumn::from_optional_bool(
+                    &vec![Some(false); col.len()],
+                ));
+            }
+
+            let result = gpu_result(values.contains(&col))?;
+            if !nulls_equal {
+                // When nulls_equal=false (default), null in col should produce null in output
+                // cudf's contains returns false for null needles, but Polars wants null
+                // Fix: where col is null, set result to null
+                let col_valid = gpu_result(col.is_valid())?;
+                let null_col = null_column_for_type(
+                    cudf::types::DataType::new(cudf::types::TypeId::Bool8),
+                    col.len(),
+                )?;
+                // Where col is valid keep result, where col is null use null_col
+                gpu_result(result.copy_if_else(&null_col, &col_valid))
+            } else {
+                // nulls_equal=true: null IS IN {null} should be true
+                // cudf's contains returns false for null needles, fix:
+                // where col is null AND values contains null → true
+                let values_has_null = values.null_count() > 0;
+                if values_has_null {
+                    let col_is_null = gpu_result(col.is_null())?;
+                    // Build a column of all true, same length as col
+                    let true_col = gpu_result(GpuColumn::from_optional_bool(
+                        &vec![Some(true); col.len()],
+                    ))?;
+                    // Where col is null, override result to true
+                    gpu_result(true_col.copy_if_else(&result, &col_is_null))
+                } else {
+                    Ok(result)
+                }
             }
         }
         _ => polars_bail!(ComputeError: "GPU engine: unsupported boolean function {:?}", bf),
