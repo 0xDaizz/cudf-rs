@@ -10,7 +10,7 @@ description = "GPU execution engine for Polars using NVIDIA libcudf"
 default-target = "x86_64-unknown-linux-gnu"
 
 [dependencies]
-cudf = { path = "../cudf", version = "0.2.0", features = ["arrow-interop"] }
+cudf = { path = "../cudf", version = "0.3.0", features = ["arrow-interop"] }
 polars-core = { version = "=0.53.0", default-features = false }
 polars-utils = { version = "=0.53.0" }
 polars-error = { version = "=0.53.0" }
