@@ -17,11 +17,34 @@ use crate::error::gpu_result;
 use crate::gpu_frame::GpuDataFrame;
 use crate::types::{is_comparison, map_dtype, map_operator};
 
+/// Returns true if the type ID is a temporal type (timestamp or duration).
+fn is_temporal(tid: GpuTypeId) -> bool {
+    matches!(
+        tid,
+        GpuTypeId::TimestampDays
+            | GpuTypeId::TimestampSeconds
+            | GpuTypeId::TimestampMilliseconds
+            | GpuTypeId::TimestampMicroseconds
+            | GpuTypeId::TimestampNanoseconds
+            | GpuTypeId::DurationDays
+            | GpuTypeId::DurationSeconds
+            | GpuTypeId::DurationMilliseconds
+            | GpuTypeId::DurationMicroseconds
+            | GpuTypeId::DurationNanoseconds
+    )
+}
+
 /// Compute the output type for arithmetic operations (supertype promotion).
 fn arithmetic_output_type(left_type: &GpuDataType, right_type: &GpuDataType) -> GpuDataType {
     use GpuTypeId::*;
     let l = left_type.id();
     let r = right_type.id();
+
+    // Temporal types: let cudf handle the type promotion natively.
+    // Return the left type as a hint; cudf's binary_op will determine the actual output.
+    if is_temporal(l) || is_temporal(r) {
+        return left_type.clone();
+    }
 
     // Bool + Bool stays Bool (bitwise AND/OR/XOR on booleans)
     if l == Bool8 && r == Bool8 {
@@ -534,6 +557,22 @@ fn null_column_for_type(dtype: cudf::types::DataType, height: usize) -> PolarsRe
             let opts: Vec<Option<&str>> = vec![None; height];
             gpu_result(GpuColumn::from_optional_strings(&opts))
         }
+        // Temporal types: Date/TimestampDays and DurationDays are i32, all others are i64
+        GpuTypeId::TimestampDays | GpuTypeId::DurationDays => {
+            let opts: Vec<Option<i32>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i32(&opts))
+        }
+        GpuTypeId::TimestampSeconds
+        | GpuTypeId::TimestampMilliseconds
+        | GpuTypeId::TimestampMicroseconds
+        | GpuTypeId::TimestampNanoseconds
+        | GpuTypeId::DurationSeconds
+        | GpuTypeId::DurationMilliseconds
+        | GpuTypeId::DurationMicroseconds
+        | GpuTypeId::DurationNanoseconds => {
+            let opts: Vec<Option<i64>> = vec![None; height];
+            gpu_result(GpuColumn::from_optional_i64(&opts))
+        }
         other => {
             polars_bail!(ComputeError: "GPU engine: cannot create null column of type {:?}", other)
         }
@@ -596,6 +635,10 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
             let v: f64 = gpu_result(scalar.value())?;
             gpu_result(cudf::filling::sequence_f64(height, v, 0.0))
         }
+        // Temporal scalar broadcast is not supported — temporal columns in aggregation
+        // contexts (e.g. select(col("date").min())) would need type-aware extraction.
+        // Pass-through operations (filter, sort, join, groupby) don't need scalar broadcast.
+        // Null temporal scalars are handled via null_column_for_type above.
         _ => polars_bail!(ComputeError: "GPU engine: cannot broadcast scalar of type {:?}", tid),
     }
 }
