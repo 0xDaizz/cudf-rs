@@ -180,8 +180,100 @@ pub fn eval_expr(
             eval_ir_function(&input, &function, expr_arena, df)
         }
 
+        AExpr::Over {
+            function,
+            partition_by,
+            order_by,
+            mapping,
+        } => {
+            use polars_plan::dsl::options::WindowMapping;
+
+            if order_by.is_some() {
+                polars_bail!(ComputeError: "GPU engine: window functions with order_by not yet supported");
+            }
+
+            let function = *function;
+            let partition_by = partition_by.clone();
+            let mapping = *mapping;
+
+            match mapping {
+                WindowMapping::GroupsToRows => {
+                    eval_window_groups_to_rows(function, &partition_by, expr_arena, df)
+                }
+                other => {
+                    polars_bail!(ComputeError: "GPU engine: unsupported window mapping {:?}", other)
+                }
+            }
+        }
+
         other => polars_bail!(ComputeError: "GPU engine: unsupported expression: {:?}", other),
     }
+}
+
+/// Evaluate a window function with `GroupsToRows` mapping.
+///
+/// Strategy: groupby partition keys → aggregate → left join back to original rows.
+/// This broadcasts the per-group aggregate result to every row in that group.
+fn eval_window_groups_to_rows(
+    function: Node,
+    partition_by: &[Node],
+    expr_arena: &Arena<AExpr>,
+    df: &GpuDataFrame,
+) -> PolarsResult<GpuColumn> {
+    use cudf::Table as GpuTable;
+
+    // 1. Evaluate partition key columns
+    let mut key_columns = Vec::with_capacity(partition_by.len());
+    for &key_node in partition_by {
+        let col = eval_expr(key_node, expr_arena, df)?;
+        key_columns.push(col);
+    }
+
+    // 2. Extract the aggregation info from the function node
+    let (input_node, agg_kind) = crate::engine::extract_agg_info(function, expr_arena)?;
+
+    // 3. Evaluate the input column for the aggregation
+    let value_col = eval_expr(input_node, expr_arena, df)?;
+
+    // 4. Perform groupby aggregation: keys → aggregate
+    let keys_table = gpu_result(GpuTable::new(key_columns.clone()))?;
+    let values_table = gpu_result(GpuTable::new(vec![value_col]))?;
+
+    let gb = cudf::groupby::GroupBy::new(&keys_table)
+        .agg(0, agg_kind);
+    // Result: [key_col_0, key_col_1, ..., agg_result_col]
+    let agg_result = gpu_result(gb.execute(&values_table))?;
+
+    // 5. Extract the aggregated keys and the agg result column from the result table
+    let n_keys = partition_by.len();
+    let mut agg_key_cols = Vec::with_capacity(n_keys);
+    for i in 0..n_keys {
+        agg_key_cols.push(gpu_result(agg_result.column(i))?);
+    }
+    let agg_value_col = gpu_result(agg_result.column(n_keys))?;
+
+    // 6. Left join: original keys LEFT JOIN aggregated keys → get per-row agg values
+    let agg_keys_table = gpu_result(GpuTable::new(agg_key_cols))?;
+    let join_result = gpu_result(keys_table.left_join(&agg_keys_table))?;
+
+    // 7. Gather the agg result column using right_indices to broadcast to original rows
+    let agg_as_table = gpu_result(GpuTable::new(vec![agg_value_col]))?;
+    let gathered = gpu_result(agg_as_table.gather(&join_result.right_indices))?;
+    let agg_col = gpu_result(gathered.column(0))?;
+
+    // 8. Restore original row order: libcudf left_join does NOT guarantee output is
+    //    ordered by left_indices.  Sort by left_indices (ascending) so the agg column
+    //    aligns with the original DataFrame row order.
+    let value_table = gpu_result(GpuTable::new(vec![agg_col]))?;
+    let key_table = gpu_result(GpuTable::new(vec![join_result.left_indices]))?;
+    let sorted = gpu_result(value_table.sort_by_key(
+        &key_table,
+        &[cudf::sorting::SortOrder::Ascending],
+        &[cudf::sorting::NullOrder::After],
+    ))?;
+    let result_col = gpu_result(sorted.column(0))?;
+
+    Ok(result_col)
 }
 
 /// Convert a Polars `LiteralValue` to a GPU column of the given height.

@@ -610,7 +610,7 @@ pub fn execute_node(
 /// In polars-plan 0.53+, `Alias` is no longer an `AExpr` variant — it lives on the
 /// `ExprIR` wrapper (`OutputName::Alias`), so the caller strips it via `ExprIR::node()`.
 /// This function handles `Cast` wrappers that the optimizer may insert around `Agg`.
-fn extract_agg_info(
+pub(crate) fn extract_agg_info(
     node: Node,
     expr_arena: &Arena<AExpr>,
 ) -> PolarsResult<(Node, AggregationKind)> {
@@ -657,7 +657,7 @@ fn extract_agg_info(
 }
 
 /// Map an IRAggExpr to its input node and cudf AggregationKind.
-fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
+pub(crate) fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
     match agg {
         IRAggExpr::Sum(input) => Ok((*input, AggregationKind::Sum)),
         IRAggExpr::Min { input, .. } => Ok((*input, AggregationKind::Min)),
