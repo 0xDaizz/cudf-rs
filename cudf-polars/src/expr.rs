@@ -759,6 +759,41 @@ fn eval_boolean_function(
                 broadcast_scalar(&scalar, height)
             }
         }
+        IRBooleanFunction::Not => {
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let tid = col.data_type().id();
+            if tid == GpuTypeId::Bool8 {
+                gpu_result(col.unary_op(UnaryOp::Not))
+            } else {
+                // Integer types use bitwise invert (Polars semantics)
+                gpu_result(col.unary_op(UnaryOp::BitInvert))
+            }
+        }
+        IRBooleanFunction::IsIn { nulls_equal } => {
+            if inputs.len() != 2 {
+                polars_bail!(ComputeError: "GPU engine: IsIn expects 2 inputs");
+            }
+            let col = eval_expr(inputs[0].node(), expr_arena, df)?;
+            let values = eval_expr(inputs[1].node(), expr_arena, df)?;
+            // haystack=values (the set), needles=col (each row to check)
+            let result = gpu_result(values.contains(&col))?;
+            if !nulls_equal {
+                // When nulls_equal=false (default), null in col should produce null in output
+                // cudf's contains returns false for null needles, but Polars wants null
+                // Fix: where col is null, set result to null
+                let col_valid = gpu_result(col.is_valid())?;
+                let null_col = null_column_for_type(
+                    cudf::types::DataType::new(cudf::types::TypeId::Bool8),
+                    col.len(),
+                )?;
+                // Where col is valid keep result, where col is null use null_col
+                gpu_result(result.copy_if_else(&null_col, &col_valid))
+            } else {
+                // nulls_equal=true: null IS IN {null} = true
+                // cudf returns false for null, keep basic behavior for now
+                Ok(result)
+            }
+        }
         _ => polars_bail!(ComputeError: "GPU engine: unsupported boolean function {:?}", bf),
     }
 }

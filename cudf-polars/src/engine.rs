@@ -2,7 +2,7 @@
 
 use polars_core::prelude::*;
 use polars_error::{PolarsResult, polars_bail};
-use polars_plan::plans::{AExpr, IR, IRAggExpr, IRPlan};
+use polars_plan::plans::{AExpr, IR, IRAggExpr, IRPlan, LiteralValue};
 use polars_utils::arena::{Arena, Node};
 
 use cudf::aggregation::AggregationKind;
@@ -600,8 +600,40 @@ fn extract_agg_info(
 ) -> PolarsResult<(Node, AggregationKind)> {
     match expr_arena.get(node) {
         AExpr::Agg(agg) => {
-            let (input, kind) = map_ir_agg(agg)?;
-            Ok((input, kind))
+            match agg {
+                IRAggExpr::Quantile { expr, quantile, method: _ } => {
+                    // Extract the quantile value from the expression arena
+                    // Polars 0.53 LiteralValue has Dyn/Scalar/Series/Range variants
+                    let q_value = match expr_arena.get(*quantile) {
+                        AExpr::Literal(LiteralValue::Dyn(dyn_val)) => {
+                            use polars_plan::plans::DynLiteralValue;
+                            match dyn_val {
+                                DynLiteralValue::Float(q) => *q,
+                                DynLiteralValue::Int(q) => *q as f64,
+                                _ => polars_bail!(ComputeError: "GPU engine: Quantile requires a numeric literal"),
+                            }
+                        }
+                        AExpr::Literal(LiteralValue::Scalar(s)) => {
+                            use polars_core::prelude::AnyValue;
+                            match s.value() {
+                                AnyValue::Float64(q) => *q,
+                                AnyValue::Float32(q) => *q as f64,
+                                AnyValue::Int32(q) => *q as f64,
+                                AnyValue::Int64(q) => *q as f64,
+                                AnyValue::UInt32(q) => *q as f64,
+                                AnyValue::UInt64(q) => *q as f64,
+                                _ => polars_bail!(ComputeError: "GPU engine: Quantile scalar must be numeric, got {:?}", s.dtype()),
+                            }
+                        }
+                        _ => polars_bail!(ComputeError: "GPU engine: Quantile requires a literal quantile value"),
+                    };
+                    Ok((*expr, AggregationKind::Quantile { q: q_value }))
+                }
+                other => {
+                    let (input, kind) = map_ir_agg(other)?;
+                    Ok((input, kind))
+                }
+            }
         }
         AExpr::Cast { expr, .. } => extract_agg_info(*expr, expr_arena),
         _ => polars_bail!(ComputeError: "GPU engine: expected aggregation expression in GroupBy"),
@@ -633,9 +665,7 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::Var(input, ddof) => {
             Ok((*input, AggregationKind::Variance { ddof: *ddof as i32 }))
         }
-        IRAggExpr::Quantile { .. } => {
-            polars_bail!(ComputeError: "GPU engine: Quantile aggregation not yet supported")
-        }
+        // Quantile is handled in extract_agg_info (needs expr_arena access)
         other => {
             polars_bail!(ComputeError: "GPU engine: unsupported aggregation type: {:?}", other)
         }
