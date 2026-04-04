@@ -239,8 +239,7 @@ fn eval_window_groups_to_rows(
     let keys_table = gpu_result(GpuTable::new(key_columns.clone()))?;
     let values_table = gpu_result(GpuTable::new(vec![value_col]))?;
 
-    let gb = cudf::groupby::GroupBy::new(&keys_table)
-        .agg(0, agg_kind);
+    let gb = cudf::groupby::GroupBy::new(&keys_table).agg(0, agg_kind);
     // Result: [key_col_0, key_col_1, ..., agg_result_col]
     let agg_result = gpu_result(gb.execute(&values_table))?;
 

@@ -617,7 +617,11 @@ pub(crate) fn extract_agg_info(
     match expr_arena.get(node) {
         AExpr::Agg(agg) => {
             match agg {
-                IRAggExpr::Quantile { expr, quantile, method: _ } => {
+                IRAggExpr::Quantile {
+                    expr,
+                    quantile,
+                    method: _,
+                } => {
                     // Extract the quantile value from the expression arena
                     // Polars 0.53 LiteralValue has Dyn/Scalar/Series/Range variants
                     let q_value = match expr_arena.get(*quantile) {
@@ -626,7 +630,9 @@ pub(crate) fn extract_agg_info(
                             match dyn_val {
                                 DynLiteralValue::Float(q) => *q,
                                 DynLiteralValue::Int(q) => *q as f64,
-                                _ => polars_bail!(ComputeError: "GPU engine: Quantile requires a numeric literal"),
+                                _ => {
+                                    polars_bail!(ComputeError: "GPU engine: Quantile requires a numeric literal")
+                                }
                             }
                         }
                         AExpr::Literal(LiteralValue::Scalar(s)) => {
@@ -638,10 +644,14 @@ pub(crate) fn extract_agg_info(
                                 AnyValue::Int64(q) => *q as f64,
                                 AnyValue::UInt32(q) => *q as f64,
                                 AnyValue::UInt64(q) => *q as f64,
-                                _ => polars_bail!(ComputeError: "GPU engine: Quantile scalar must be numeric, got {:?}", s.dtype()),
+                                _ => {
+                                    polars_bail!(ComputeError: "GPU engine: Quantile scalar must be numeric, got {:?}", s.dtype())
+                                }
                             }
                         }
-                        _ => polars_bail!(ComputeError: "GPU engine: Quantile requires a literal quantile value"),
+                        _ => {
+                            polars_bail!(ComputeError: "GPU engine: Quantile requires a literal quantile value")
+                        }
                     };
                     Ok((*expr, AggregationKind::Quantile { q: q_value }))
                 }
