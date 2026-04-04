@@ -186,7 +186,7 @@ pub fn eval_expr(
             order_by,
             mapping,
         } => {
-            use polars_plan::dsl::options::WindowMapping;
+            use polars_plan::prelude::WindowMapping;
 
             if order_by.is_some() {
                 polars_bail!(ComputeError: "GPU engine: window functions with order_by not yet supported");
@@ -236,7 +236,7 @@ fn eval_window_groups_to_rows(
     let value_col = eval_expr(input_node, expr_arena, df)?;
 
     // 4. Perform groupby aggregation: keys → aggregate
-    let keys_table = gpu_result(GpuTable::new(key_columns.clone()))?;
+    let keys_table = gpu_result(GpuTable::new(key_columns))?;
     let values_table = gpu_result(GpuTable::new(vec![value_col]))?;
 
     let gb = cudf::groupby::GroupBy::new(&keys_table).agg(0, agg_kind);
@@ -907,6 +907,7 @@ fn eval_boolean_function(
                 gpu_result(col.unary_op(UnaryOp::BitInvert))
             }
         }
+        #[cfg(feature = "is_in")]
         IRBooleanFunction::IsIn { nulls_equal } => {
             if inputs.len() != 2 {
                 polars_bail!(ComputeError: "GPU engine: IsIn expects 2 inputs");
@@ -923,27 +924,18 @@ fn eval_boolean_function(
 
             let result = gpu_result(values.contains(&col))?;
             if !nulls_equal {
-                // When nulls_equal=false (default), null in col should produce null in output
-                // cudf's contains returns false for null needles, but Polars wants null
-                // Fix: where col is null, set result to null
                 let col_valid = gpu_result(col.is_valid())?;
                 let null_col = null_column_for_type(
                     cudf::types::DataType::new(cudf::types::TypeId::Bool8),
                     col.len(),
                 )?;
-                // Where col is valid keep result, where col is null use null_col
                 gpu_result(result.copy_if_else(&null_col, &col_valid))
             } else {
-                // nulls_equal=true: null IS IN {null} should be true
-                // cudf's contains returns false for null needles, fix:
-                // where col is null AND values contains null → true
                 let values_has_null = values.null_count() > 0;
                 if values_has_null {
                     let col_is_null = gpu_result(col.is_null())?;
-                    // Build a column of all true, same length as col
                     let true_col =
                         gpu_result(GpuColumn::from_optional_bool(&vec![Some(true); col.len()]))?;
-                    // Where col is null, override result to true
                     gpu_result(true_col.copy_if_else(&result, &col_is_null))
                 } else {
                     Ok(result)
