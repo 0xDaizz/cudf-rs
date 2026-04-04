@@ -18,7 +18,7 @@ use crate::expr;
 use crate::gpu_frame::GpuDataFrame;
 
 /// Execute an IR node recursively, producing a GPU-resident data frame.
-pub fn execute_node(
+pub(crate) fn execute_node(
     node: Node,
     lp_arena: &Arena<IR>,
     expr_arena: &Arena<AExpr>,
@@ -89,16 +89,26 @@ pub fn execute_node(
             let table = execute_node(input_node, lp_arena, expr_arena)?;
 
             // HStack adds new columns to the existing frame.
-            // Use Option<Column> to allow zero-copy reordering without dummy GPU allocations.
-            let existing_width = table.width();
-            let mut all_columns: Vec<Option<cudf::Column>> =
-                Vec::with_capacity(existing_width + exprs.len());
-            let mut all_names = Vec::with_capacity(existing_width + exprs.len());
-
-            for i in 0..existing_width {
-                all_columns.push(Some(table.column(i)?));
-                all_names.push(table.names()[i].clone());
+            // Evaluate new expressions first (before consuming table for zero-copy decomposition)
+            let mut new_cols = Vec::with_capacity(exprs.len());
+            let mut new_names = Vec::with_capacity(exprs.len());
+            for e in &exprs {
+                let col = expr::eval_expr(e.node(), expr_arena, &table)?;
+                new_cols.push(col);
+                new_names.push(e.output_name().to_string());
             }
+
+            // Decompose table into columns (zero-copy) instead of deep-copying each
+            let (existing_cols, existing_names) = table.into_parts()?;
+            let existing_width = existing_cols.len();
+            let mut all_columns: Vec<Option<cudf::Column>> =
+                Vec::with_capacity(existing_width + new_cols.len());
+            let mut all_names = Vec::with_capacity(existing_width + new_names.len());
+
+            for col in existing_cols {
+                all_columns.push(Some(col));
+            }
+            all_names.extend(existing_names);
 
             // Build name→position index for O(1) lookup instead of O(n) linear scan
             let mut name_index: HashMap<String, usize> = all_names
@@ -107,10 +117,8 @@ pub fn execute_node(
                 .map(|(i, n)| (n.clone(), i))
                 .collect();
 
-            for e in &exprs {
-                let col = expr::eval_expr(e.node(), expr_arena, &table)?;
-                let name = e.output_name().to_string();
-
+            // Merge new columns (replace or append)
+            for (col, name) in new_cols.into_iter().zip(new_names) {
                 if let Some(&pos) = name_index.get(&name) {
                     all_columns[pos] = Some(col);
                 } else {
@@ -583,14 +591,13 @@ pub fn execute_node(
                 polars_bail!(ComputeError: "GPU HConcat requires all inputs to have the same height, got {:?}", heights);
             }
 
-            // Collect all columns from all tables
+            // Decompose all tables into columns (zero-copy) instead of deep-copying each
             let mut all_columns = Vec::new();
             let mut all_names = Vec::new();
-            for t in &tables {
-                for i in 0..t.width() {
-                    all_columns.push(t.column(i)?);
-                    all_names.push(t.names()[i].clone());
-                }
+            for t in tables {
+                let (cols, names) = t.into_parts()?;
+                all_columns.extend(cols);
+                all_names.extend(names);
             }
 
             let combined = GpuDataFrame::from_columns(all_columns, all_names)?;
