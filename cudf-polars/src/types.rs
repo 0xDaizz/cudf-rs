@@ -64,6 +64,26 @@ pub fn map_dtype(dtype: &DataType) -> PolarsResult<GpuDataType> {
         DataType::Float32 => GpuTypeId::Float32,
         DataType::Float64 => GpuTypeId::Float64,
         DataType::String => GpuTypeId::String,
+        DataType::Date => GpuTypeId::TimestampDays,
+        DataType::Datetime(tu, tz) => {
+            if tz.is_some() {
+                polars_bail!(ComputeError: "GPU engine: timezone-aware Datetime not yet supported");
+            }
+            use polars_core::prelude::TimeUnit;
+            match tu {
+                TimeUnit::Milliseconds => GpuTypeId::TimestampMilliseconds,
+                TimeUnit::Microseconds => GpuTypeId::TimestampMicroseconds,
+                TimeUnit::Nanoseconds => GpuTypeId::TimestampNanoseconds,
+            }
+        }
+        DataType::Duration(tu) => {
+            use polars_core::prelude::TimeUnit;
+            match tu {
+                TimeUnit::Milliseconds => GpuTypeId::DurationMilliseconds,
+                TimeUnit::Microseconds => GpuTypeId::DurationMicroseconds,
+                TimeUnit::Nanoseconds => GpuTypeId::DurationNanoseconds,
+            }
+        }
         _ => polars_bail!(ComputeError: "GPU engine: unsupported dtype {:?}", dtype),
     };
     Ok(GpuDataType::new(type_id))

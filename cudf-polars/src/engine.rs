@@ -1,8 +1,10 @@
 //! GPU execution engine: walks the IR tree and executes nodes on GPU.
 
+use std::collections::HashMap;
+
 use polars_core::prelude::*;
 use polars_error::{PolarsResult, polars_bail};
-use polars_plan::plans::{AExpr, IR, IRAggExpr, IRPlan};
+use polars_plan::plans::{AExpr, IR, IRAggExpr, IRPlan, LiteralValue};
 use polars_utils::arena::{Arena, Node};
 
 use cudf::aggregation::AggregationKind;
@@ -98,24 +100,38 @@ pub fn execute_node(
                 all_names.push(table.names()[i].clone());
             }
 
+            // Build name→position index for O(1) lookup instead of O(n) linear scan
+            let mut name_index: HashMap<String, usize> = all_names
+                .iter()
+                .enumerate()
+                .map(|(i, n)| (n.clone(), i))
+                .collect();
+
             for e in &exprs {
                 let col = expr::eval_expr(e.node(), expr_arena, &table)?;
                 let name = e.output_name().to_string();
 
-                if let Some(pos) = all_names.iter().position(|n| n == &name) {
+                if let Some(&pos) = name_index.get(&name) {
                     all_columns[pos] = Some(col);
                 } else {
+                    let new_pos = all_columns.len();
                     all_columns.push(Some(col));
+                    name_index.insert(name.clone(), new_pos);
                     all_names.push(name);
                 }
             }
 
-            // Reorder to match the output schema
+            // Reorder to match the output schema using HashMap for O(1) lookup
             let schema_names: Vec<&str> = schema.iter_names().map(|n| n.as_str()).collect();
+            let name_pos: HashMap<&str, usize> = all_names
+                .iter()
+                .enumerate()
+                .map(|(i, n)| (n.as_str(), i))
+                .collect();
             let mut ordered_columns = Vec::with_capacity(schema_names.len());
             let mut ordered_names = Vec::with_capacity(schema_names.len());
             for &sn in &schema_names {
-                if let Some(pos) = all_names.iter().position(|n| n == sn) {
+                if let Some(&pos) = name_pos.get(sn) {
                     let col = all_columns[pos].take().ok_or_else(|| {
                         polars_err!(ColumnNotFound: "duplicate reference to column '{}' in HStack schema", sn)
                     })?;
@@ -594,14 +610,56 @@ pub fn execute_node(
 /// In polars-plan 0.53+, `Alias` is no longer an `AExpr` variant — it lives on the
 /// `ExprIR` wrapper (`OutputName::Alias`), so the caller strips it via `ExprIR::node()`.
 /// This function handles `Cast` wrappers that the optimizer may insert around `Agg`.
-fn extract_agg_info(
+pub(crate) fn extract_agg_info(
     node: Node,
     expr_arena: &Arena<AExpr>,
 ) -> PolarsResult<(Node, AggregationKind)> {
     match expr_arena.get(node) {
         AExpr::Agg(agg) => {
-            let (input, kind) = map_ir_agg(agg)?;
-            Ok((input, kind))
+            match agg {
+                IRAggExpr::Quantile {
+                    expr,
+                    quantile,
+                    method: _,
+                } => {
+                    // Extract the quantile value from the expression arena
+                    // Polars 0.53 LiteralValue has Dyn/Scalar/Series/Range variants
+                    let q_value = match expr_arena.get(*quantile) {
+                        AExpr::Literal(LiteralValue::Dyn(dyn_val)) => {
+                            use polars_plan::plans::DynLiteralValue;
+                            match dyn_val {
+                                DynLiteralValue::Float(q) => *q,
+                                DynLiteralValue::Int(q) => *q as f64,
+                                _ => {
+                                    polars_bail!(ComputeError: "GPU engine: Quantile requires a numeric literal")
+                                }
+                            }
+                        }
+                        AExpr::Literal(LiteralValue::Scalar(s)) => {
+                            use polars_core::prelude::AnyValue;
+                            match s.value() {
+                                AnyValue::Float64(q) => *q,
+                                AnyValue::Float32(q) => *q as f64,
+                                AnyValue::Int32(q) => *q as f64,
+                                AnyValue::Int64(q) => *q as f64,
+                                AnyValue::UInt32(q) => *q as f64,
+                                AnyValue::UInt64(q) => *q as f64,
+                                _ => {
+                                    polars_bail!(ComputeError: "GPU engine: Quantile scalar must be numeric, got {:?}", s.dtype())
+                                }
+                            }
+                        }
+                        _ => {
+                            polars_bail!(ComputeError: "GPU engine: Quantile requires a literal quantile value")
+                        }
+                    };
+                    Ok((*expr, AggregationKind::Quantile { q: q_value }))
+                }
+                other => {
+                    let (input, kind) = map_ir_agg(other)?;
+                    Ok((input, kind))
+                }
+            }
         }
         AExpr::Cast { expr, .. } => extract_agg_info(*expr, expr_arena),
         _ => polars_bail!(ComputeError: "GPU engine: expected aggregation expression in GroupBy"),
@@ -609,7 +667,7 @@ fn extract_agg_info(
 }
 
 /// Map an IRAggExpr to its input node and cudf AggregationKind.
-fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
+pub(crate) fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
     match agg {
         IRAggExpr::Sum(input) => Ok((*input, AggregationKind::Sum)),
         IRAggExpr::Min { input, .. } => Ok((*input, AggregationKind::Min)),
@@ -633,9 +691,7 @@ fn map_ir_agg(agg: &IRAggExpr) -> PolarsResult<(Node, AggregationKind)> {
         IRAggExpr::Var(input, ddof) => {
             Ok((*input, AggregationKind::Variance { ddof: *ddof as i32 }))
         }
-        IRAggExpr::Quantile { .. } => {
-            polars_bail!(ComputeError: "GPU engine: Quantile aggregation not yet supported")
-        }
+        // Quantile is handled in extract_agg_info (needs expr_arena access)
         other => {
             polars_bail!(ComputeError: "GPU engine: unsupported aggregation type: {:?}", other)
         }
@@ -693,11 +749,13 @@ pub fn execute_plan(plan: IRPlan) -> PolarsResult<DataFrame> {
     result.to_polars()
 }
 
-/// Execute a Polars LazyFrame on the GPU.
+#[cfg(feature = "lazy")]
+/// Execute a Polars LazyFrame on the GPU using polars' `_collect_post_opt` callback.
 ///
-/// This is the main entry point for GPU-accelerated query execution.
-/// It takes a LazyFrame, runs Polars' query optimizer, then executes
-/// the optimized plan on the GPU via libcudf.
+/// This integrates with polars' physical-plan pipeline: after the optimizer runs,
+/// our callback receives the optimized IR, executes it on GPU, and replaces the
+/// root node with a `DataFrameScan` holding the result. Polars then creates a
+/// trivial physical plan that simply returns the pre-computed DataFrame.
 ///
 /// # Example
 /// ```no_run
@@ -711,6 +769,21 @@ pub fn execute_plan(plan: IRPlan) -> PolarsResult<DataFrame> {
 /// ).unwrap();
 /// ```
 pub fn collect_gpu(lf: polars_lazy::frame::LazyFrame) -> PolarsResult<DataFrame> {
-    let plan = lf.to_alp_optimized()?;
-    execute_plan(plan)
+    lf._collect_post_opt(|root, lp_arena, expr_arena, _timing| {
+        // Execute the optimized IR on GPU directly in the callback
+        let gpu_result = execute_node(root, lp_arena, expr_arena)?;
+        let df = gpu_result.to_polars()?;
+
+        // Replace the root node with a DataFrameScan holding the GPU result.
+        // Polars' physical plan will simply read this pre-computed DataFrame.
+        let schema = df.schema().clone();
+        let replacement = IR::DataFrameScan {
+            df: std::sync::Arc::new(df),
+            schema,
+            output_schema: None,
+        };
+        lp_arena.replace(root, replacement);
+
+        Ok(())
+    })
 }

@@ -129,24 +129,39 @@ impl Column {
     }
 
     /// The data type of this column.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the underlying libcudf column has a type_id that this crate
+    /// does not recognize (e.g. a libcudf version mismatch). Use
+    /// [`try_data_type`](Self::try_data_type) for a non-panicking alternative.
     pub fn data_type(&self) -> DataType {
+        self.try_data_type()
+            .unwrap_or_else(|e| panic!("cudf: data_type() failed — {e}"))
+    }
+
+    /// The data type of this column (fallible version).
+    ///
+    /// Returns an error instead of panicking when the FFI type_id is
+    /// unrecognized or the decimal parameters are invalid.
+    pub fn try_data_type(&self) -> Result<DataType> {
         let raw = self.inner.type_id();
-        let id = TypeId::from_raw(raw).unwrap_or_else(|| {
-            panic!(
-                "cudf: unrecognized type_id {} from FFI — possible libcudf version mismatch",
+        let id = TypeId::from_raw(raw).ok_or_else(|| {
+            CudfError::InvalidArgument(format!(
+                "unrecognized type_id {} from FFI — possible libcudf version mismatch",
                 raw
-            )
-        });
+            ))
+        })?;
         let scale = self.inner.type_scale();
         if scale != 0 {
-            DataType::decimal(id, scale).unwrap_or_else(|e| {
-                panic!(
-                    "cudf: invalid decimal type — type_id {:?} with scale {}: {}",
+            DataType::decimal(id, scale).map_err(|e| {
+                CudfError::InvalidArgument(format!(
+                    "invalid decimal type — type_id {:?} with scale {}: {}",
                     id, scale, e
-                )
+                ))
             })
         } else {
-            DataType::new(id)
+            Ok(DataType::new(id))
         }
     }
 
