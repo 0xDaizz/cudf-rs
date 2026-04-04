@@ -119,6 +119,14 @@ fn polars_arrow_to_arrow_ffi(
     // We move ownership via ptr::read + mem::forget to avoid double-drop of the release
     // callback.
     let ffi_schema = unsafe {
+        debug_assert_eq!(
+            std::mem::size_of_val(&polars_c_schema),
+            std::mem::size_of::<arrow::ffi::FFI_ArrowSchema>(),
+            "ArrowSchema size mismatch at runtime"
+        );
+        // SAFETY: polars_c_schema and FFI_ArrowSchema are both #[repr(C)] Arrow C Data
+        // Interface structs with identical layout (verified by const assertion + debug_assert).
+        // We read-then-forget to transfer ownership without double-drop.
         std::ptr::read(
             &polars_c_schema as *const polars_arrow::ffi::ArrowSchema
                 as *const arrow::ffi::FFI_ArrowSchema,
@@ -128,6 +136,14 @@ fn polars_arrow_to_arrow_ffi(
     std::mem::forget(polars_c_schema);
 
     let ffi_array = unsafe {
+        debug_assert_eq!(
+            std::mem::size_of_val(&polars_c_array),
+            std::mem::size_of::<arrow::ffi::FFI_ArrowArray>(),
+            "ArrowArray size mismatch at runtime"
+        );
+        // SAFETY: polars_c_array and FFI_ArrowArray are both #[repr(C)] Arrow C Data
+        // Interface structs with identical layout (verified by const assertion + debug_assert).
+        // We read-then-forget to transfer ownership without double-drop.
         std::ptr::read(
             &polars_c_array as *const polars_arrow::ffi::ArrowArray
                 as *const arrow::ffi::FFI_ArrowArray,
@@ -154,6 +170,13 @@ fn arrow_to_polars_arrow_ffi(
     // SAFETY: Same layout invariant as above — verified by compile-time assertions
     // at module level (size and alignment match).
     let polars_c_schema = unsafe {
+        debug_assert_eq!(
+            std::mem::size_of_val(&ffi_schema),
+            std::mem::size_of::<polars_arrow::ffi::ArrowSchema>(),
+            "ArrowSchema size mismatch at runtime"
+        );
+        // SAFETY: FFI_ArrowSchema and polars ArrowSchema are both #[repr(C)] Arrow C Data
+        // Interface structs with identical layout (verified by const assertion + debug_assert).
         std::ptr::read(
             &ffi_schema as *const arrow::ffi::FFI_ArrowSchema
                 as *const polars_arrow::ffi::ArrowSchema,
@@ -162,6 +185,13 @@ fn arrow_to_polars_arrow_ffi(
     std::mem::forget(ffi_schema);
 
     let polars_c_array = unsafe {
+        debug_assert_eq!(
+            std::mem::size_of_val(&ffi_array),
+            std::mem::size_of::<polars_arrow::ffi::ArrowArray>(),
+            "ArrowArray size mismatch at runtime"
+        );
+        // SAFETY: FFI_ArrowArray and polars ArrowArray are both #[repr(C)] Arrow C Data
+        // Interface structs with identical layout (verified by const assertion + debug_assert).
         std::ptr::read(
             &ffi_array as *const arrow::ffi::FFI_ArrowArray as *const polars_arrow::ffi::ArrowArray,
         )

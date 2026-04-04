@@ -693,11 +693,12 @@ pub fn execute_plan(plan: IRPlan) -> PolarsResult<DataFrame> {
     result.to_polars()
 }
 
-/// Execute a Polars LazyFrame on the GPU.
+/// Execute a Polars LazyFrame on the GPU using polars' `_collect_post_opt` callback.
 ///
-/// This is the main entry point for GPU-accelerated query execution.
-/// It takes a LazyFrame, runs Polars' query optimizer, then executes
-/// the optimized plan on the GPU via libcudf.
+/// This integrates with polars' physical-plan pipeline: after the optimizer runs,
+/// our callback receives the optimized IR, executes it on GPU, and replaces the
+/// root node with a `DataFrameScan` holding the result. Polars then creates a
+/// trivial physical plan that simply returns the pre-computed DataFrame.
 ///
 /// # Example
 /// ```no_run
@@ -711,6 +712,21 @@ pub fn execute_plan(plan: IRPlan) -> PolarsResult<DataFrame> {
 /// ).unwrap();
 /// ```
 pub fn collect_gpu(lf: polars_lazy::frame::LazyFrame) -> PolarsResult<DataFrame> {
-    let plan = lf.to_alp_optimized()?;
-    execute_plan(plan)
+    lf._collect_post_opt(|root, lp_arena, expr_arena, _timing| {
+        // Execute the optimized IR on GPU directly in the callback
+        let gpu_result = execute_node(root, lp_arena, expr_arena)?;
+        let df = gpu_result.to_polars()?;
+
+        // Replace the root node with a DataFrameScan holding the GPU result.
+        // Polars' physical plan will simply read this pre-computed DataFrame.
+        let schema = df.schema().clone();
+        let replacement = IR::DataFrameScan {
+            df: std::sync::Arc::new(df),
+            schema,
+            output_schema: None,
+        };
+        lp_arena.replace(root, replacement);
+
+        Ok(())
+    })
 }
