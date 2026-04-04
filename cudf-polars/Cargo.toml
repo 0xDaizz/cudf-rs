@@ -17,11 +17,12 @@ polars-error = { version = "=0.53.0" }
 polars-arrow = { version = "=0.53.0" }
 polars-plan = { version = "=0.53.0", default-features = false, features = ["parquet", "semi_anti_join", "abs", "is_in"] }
 polars-ops = { version = "=0.53.0", default-features = false, features = ["semi_anti_join"] }
-polars-lazy = { version = "=0.53.0", default-features = false, features = ["abs", "parquet", "semi_anti_join"] }
+polars-lazy = { version = "=0.53.0", default-features = false, features = ["abs", "parquet", "semi_anti_join"], optional = true }
 arrow = { version = "54", default-features = false, features = ["ffi"] }
 
 [features]
 default = []
+lazy = ["polars-lazy"]
 gpu-tests = []
 
 [[example]]

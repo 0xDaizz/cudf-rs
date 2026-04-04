@@ -739,6 +739,7 @@ pub fn execute_plan(plan: IRPlan) -> PolarsResult<DataFrame> {
     result.to_polars()
 }
 
+#[cfg(feature = "lazy")]
 /// Execute a Polars LazyFrame on the GPU using polars' `_collect_post_opt` callback.
 ///
 /// This integrates with polars' physical-plan pipeline: after the optimizer runs,
