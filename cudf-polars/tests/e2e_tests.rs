@@ -1680,3 +1680,69 @@ fn pipeline_string_filter_sort() {
     // After sort by name: apple, apricot, avocado, blueberry, cherry
     assert_eq!(gpu.height(), 5);
 }
+
+// ===========================================================================
+// Empty standalone agg semantics
+// ===========================================================================
+
+#[test]
+fn empty_standalone_count() {
+    let df = df!("x" => Vec::<i32>::new()).unwrap();
+    let lf = df.clone().lazy().select([col("x").count()]);
+    let gpu = collect_gpu(lf.clone()).unwrap();
+    let cpu = lf.collect().unwrap();
+    assert_df_equal(&gpu, &cpu);
+    // count() on empty → 0
+    assert_eq!(gpu.height(), 1);
+    let val = gpu.column("x").unwrap().u32().unwrap().get(0).unwrap();
+    assert_eq!(val, 0);
+}
+
+#[test]
+fn empty_standalone_sum() {
+    let df = df!("x" => Vec::<i64>::new()).unwrap();
+    let lf = df.clone().lazy().select([col("x").sum()]);
+    let gpu = collect_gpu(lf.clone()).unwrap();
+    let cpu = lf.collect().unwrap();
+    assert_df_equal(&gpu, &cpu);
+    // sum() on empty → 0
+    assert_eq!(gpu.height(), 1);
+    let val = gpu.column("x").unwrap().i64().unwrap().get(0).unwrap();
+    assert_eq!(val, 0);
+}
+
+#[test]
+fn empty_standalone_first() {
+    let df = df!("x" => Vec::<i32>::new()).unwrap();
+    let lf = df.clone().lazy().select([col("x").first()]);
+    let gpu = collect_gpu(lf.clone()).unwrap();
+    let cpu = lf.collect().unwrap();
+    assert_df_equal(&gpu, &cpu);
+    // first() on empty → null
+    assert_eq!(gpu.height(), 1);
+    let null_mask = gpu.column("x").unwrap().is_null();
+    assert!(null_mask.get(0).unwrap_or(false));
+}
+
+#[test]
+fn cast_wrapped_standalone_agg() {
+    let df = df!("x" => [1i32, 2, 3]).unwrap();
+    let lf = df
+        .clone()
+        .lazy()
+        .select([col("x").cast(DataType::Int64).sum()]);
+    let gpu = collect_gpu(lf.clone()).unwrap();
+    let cpu = lf.collect().unwrap();
+    assert_df_equal(&gpu, &cpu);
+    assert_eq!(gpu.height(), 1);
+}
+
+#[test]
+fn standalone_n_unique() {
+    let df = df!("x" => [1i32, 2, 2, 3, 3, 3]).unwrap();
+    let lf = df.clone().lazy().select([col("x").n_unique()]);
+    let gpu = collect_gpu(lf.clone()).unwrap();
+    let cpu = lf.collect().unwrap();
+    assert_df_equal(&gpu, &cpu);
+    assert_eq!(gpu.height(), 1);
+}

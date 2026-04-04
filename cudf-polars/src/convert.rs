@@ -5,7 +5,7 @@
 use cudf::{Column as GpuColumn, Table as GpuTable};
 use polars_core::frame::DataFrame;
 use polars_core::prelude::*;
-use polars_error::PolarsResult;
+use polars_error::{PolarsResult, polars_bail};
 
 // Verify polars-arrow and arrow-rs FFI structs have identical memory layout.
 //
@@ -94,7 +94,7 @@ pub fn gpu_to_dataframe(table: GpuTable, column_names: &[String]) -> PolarsResul
         // Temporal types: polars-arrow cannot import Arrow Date32/Timestamp/Duration
         // directly via Series::from_arrow. Convert to the underlying integer type,
         // create the Series, then cast to the Polars temporal dtype.
-        let (arrow_for_import, temporal_cast) = strip_temporal_arrow_type(&arrow_array);
+        let (arrow_for_import, temporal_cast) = strip_temporal_arrow_type(&arrow_array)?;
 
         // Export arrow-rs to C Data Interface, import as polars-arrow
         let (polars_array, _polars_field) = arrow_to_polars_arrow_ffi(arrow_for_import.as_ref())?;
@@ -118,7 +118,7 @@ pub fn gpu_to_dataframe(table: GpuTable, column_names: &[String]) -> PolarsResul
 /// to cast to after import. For non-temporal types, return the original array.
 fn strip_temporal_arrow_type(
     array: &arrow::array::ArrayRef,
-) -> (arrow::array::ArrayRef, Option<DataType>) {
+) -> PolarsResult<(arrow::array::ArrayRef, Option<DataType>)> {
     use arrow::array as arrow_array;
     use arrow::datatypes::DataType as ArrowDT;
     use arrow::datatypes::TimeUnit as ArrowTU;
@@ -133,11 +133,13 @@ fn strip_temporal_arrow_type(
                 .data_type(ArrowDT::Int32)
                 .build()
                 .unwrap();
-            (arrow_array::make_array(data), Some(DataType::Date))
+            Ok((arrow_array::make_array(data), Some(DataType::Date)))
         }
         ArrowDT::Timestamp(tu, _tz) => {
             let polars_tu = match tu {
-                ArrowTU::Second => TimeUnit::Milliseconds,
+                ArrowTU::Second => {
+                    polars_bail!(ComputeError: "GPU engine: Second-resolution timestamps not supported; use Milliseconds or finer")
+                }
                 ArrowTU::Millisecond => TimeUnit::Milliseconds,
                 ArrowTU::Microsecond => TimeUnit::Microseconds,
                 ArrowTU::Nanosecond => TimeUnit::Nanoseconds,
@@ -148,14 +150,16 @@ fn strip_temporal_arrow_type(
                 .data_type(ArrowDT::Int64)
                 .build()
                 .unwrap();
-            (
+            Ok((
                 arrow_array::make_array(data),
                 Some(DataType::Datetime(polars_tu, None)),
-            )
+            ))
         }
         ArrowDT::Duration(tu) => {
             let polars_tu = match tu {
-                ArrowTU::Second => TimeUnit::Milliseconds,
+                ArrowTU::Second => {
+                    polars_bail!(ComputeError: "GPU engine: Second-resolution durations not supported; use Milliseconds or finer")
+                }
                 ArrowTU::Millisecond => TimeUnit::Milliseconds,
                 ArrowTU::Microsecond => TimeUnit::Microseconds,
                 ArrowTU::Nanosecond => TimeUnit::Nanoseconds,
@@ -166,12 +170,12 @@ fn strip_temporal_arrow_type(
                 .data_type(ArrowDT::Int64)
                 .build()
                 .unwrap();
-            (
+            Ok((
                 arrow_array::make_array(data),
                 Some(DataType::Duration(polars_tu)),
-            )
+            ))
         }
-        _ => (array.clone(), None),
+        _ => Ok((array.clone(), None)),
     }
 }
 
