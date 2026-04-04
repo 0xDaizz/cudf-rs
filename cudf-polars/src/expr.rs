@@ -160,7 +160,7 @@ fn arithmetic_output_type(left_type: &GpuDataType, right_type: &GpuDataType) -> 
     // Temporal types: let cudf handle the type promotion natively.
     // Return the left type as a hint; cudf's binary_op will determine the actual output.
     if is_temporal(l) || is_temporal(r) {
-        return left_type.clone();
+        return *left_type;
     }
 
     // Bool + Bool stays Bool (bitwise AND/OR/XOR on booleans)
@@ -670,7 +670,7 @@ fn eval_agg_expr(
         }
         IRAggExpr::First(input) => {
             let col = eval_expr(*input, expr_arena, df)?;
-            if col.len() == 0 || height == 0 {
+            if col.is_empty() || height == 0 {
                 return null_column_of_type(col.data_type(), height);
             }
             // Slice the first element, then repeat to fill height
@@ -684,7 +684,7 @@ fn eval_agg_expr(
         }
         IRAggExpr::Last(input) => {
             let col = eval_expr(*input, expr_arena, df)?;
-            if col.len() == 0 || height == 0 {
+            if col.is_empty() || height == 0 {
                 return null_column_of_type(col.data_type(), height);
             }
             let last_idx = col.len() - 1;
@@ -1049,7 +1049,7 @@ fn eval_boolean_function(
             // checks if it exists in `values`. This matches Polars' `col.is_in(values)` semantics.
 
             // Empty values set → nothing can be "in", return all false
-            if values.len() == 0 {
+            if values.is_empty() {
                 return gpu_result(GpuColumn::from_optional_bool(&vec![Some(false); col.len()]));
             }
 
