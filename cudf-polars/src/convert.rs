@@ -5,7 +5,7 @@
 use cudf::{Column as GpuColumn, Table as GpuTable};
 use polars_core::frame::DataFrame;
 use polars_core::prelude::*;
-use polars_error::PolarsResult;
+use polars_error::{PolarsResult, polars_bail};
 
 // Verify polars-arrow and arrow-rs FFI structs have identical memory layout.
 //
@@ -91,15 +91,92 @@ pub fn gpu_to_dataframe(table: GpuTable, column_names: &[String]) -> PolarsResul
             .to_arrow_array()
             .map_err(|e| polars_err!(ComputeError: "GPU download failed: {}", e))?;
 
+        // Temporal types: polars-arrow cannot import Arrow Date32/Timestamp/Duration
+        // directly via Series::from_arrow. Convert to the underlying integer type,
+        // create the Series, then cast to the Polars temporal dtype.
+        let (arrow_for_import, temporal_cast) = strip_temporal_arrow_type(&arrow_array)?;
+
         // Export arrow-rs to C Data Interface, import as polars-arrow
-        let (polars_array, _polars_field) = arrow_to_polars_arrow_ffi(arrow_array.as_ref())?;
+        let (polars_array, _polars_field) = arrow_to_polars_arrow_ffi(arrow_for_import.as_ref())?;
 
         // polars-arrow to Series
-        let series = Series::from_arrow(PlSmallStr::from(name.as_str()), polars_array)?;
+        let mut series = Series::from_arrow(PlSmallStr::from(name.as_str()), polars_array)?;
+
+        // Re-apply temporal dtype if needed
+        if let Some(polars_dtype) = temporal_cast {
+            series = series.cast(&polars_dtype)?;
+        }
+
         series_vec.push(series.into_column());
     }
 
     DataFrame::new_infer_height(series_vec)
+}
+
+/// If the arrow array has a temporal type (Date32, Timestamp, Duration),
+/// reinterpret it as the underlying integer type and return the Polars dtype
+/// to cast to after import. For non-temporal types, return the original array.
+fn strip_temporal_arrow_type(
+    array: &arrow::array::ArrayRef,
+) -> PolarsResult<(arrow::array::ArrayRef, Option<DataType>)> {
+    use arrow::array as arrow_array;
+    use arrow::datatypes::DataType as ArrowDT;
+    use arrow::datatypes::TimeUnit as ArrowTU;
+    use polars_core::prelude::TimeUnit;
+
+    match array.data_type() {
+        ArrowDT::Date32 => {
+            // Reinterpret Date32 buffer as Int32
+            let data = array
+                .to_data()
+                .into_builder()
+                .data_type(ArrowDT::Int32)
+                .build()
+                .unwrap();
+            Ok((arrow_array::make_array(data), Some(DataType::Date)))
+        }
+        ArrowDT::Timestamp(tu, _tz) => {
+            let polars_tu = match tu {
+                ArrowTU::Second => {
+                    polars_bail!(ComputeError: "GPU engine: Second-resolution timestamps not supported; use Milliseconds or finer")
+                }
+                ArrowTU::Millisecond => TimeUnit::Milliseconds,
+                ArrowTU::Microsecond => TimeUnit::Microseconds,
+                ArrowTU::Nanosecond => TimeUnit::Nanoseconds,
+            };
+            let data = array
+                .to_data()
+                .into_builder()
+                .data_type(ArrowDT::Int64)
+                .build()
+                .unwrap();
+            Ok((
+                arrow_array::make_array(data),
+                Some(DataType::Datetime(polars_tu, None)),
+            ))
+        }
+        ArrowDT::Duration(tu) => {
+            let polars_tu = match tu {
+                ArrowTU::Second => {
+                    polars_bail!(ComputeError: "GPU engine: Second-resolution durations not supported; use Milliseconds or finer")
+                }
+                ArrowTU::Millisecond => TimeUnit::Milliseconds,
+                ArrowTU::Microsecond => TimeUnit::Microseconds,
+                ArrowTU::Nanosecond => TimeUnit::Nanoseconds,
+            };
+            let data = array
+                .to_data()
+                .into_builder()
+                .data_type(ArrowDT::Int64)
+                .build()
+                .unwrap();
+            Ok((
+                arrow_array::make_array(data),
+                Some(DataType::Duration(polars_tu)),
+            ))
+        }
+        _ => Ok((array.clone(), None)),
+    }
 }
 
 /// Bridge polars-arrow array to arrow-rs FFI structs.

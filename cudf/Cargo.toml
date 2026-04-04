@@ -13,7 +13,7 @@ categories = ["science", "api-bindings"]
 default-target = "x86_64-unknown-linux-gnu"
 
 [dependencies]
-cudf-cxx = { path = "../cudf-cxx", version = "0.2.0" }
+cudf-cxx = { path = "../cudf-cxx", version = "0.3.0" }
 thiserror = { workspace = true }
 arrow = { workspace = true, optional = true }
 arrow-schema = { workspace = true, optional = true }

@@ -34,6 +34,123 @@ fn is_temporal(tid: GpuTypeId) -> bool {
     )
 }
 
+/// Returns true if the cast from `src` to `dst` is a bit-identical temporal
+/// reinterpretation that cudf's `cast()` cannot handle directly.
+///
+/// Int32 ↔ Date (TimestampDays): both are 32-bit integers.
+/// Int64 ↔ Datetime/Duration variants: both are 64-bit integers.
+fn is_temporal_reinterpret(src: GpuTypeId, dst: GpuTypeId) -> bool {
+    use GpuTypeId::*;
+    match (src, dst) {
+        // numeric → temporal
+        (Int32, TimestampDays) => true,
+        (Int64, TimestampSeconds)
+        | (Int64, TimestampMilliseconds)
+        | (Int64, TimestampMicroseconds)
+        | (Int64, TimestampNanoseconds)
+        | (Int64, DurationSeconds)
+        | (Int64, DurationMilliseconds)
+        | (Int64, DurationMicroseconds)
+        | (Int64, DurationNanoseconds) => true,
+        // temporal → numeric
+        (TimestampDays, Int32) => true,
+        (TimestampSeconds, Int64)
+        | (TimestampMilliseconds, Int64)
+        | (TimestampMicroseconds, Int64)
+        | (TimestampNanoseconds, Int64)
+        | (DurationSeconds, Int64)
+        | (DurationMilliseconds, Int64)
+        | (DurationMicroseconds, Int64)
+        | (DurationNanoseconds, Int64) => true,
+        _ => false,
+    }
+}
+
+/// Reinterpret a GPU column's type via Arrow roundtrip.
+///
+/// Exports the column to Arrow, builds a new Arrow array with the target Polars
+/// dtype (preserving the underlying buffer), and re-imports to GPU.
+fn reinterpret_via_arrow(
+    col: &GpuColumn,
+    target_dtype: &polars_core::prelude::DataType,
+) -> PolarsResult<GpuColumn> {
+    use arrow::array as arrow_array;
+    use arrow::datatypes as arrow_types;
+    use polars_core::prelude::{DataType, TimeUnit};
+
+    let arrow_arr = gpu_result(col.to_arrow_array())?;
+    let len = arrow_arr.len();
+
+    let retyped: arrow_array::ArrayRef = match target_dtype {
+        DataType::Date => {
+            // Int32 → Date32
+            let data = arrow_arr
+                .to_data()
+                .into_builder()
+                .data_type(arrow_types::DataType::Date32)
+                .build()
+                .unwrap();
+            arrow_array::make_array(data)
+        }
+        DataType::Datetime(tu, _tz) => {
+            let arrow_tu = match tu {
+                TimeUnit::Milliseconds => arrow_types::TimeUnit::Millisecond,
+                TimeUnit::Microseconds => arrow_types::TimeUnit::Microsecond,
+                TimeUnit::Nanoseconds => arrow_types::TimeUnit::Nanosecond,
+            };
+            let target_dt = arrow_types::DataType::Timestamp(arrow_tu, None);
+            let data = arrow_arr
+                .to_data()
+                .into_builder()
+                .data_type(target_dt)
+                .build()
+                .unwrap();
+            arrow_array::make_array(data)
+        }
+        DataType::Duration(tu) => {
+            let arrow_tu = match tu {
+                TimeUnit::Milliseconds => arrow_types::TimeUnit::Millisecond,
+                TimeUnit::Microseconds => arrow_types::TimeUnit::Microsecond,
+                TimeUnit::Nanoseconds => arrow_types::TimeUnit::Nanosecond,
+            };
+            let target_dt = arrow_types::DataType::Duration(arrow_tu);
+            let data = arrow_arr
+                .to_data()
+                .into_builder()
+                .data_type(target_dt)
+                .build()
+                .unwrap();
+            arrow_array::make_array(data)
+        }
+        DataType::Int32 => {
+            // Temporal → Int32 (Date → Int32): export as-is, Arrow handles it
+            let data = arrow_arr
+                .to_data()
+                .into_builder()
+                .data_type(arrow_types::DataType::Int32)
+                .build()
+                .unwrap();
+            std::sync::Arc::new(arrow_array::Int32Array::from(data))
+        }
+        DataType::Int64 => {
+            // Temporal → Int64 (Datetime/Duration → Int64)
+            let data = arrow_arr
+                .to_data()
+                .into_builder()
+                .data_type(arrow_types::DataType::Int64)
+                .build()
+                .unwrap();
+            std::sync::Arc::new(arrow_array::Int64Array::from(data))
+        }
+        _ => {
+            polars_bail!(ComputeError: "temporal reinterpret: unsupported target dtype {:?}", target_dtype)
+        }
+    };
+
+    let _ = len; // suppress unused warning
+    gpu_result(GpuColumn::from_arrow_array(retyped.as_ref()))
+}
+
 /// Compute the output type for arithmetic operations (supertype promotion).
 fn arithmetic_output_type(left_type: &GpuDataType, right_type: &GpuDataType) -> GpuDataType {
     use GpuTypeId::*;
@@ -43,7 +160,7 @@ fn arithmetic_output_type(left_type: &GpuDataType, right_type: &GpuDataType) -> 
     // Temporal types: let cudf handle the type promotion natively.
     // Return the left type as a hint; cudf's binary_op will determine the actual output.
     if is_temporal(l) || is_temporal(r) {
-        return left_type.clone();
+        return *left_type;
     }
 
     // Bool + Bool stays Bool (bitwise AND/OR/XOR on booleans)
@@ -146,7 +263,18 @@ pub fn eval_expr(
             let dtype = dtype.clone();
             let col = eval_expr(expr_node, expr_arena, df)?;
             let gpu_dtype = map_dtype(&dtype)?;
-            gpu_result(col.cast(gpu_dtype))
+
+            // Metadata-only temporal casts: cudf cannot cast between numeric and
+            // temporal types directly. For bit-identical reinterpretations
+            // (Int32 ↔ Date, Int64 ↔ Datetime/Duration), round-trip through Arrow
+            // with the target type applied at the Arrow level.
+            let src_tid = col.data_type().id();
+            let dst_tid = gpu_dtype.id();
+            if is_temporal_reinterpret(src_tid, dst_tid) {
+                reinterpret_via_arrow(&col, &dtype)
+            } else {
+                gpu_result(col.cast(gpu_dtype))
+            }
         }
 
         AExpr::Len => {
@@ -186,7 +314,7 @@ pub fn eval_expr(
             order_by,
             mapping,
         } => {
-            use polars_plan::dsl::options::WindowMapping;
+            use polars_plan::prelude::WindowMapping;
 
             if order_by.is_some() {
                 polars_bail!(ComputeError: "GPU engine: window functions with order_by not yet supported");
@@ -236,7 +364,7 @@ fn eval_window_groups_to_rows(
     let value_col = eval_expr(input_node, expr_arena, df)?;
 
     // 4. Perform groupby aggregation: keys → aggregate
-    let keys_table = gpu_result(GpuTable::new(key_columns.clone()))?;
+    let keys_table = gpu_result(GpuTable::new(key_columns))?;
     let values_table = gpu_result(GpuTable::new(vec![value_col]))?;
 
     let gb = cudf::groupby::GroupBy::new(&keys_table).agg(0, agg_kind);
@@ -266,7 +394,7 @@ fn eval_window_groups_to_rows(
     let original_height = df.height();
     let agg_dtype = agg_col.data_type();
     let scatter_source = gpu_result(GpuTable::new(vec![agg_col]))?;
-    let target_col = null_column_for_type(agg_dtype, original_height)?;
+    let target_col = null_column_of_type(agg_dtype, original_height)?;
     let target_table = gpu_result(GpuTable::new(vec![target_col]))?;
     let scattered = gpu_result(scatter_source.scatter(&join_result.left_indices, &target_table))?;
     let result_col = gpu_result(scattered.column(0))?;
@@ -542,8 +670,8 @@ fn eval_agg_expr(
         }
         IRAggExpr::First(input) => {
             let col = eval_expr(*input, expr_arena, df)?;
-            if col.len() == 0 || height == 0 {
-                return null_column_for_type(col.data_type(), height);
+            if col.is_empty() || height == 0 {
+                return null_column_of_type(col.data_type(), height);
             }
             // Slice the first element, then repeat to fill height
             let single_row_table = gpu_result(cudf::Table::new(vec![col]))?;
@@ -556,8 +684,8 @@ fn eval_agg_expr(
         }
         IRAggExpr::Last(input) => {
             let col = eval_expr(*input, expr_arena, df)?;
-            if col.len() == 0 || height == 0 {
-                return null_column_for_type(col.data_type(), height);
+            if col.is_empty() || height == 0 {
+                return null_column_of_type(col.data_type(), height);
             }
             let last_idx = col.len() - 1;
             let single_row_table = gpu_result(cudf::Table::new(vec![col]))?;
@@ -600,7 +728,10 @@ fn reduce_and_broadcast(
 }
 
 /// Create a column of `height` null values with the given GPU data type.
-fn null_column_for_type(dtype: cudf::types::DataType, height: usize) -> PolarsResult<GpuColumn> {
+pub(crate) fn null_column_of_type(
+    dtype: cudf::types::DataType,
+    height: usize,
+) -> PolarsResult<GpuColumn> {
     let tid = dtype.id();
     match tid {
         GpuTypeId::Bool8 => {
@@ -680,7 +811,7 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
 
     // If the scalar is not valid (null), create a null column of the correct type
     if !scalar.is_valid() {
-        return null_column_for_type(dtype, height);
+        return null_column_of_type(dtype, height);
     }
 
     match tid {
@@ -732,7 +863,7 @@ fn broadcast_scalar(scalar: &cudf::Scalar, height: usize) -> PolarsResult<GpuCol
         // Temporal scalar broadcast is not supported — temporal columns in aggregation
         // contexts (e.g. select(col("date").min())) would need type-aware extraction.
         // Pass-through operations (filter, sort, join, groupby) don't need scalar broadcast.
-        // Null temporal scalars are handled via null_column_for_type above.
+        // Null temporal scalars are handled via null_column_of_type above.
         _ => polars_bail!(ComputeError: "GPU engine: cannot broadcast scalar of type {:?}", tid),
     }
 }
@@ -907,6 +1038,7 @@ fn eval_boolean_function(
                 gpu_result(col.unary_op(UnaryOp::BitInvert))
             }
         }
+        #[cfg(feature = "is_in")]
         IRBooleanFunction::IsIn { nulls_equal } => {
             if inputs.len() != 2 {
                 polars_bail!(ComputeError: "GPU engine: IsIn expects 2 inputs");
@@ -917,33 +1049,24 @@ fn eval_boolean_function(
             // checks if it exists in `values`. This matches Polars' `col.is_in(values)` semantics.
 
             // Empty values set → nothing can be "in", return all false
-            if values.len() == 0 {
+            if values.is_empty() {
                 return gpu_result(GpuColumn::from_optional_bool(&vec![Some(false); col.len()]));
             }
 
             let result = gpu_result(values.contains(&col))?;
             if !nulls_equal {
-                // When nulls_equal=false (default), null in col should produce null in output
-                // cudf's contains returns false for null needles, but Polars wants null
-                // Fix: where col is null, set result to null
                 let col_valid = gpu_result(col.is_valid())?;
-                let null_col = null_column_for_type(
+                let null_col = null_column_of_type(
                     cudf::types::DataType::new(cudf::types::TypeId::Bool8),
                     col.len(),
                 )?;
-                // Where col is valid keep result, where col is null use null_col
                 gpu_result(result.copy_if_else(&null_col, &col_valid))
             } else {
-                // nulls_equal=true: null IS IN {null} should be true
-                // cudf's contains returns false for null needles, fix:
-                // where col is null AND values contains null → true
                 let values_has_null = values.null_count() > 0;
                 if values_has_null {
                     let col_is_null = gpu_result(col.is_null())?;
-                    // Build a column of all true, same length as col
                     let true_col =
                         gpu_result(GpuColumn::from_optional_bool(&vec![Some(true); col.len()]))?;
-                    // Where col is null, override result to true
                     gpu_result(true_col.copy_if_else(&result, &col_is_null))
                 } else {
                     Ok(result)

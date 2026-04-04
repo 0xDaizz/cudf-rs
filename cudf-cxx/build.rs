@@ -72,6 +72,21 @@ fn main() {
         }
     }
 
+    // Fallback: PYARROW_DIR env var for Arrow include/lib discovery
+    // when pyarrow is installed in a different site-packages than libcudf.
+    if let Ok(pyarrow_dir) = env::var("PYARROW_DIR") {
+        let pyarrow_path = PathBuf::from(&pyarrow_dir);
+        let inc = pyarrow_path.join("include");
+        if inc.exists() {
+            extra_includes.push(inc);
+        }
+        if pyarrow_path.exists() {
+            println!("cargo:rustc-link-search=native={}", pyarrow_path.display());
+            println!("cargo:rustc-link-lib=dylib=arrow");
+        }
+    }
+    println!("cargo:rerun-if-env-changed=PYARROW_DIR");
+
     // For conda environments, CCCL headers are at $CONDA_PREFIX/include/rapids/
     let rapids_conda = cudf_include_path.join("rapids");
     if rapids_conda.exists() {

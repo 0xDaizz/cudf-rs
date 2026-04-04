@@ -54,11 +54,42 @@ pub(crate) fn execute_node(
 
             let mut columns = Vec::with_capacity(exprs.len());
             let mut names = Vec::with_capacity(exprs.len());
+            let mut all_agg = !exprs.is_empty();
             for e in &exprs {
+                if all_agg && !is_agg_expr(e.node(), expr_arena) {
+                    all_agg = false;
+                }
                 let col = expr::eval_expr(e.node(), expr_arena, &table)?;
                 columns.push(col);
                 names.push(e.output_name().to_string());
             }
+
+            // Standalone aggregation in Select: Polars reduces to 1 row.
+            // eval_agg_expr broadcasts to input height, so slice back to 1.
+            // For empty inputs (height=0), produce a 1-row result with correct
+            // Polars semantics: count/sum/n_unique → 0, first/last/min/max/etc. → null.
+            if all_agg && !columns.is_empty() {
+                let col_len = columns[0].len();
+                if col_len > 1 {
+                    let mut sliced_cols = Vec::with_capacity(columns.len());
+                    for col in columns {
+                        let t = gpu_result(cudf::Table::new(vec![col]))?;
+                        let sliced = gpu_result(t.slice(0, 1))?;
+                        let cols = gpu_result(sliced.into_columns())?;
+                        sliced_cols.push(cols.into_iter().next().unwrap());
+                    }
+                    columns = sliced_cols;
+                } else if col_len == 0 {
+                    // Empty input: produce correct 1-row agg results per Polars semantics
+                    let mut result_cols = Vec::with_capacity(columns.len());
+                    for (col, e) in columns.iter().zip(exprs.iter()) {
+                        result_cols.push(empty_agg_result(e.node(), expr_arena, col.data_type())?);
+                    }
+                    columns = result_cols;
+                }
+                // col_len == 1: already correct
+            }
+
             GpuDataFrame::from_columns(columns, names)
         }
 
@@ -609,6 +640,62 @@ pub(crate) fn execute_node(
             let kind: &'static str = other.into();
             polars_bail!(ComputeError: "GPU engine: unsupported IR node {}", kind)
         }
+    }
+}
+
+/// Check whether an expression node is an aggregation, including Cast-wrapped aggs.
+fn is_agg_expr(node: Node, expr_arena: &Arena<AExpr>) -> bool {
+    match expr_arena.get(node) {
+        AExpr::Agg(_) => true,
+        AExpr::Cast { expr, .. } => is_agg_expr(*expr, expr_arena),
+        _ => false,
+    }
+}
+
+/// Produce a 1-row column for an aggregation on empty input with correct Polars semantics:
+/// - count/sum/n_unique → 0 (of the appropriate type)
+/// - first/last/min/max/mean/median/std/var → null
+fn empty_agg_result(
+    node: Node,
+    expr_arena: &Arena<AExpr>,
+    dtype: cudf::types::DataType,
+) -> PolarsResult<cudf::Column> {
+    match expr_arena.get(node) {
+        AExpr::Agg(agg) => match agg {
+            IRAggExpr::Count { .. } | IRAggExpr::NUnique(_) => {
+                // count/n_unique on empty → 0u32
+                gpu_result(cudf::Column::from_slice(&[0u32]))
+            }
+            IRAggExpr::Sum(_) => {
+                // sum on empty → 0 of the input type
+                empty_zero_column(dtype)
+            }
+            // first/last/min/max/mean/median/std/var on empty → null
+            _ => expr::null_column_of_type(dtype, 1),
+        },
+        AExpr::Cast { expr, dtype: _, .. } => {
+            // Unwrap Cast and recurse; the cast dtype is already reflected in the column dtype
+            empty_agg_result(*expr, expr_arena, dtype)
+        }
+        _ => expr::null_column_of_type(dtype, 1),
+    }
+}
+
+/// Create a 1-element zero column of the given GPU data type (for sum on empty).
+fn empty_zero_column(dtype: cudf::types::DataType) -> PolarsResult<cudf::Column> {
+    use cudf::types::TypeId;
+    match dtype.id() {
+        TypeId::Int8 => gpu_result(cudf::Column::from_slice(&[0i8])),
+        TypeId::Int16 => gpu_result(cudf::Column::from_slice(&[0i16])),
+        TypeId::Int32 => gpu_result(cudf::Column::from_slice(&[0i32])),
+        TypeId::Int64 => gpu_result(cudf::Column::from_slice(&[0i64])),
+        TypeId::Uint8 => gpu_result(cudf::Column::from_slice(&[0u8])),
+        TypeId::Uint16 => gpu_result(cudf::Column::from_slice(&[0u16])),
+        TypeId::Uint32 => gpu_result(cudf::Column::from_slice(&[0u32])),
+        TypeId::Uint64 => gpu_result(cudf::Column::from_slice(&[0u64])),
+        TypeId::Float32 => gpu_result(cudf::Column::from_slice(&[0.0f32])),
+        TypeId::Float64 => gpu_result(cudf::Column::from_slice(&[0.0f64])),
+        _ => expr::null_column_of_type(dtype, 1),
     }
 }
 
