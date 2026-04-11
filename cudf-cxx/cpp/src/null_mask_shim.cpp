@@ -233,4 +233,14 @@ int32_t num_bitmask_words(int32_t number_of_bits)
     return cudf::num_bitmask_words(number_of_bits);
 }
 
+int32_t index_of_first_set_bit(const OwnedColumn& col) {
+    auto view = col.view();
+    if (!view.nullable()) {
+        // No null mask means all valid — first set bit is at index 0 (if non-empty)
+        return view.size() > 0 ? 0 : -1;
+    }
+    auto result = cudf::index_of_first_set_bit(view.null_mask(), 0, view.size());
+    return static_cast<int32_t>(result);
+}
+
 } // namespace cudf_shims

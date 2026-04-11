@@ -91,6 +91,16 @@ impl Column {
         .map_err(CudfError::from_cxx)?;
         Ok(Column { inner: raw })
     }
+
+    /// Find the index of the first valid (non-null) element.
+    ///
+    /// Returns `None` if the column is empty or all null.
+    /// If the column has no null mask, returns `Some(0)` (first element is valid).
+    pub fn index_of_first_valid(&self) -> Result<Option<usize>> {
+        let idx = cudf_cxx::null_mask::ffi::index_of_first_set_bit(&self.inner)
+            .map_err(CudfError::from_cxx)?;
+        Ok(if idx < 0 { None } else { Some(idx as usize) })
+    }
 }
 
 /// Copy a column's bitmask to host bytes.

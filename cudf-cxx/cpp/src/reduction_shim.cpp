@@ -33,6 +33,8 @@ std::unique_ptr<cudf::scan_aggregation> make_scan_agg(int32_t agg_kind) {
         case 1: return cudf::make_product_aggregation<cudf::scan_aggregation>();
         case 2: return cudf::make_min_aggregation<cudf::scan_aggregation>();
         case 3: return cudf::make_max_aggregation<cudf::scan_aggregation>();
+        case 4: return cudf::make_count_aggregation<cudf::scan_aggregation>(cudf::null_policy::EXCLUDE);
+        case 5: return cudf::make_count_aggregation<cudf::scan_aggregation>(cudf::null_policy::INCLUDE);
         default:
             throw std::runtime_error("unknown scan aggregation kind: " + std::to_string(agg_kind));
     }

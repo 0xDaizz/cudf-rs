@@ -46,6 +46,20 @@ pub mod ffi {
             right_keys: &OwnedTable,
         ) -> Result<UniquePtr<OwnedTable>>;
 
+        /// Mark semi join: returns a 1-column table [left_indices].
+        /// The underlying libcudf mark_join builds from the left table.
+        fn mark_semi_join(
+            left_keys: &OwnedTable,
+            right_keys: &OwnedTable,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
+        /// Mark anti join: returns a 1-column table [left_indices].
+        /// The underlying libcudf mark_join builds from the left table.
+        fn mark_anti_join(
+            left_keys: &OwnedTable,
+            right_keys: &OwnedTable,
+        ) -> Result<UniquePtr<OwnedTable>>;
+
         // ── Hash Join ─────────────────────────────────────────────
 
         /// Opaque hash join object (pre-hashed build table).

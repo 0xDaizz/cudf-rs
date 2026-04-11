@@ -57,7 +57,7 @@ Each libcudf module has three corresponding files:
 | `scalar.rs` | `scalar_shim` | `cudf/scalar/` |
 | `label_bins.rs` | `label_bins_shim` | `cudf/labeling/` |
 
-### Data Manipulation (16)
+### Data Manipulation (17)
 
 | Bridge | C++ Shim | libcudf Module |
 |--------|----------|----------------|
@@ -120,7 +120,7 @@ Each libcudf module has three corresponding files:
 |--------|----------|----------------|
 | `interop.rs` | `interop_shim` | `cudf/interop.hpp` |
 
-**Total: 61 modules** (3 core + 15 compute + 16 data manipulation + 5 I/O + 21 strings + 1 interop)
+**Total: 62 modules** (3 core + 15 compute + 17 data manipulation + 5 I/O + 21 strings + 1 interop)
 
 ## Adding a New Binding
 

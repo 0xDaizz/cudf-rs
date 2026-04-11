@@ -89,5 +89,9 @@ pub mod ffi {
 
         /// Compute the number of bitmask_type words needed for the given number of bits.
         fn num_bitmask_words(number_of_bits: i32) -> i32;
+
+        /// Find the index of the first set (valid) bit in the column's null mask.
+        /// Returns -1 if no bits are set or column has no null mask.
+        fn index_of_first_set_bit(col: &OwnedColumn) -> Result<i32>;
     }
 }

@@ -112,6 +112,24 @@ std::unique_ptr<OwnedTable> left_anti_join(
     return package_single_map(std::move(map));
 }
 
+// ── Mark Join ──────────────────────────────────────────────────
+
+std::unique_ptr<OwnedTable> mark_semi_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys)
+{
+    cudf::mark_join mj(left_keys.view(), cudf::null_equality::EQUAL, 0.5);
+    auto map = mj.semi_join(right_keys.view());
+    return package_single_map(std::move(map));
+}
+
+std::unique_ptr<OwnedTable> mark_anti_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys)
+{
+    cudf::mark_join mj(left_keys.view(), cudf::null_equality::EQUAL, 0.5);
+    auto map = mj.anti_join(right_keys.view());
+    return package_single_map(std::move(map));
+}
+
 // ── Hash Join ─────────────────────────────────────────────────
 
 std::unique_ptr<OwnedHashJoin> hash_join_create(const OwnedTable& build) {

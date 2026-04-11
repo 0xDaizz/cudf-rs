@@ -118,6 +118,34 @@ impl Table {
         extract_semi_join_result(maps)
     }
 
+    /// Perform a mark semi join on key columns.
+    ///
+    /// Returns a gather map of left-table row indices that have at least
+    /// one matching row in the right table.
+    ///
+    /// In libcudf v26.04.00, `mark_join` builds its hash table from the
+    /// left table and probes with the right table, which is useful when the
+    /// same left table is reused across multiple right-table probes.
+    pub fn mark_semi_join(&self, right_keys: &Table) -> Result<SemiJoinResult> {
+        let maps = cudf_cxx::join::ffi::mark_semi_join(&self.inner, &right_keys.inner)
+            .map_err(CudfError::from_cxx)?;
+        extract_semi_join_result(maps)
+    }
+
+    /// Perform a mark anti join on key columns.
+    ///
+    /// Returns a gather map of left-table row indices that have NO
+    /// matching row in the right table.
+    ///
+    /// In libcudf v26.04.00, `mark_join` builds its hash table from the
+    /// left table and probes with the right table, which is useful when the
+    /// same left table is reused across multiple right-table probes.
+    pub fn mark_anti_join(&self, right_keys: &Table) -> Result<SemiJoinResult> {
+        let maps = cudf_cxx::join::ffi::mark_anti_join(&self.inner, &right_keys.inner)
+            .map_err(CudfError::from_cxx)?;
+        extract_semi_join_result(maps)
+    }
+
     /// Cross join (cartesian product) of two tables.
     ///
     /// Returns a table containing every combination of rows from the left

@@ -58,6 +58,10 @@ pub enum ScanOp {
     Min = 2,
     /// Cumulative maximum.
     Max = 3,
+    /// Cumulative count of valid (non-null) elements.
+    CountValid = 4,
+    /// Cumulative count of all elements (including nulls).
+    CountAll = 5,
 }
 
 /// Result of a [`Column::minmax`] operation.
