@@ -106,4 +106,10 @@ int32_t state_null_count(int32_t state, int32_t size);
 /// Compute the number of bitmask_type words needed for the given number of bits.
 int32_t num_bitmask_words(int32_t number_of_bits);
 
+/// Find the index of the first set (valid) bit in the column's null mask.
+/// Returns 0 for non-nullable non-empty columns (all elements are valid).
+/// Returns -1 if the column is empty or all null.
+/// NOTE: Based on libcudf v26.04.00 API (PR #21207).
+int32_t index_of_first_set_bit(const OwnedColumn& col);
+
 } // namespace cudf_shims

@@ -1,5 +1,7 @@
 #include "stream_compaction_shim.h"
 #include <cudf/stream_compaction.hpp>
+#include <cudf/reduction/distinct_count.hpp>
+#include <cudf/reduction/unique_count.hpp>
 #include <cudf/utilities/default_stream.hpp>
 #include <stdexcept>
 

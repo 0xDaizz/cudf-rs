@@ -11,6 +11,26 @@ Unofficial Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf
 
 > **This project is unofficial and not affiliated with NVIDIA or RAPIDS.**
 
+## What's New in v0.3.1
+
+**libcudf v26.04.00 compatibility update.**
+
+### Breaking Fix
+- **`distinct_count` / `unique_count` header relocation**: Added `<cudf/reduction.hpp>` include to support libcudf v26.04.00 where these functions moved out of `<cudf/stream_compaction.hpp>`.
+
+### New APIs
+- **`ScanOp::CountValid` / `ScanOp::CountAll`**: Cumulative count operations for prefix scan, with null-handling control.
+- **`Table::mark_semi_join` / `Table::mark_anti_join`**: Returns a boolean column instead of gather maps -- useful for filtering without a gather step. Based on libcudf v26.04.00 `mark_join` API.
+- **`Column::index_of_first_valid`**: Find the index of the first non-null element in a column.
+
+### Not Implemented (by design)
+| API | Reason |
+|-----|--------|
+| `column_nans_to_nulls` | Existing `nans_to_nulls` shim already provides equivalent functionality |
+| Named capture groups (regex) | Transparent through existing `regex_program::create` -- no code change needed |
+| `packed_metadata_view` | Rust side copies bytes via `Vec<u8>` regardless, so a view provides no benefit |
+| `from_arrow_device` / ArrowStringView | Significant standalone effort; deferred to a future release |
+
 ## What's New in v0.3.0
 
 - **Polars integration via `_collect_post_opt`**: `collect_gpu()` now uses polars' native post-optimization callback. Zero changes to polars fork required for standalone use.
@@ -38,7 +58,7 @@ Unofficial Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf
 | OS | Linux (libcudf does not support macOS or Windows) |
 | GPU | NVIDIA Volta or newer (compute capability 7.0+) |
 | CUDA | 12.2+ |
-| libcudf | 24.0+ (tested with 26.2.1) |
+| libcudf | 24.0+ (tested with 26.04.00) |
 | Rust | 1.85+ (edition 2024) |
 
 ## Installation
@@ -168,7 +188,7 @@ Each libcudf C++ module maps to three files:
 |--------|-------------|
 | `sorting` | Sort, rank, is-sorted checks |
 | `groupby` | Builder-pattern groupby with multi-column aggregation |
-| `reduction` | Reduce a column to a scalar (sum, min, max, ...) |
+| `reduction` | Reduce/scan a column (sum, min, max, count, ...) |
 | `quantiles` | Quantile and percentile computation |
 | `rolling` | Fixed-size rolling window aggregation |
 | `binaryop` | Element-wise binary ops (arithmetic, comparison, logic) |
@@ -187,7 +207,7 @@ Each libcudf C++ module maps to three files:
 | `filling` | Fill, repeat, sequence generation |
 | `concatenate` | Vertical stacking of columns and tables |
 | `merge` | Merge pre-sorted tables |
-| `join` | Inner, left, full outer, semi, anti, cross joins |
+| `join` | Inner, left, full outer, semi, anti, cross, mark joins |
 | `stream_compaction` | Drop nulls, boolean mask, unique, distinct |
 | `replace` | Replace nulls, NaNs, clamp values |
 | `reshape` | Interleave and tile |

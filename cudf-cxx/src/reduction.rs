@@ -23,7 +23,7 @@ pub mod ffi {
         ) -> Result<UniquePtr<OwnedScalar>>;
 
         /// Prefix scan (cumulative operation).
-        /// agg_kind: 0=sum, 1=product, 2=min, 3=max
+        /// agg_kind: 0=sum, 1=product, 2=min, 3=max, 4=count_valid, 5=count_all
         /// inclusive: true for inclusive scan, false for exclusive
         fn scan(
             col: &OwnedColumn,

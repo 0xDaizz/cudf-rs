@@ -3,6 +3,7 @@
 #include <cudf/join/join.hpp>
 #include <cudf/join/hash_join.hpp>
 #include <cudf/join/filtered_join.hpp>
+#include <cudf/join/mark_join.hpp>
 #include <memory>
 #include "rust/cxx.h"
 #include "table_shim.h"
@@ -25,6 +26,16 @@ std::unique_ptr<OwnedTable> cross_join(
 std::unique_ptr<OwnedTable> left_semi_join(
     const OwnedTable& left_keys, const OwnedTable& right_keys);
 std::unique_ptr<OwnedTable> left_anti_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys);
+
+// ── Mark Join ──────────────────────────────────────────────────
+// Returns a single-column table of gather-map indices for the build/left table.
+// In libcudf v26.04.00, cudf::mark_join builds from the left table and probes the
+// right table, returning left-table row indices.
+
+std::unique_ptr<OwnedTable> mark_semi_join(
+    const OwnedTable& left_keys, const OwnedTable& right_keys);
+std::unique_ptr<OwnedTable> mark_anti_join(
     const OwnedTable& left_keys, const OwnedTable& right_keys);
 
 // ── Hash Join ─────────────────────────────────────────────────
