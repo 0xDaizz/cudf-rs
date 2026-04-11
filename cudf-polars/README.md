@@ -61,7 +61,7 @@ fn main() {
 
 ### Supported Aggregations (GroupBy)
 
-Sum, Min, Max, Count, Mean, Median, Variance, Std, Nunique, First, Last.
+Sum, Min, Max, Count, Mean, Median, Variance, Std, Nunique, First, Last, Quantile.
 
 ### Supported Data Types
 
@@ -79,6 +79,9 @@ Sum, Min, Max, Count, Mean, Median, Variance, Std, Nunique, First, Last.
 | Float64     | FLOAT64     |
 | Boolean     | BOOL8       |
 | String      | STRING      |
+| Date        | TIMESTAMP_DAYS |
+| Datetime    | TIMESTAMP_{MS,US,NS} |
+| Duration    | DURATION_{MS,US,NS} |
 
 ## Benchmark
 
@@ -127,12 +130,11 @@ python tests/polars_gpu_integration.py
 ## Limitations
 
 - **Polars version**: Compatible with polars 0.53.0.
-- **Unsupported types**: Date, Datetime, Duration, Categorical, List, Struct return explicit errors.
-- **Unsupported expressions**: Window functions (`.over()`), `IsIn`, expression-level Sort/Filter/Slice, `Not`.
+- **Unsupported types**: Categorical, List, Struct return explicit errors.
+- **Unsupported expressions**: Window functions with `order_by`, expression-level Sort/Filter/Slice.
 - **Unsupported IR nodes**: `Cache`, `MapFunction` (rename, explode, melt), `ExtContext`.
 - **Multi-file Parquet**: Only reads the first file in multi-file scans.
 - **GroupBy maintain_order**: Approximated by key-column sort (not true input-order preservation).
-- **Quantile aggregation**: Not supported in GroupBy context.
 
 ## License
 

@@ -45,7 +45,7 @@ Unofficial Rust bindings for NVIDIA's [libcudf](https://github.com/rapidsai/cudf
 
 - **Near-zero unsafe public API** -- all `unsafe` is confined to the internal FFI layer (sole exception: `DLPackTensor::from_raw_ptr`)
 - **Zero-cost FFI** -- [cxx](https://cxx.rs) bridge with no serialization overhead
-- **61 bridge modules** covering the full libcudf surface: compute, I/O, strings, nested types, interop
+- **62 bridge modules** covering the full libcudf surface: compute, I/O, strings, nested types, interop
 - **Arrow interop** -- conversion to/from `arrow-rs` via Arrow C Data Interface and IPC
 - **Builder-pattern I/O** -- `ParquetReader`, `CsvReader`, `JsonReader`, `OrcReader`, `AvroReader`
 - **GPU string processing** -- case, find, replace, split, regex, extract, and more
@@ -251,17 +251,20 @@ Arrow C Data Interface, Arrow IPC, DLPack tensor exchange, pack/unpack/contiguou
 A GPU with CUDA is required to run tests.
 
 ```sh
-# Unit tests (cudf crate — 55 tests)
+# Full test suite (GPU required)
+cargo test --features gpu-tests
+
+# cudf crate only
 cargo test -p cudf --features gpu-tests
 
-# End-to-end tests (cudf-polars — 56 tests + 1 doctest)
+# cudf-polars crate only
 cargo test -p cudf-polars --features gpu-tests
 
-# Python polars-gpu integration tests (81 tests)
+# Python polars-gpu integration tests
 python tests/polars_gpu_integration.py
 ```
 
-Total: **193 tests** covering type roundtrips, filter, select, sort, groupby, join, slice, binary ops, distinct, with_columns, concat, nulls, edge cases, and error paths.
+Total: **469 tests** covering type roundtrips, filter, select, sort, groupby, join, slice, binary ops, distinct, with_columns, concat, nulls, temporal types, window functions, and error paths.
 
 ## Contributing
 
